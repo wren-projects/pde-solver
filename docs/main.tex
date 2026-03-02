@@ -9,6 +9,7 @@
 \usepackage{lmodern}
 \usepackage{microtype}
 
+
 \usepackage{amsmath, amssymb, amsfonts, mathtools}
 \usepackage{amsthm}
 
@@ -408,54 +409,7 @@ between variable groups.
 
 \paragraph{Code slot (NumPy).}
 \begin{verbatim}
-    def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
-    ) -> TTD[DT]:
-        """
-        TT-compress an ndarray into a TTD object.
-
-        Parameters
-        ----------
-        array : NDArray
-            The array to compress.
-        epsilon : float, optional
-            The error tolerance for the compression. Uses system-wide default
-            value if not provided.
-
-        Returns
-        -------
-        TTD The TT-compressed object. Satisfies ||A - TTD||ᶠ ≤ epsilon ⋅ ||A||ᶠ
-
-        """
-        d = array.ndim
-
-        if d == 1:
-            return TTD([array.reshape((1, len(array), 1))])
-
-        delta = _truncation_parameter(array, epsilon)
-
-        shape: tuple[int, ...] = array.shape
-
-        remaining_tensor = array.reshape((shape[0], -1))
-
-        r = 1
-
-        cores: TTD.DataType[DT] = []
-
-        for n in shape[:-1]:
-            remaining_tensor = remaining_tensor.reshape((r * n, -1))
-
-            u, s, v_t = _delta_truncated_svd(remaining_tensor, delta)
-
-            new_core = u.reshape((r, n, -1))
-            cores.append(new_core)
-
-            r = new_core.shape[2]
-
-            remaining_tensor = cast(MatrixType[DT], s[:, None] * v_t)
-    cores.append(remaining_tensor.reshape((*remaining_tensor.shape, 1)))
-
-        return TTD(cores)
+#TODO implemented TTD
 \end{verbatim}
 
 
@@ -552,7 +506,7 @@ G_1(i_1)\cdots G_k(i_k)
 orthonormal in Frobenius norm.
 
 This ensures that the subsequent SVD truncations behave like
-optimal matrix approximations, leading to numerical stability
+optimal matrix approximations, leading to numerical= _mode_1_contraction(cores[k], np.multiply stability
 and quasi-optimal error control.
 \end{remark}
 \paragraph{Important distinction.}
@@ -564,47 +518,7 @@ while controlling the approximation error.
 \end{itemize}
 \paragraph{Code slot (NumPy).}
 \begin{verbatim}
-    def _round(self, _epsilon: DType | float = DEFAULT_EPSILON) -> None:
-        """
-        Round the TTD object by decreasing ranks.
-
-        Uses SVD for compression. Ensures that the ranks of ��̃ are maximally
-        reduces, while ensuring ||A - ̂��̃||ᶠ ≤ ε ⋅ ||A||ᶠ.
-
-        Operates on the TTD object in-place. See also :func:`TTD.rounded`.
-
-        Parameters
-        ----------
-        epsilon : float, optional
-            The error tolerance for the compression. Uses system-wide default
-            value if not provided.
-
-        """
-        cores = self.data
-        d = len(cores)
-
-        q: MatrixType[DType]
-        r: MatrixType[DType]
-
-        for k in range(d, 1, -1):  # for k = d to 2 step -1
-            core = cores[k - 1]
-            alpha_k1, i_k, beta_k = core.shape
-            q, r = map(
-                np.transpose, np.linalg.qr(core.reshape((alpha_k1, i_k * beta_k)).T)
-            )
-            cores[k - 1] = q.reshape((-1, i_k, beta_k))
-            cores[k - 2] = _mode_3_contraction(cores[k - 2], r)
-
-        u: MatrixType[DType]
-        s: VectorType[DType]
-        v_t: MatrixType[DType]
-
-        for k in range(1, d):  # for k = 1 to d-1
-            core = cores[k - 1]
-            beta_k1, i_k, beta_k = core.shape
-            u, s, v_t = _delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k))
-            cores[k - 1] = u.reshape((beta_k1, i_k, -1))
-            cores[k] = _mode_1_contraction(cores[k], np.multiply(v_t, s))
+    #TODO implemented rounding
 \end{verbatim}
 
 
@@ -663,9 +577,7 @@ product computation (see below). In practice, orthogonalization often improves s
 
 \paragraph{Code slot.}
 \begin{verbatim}
-def _frobenius_norm[DT: np.floating](tensor: NDArray[DT]) -> DT:
-    """Compute the frobenius norm of an arbitrary tensor."""
-    return np.sqrt(np.sum(np.square(tensor)))  
+#TODO implemented proper norm_F
 \end{verbatim}
 
 
@@ -737,7 +649,7 @@ the computational complexity is
 \]
 \paragraph{Code slot.}
 \begin{verbatim}
-#TODO
+#TODO implemented inner product
 \end{verbatim}
 \subsection{Matrix-by-vector application}
 
