@@ -4,7 +4,7 @@
 
 - Implement TTD with the full numpy interface
 - Create multiple PDE solvers (methods) that use TTD for the convection-diffusion equation or its subproblems (e.g. convection equation)
-- Create a basic framework to compare different solvers, their speed, memory requirements and "accuracy" of their solution (or, rather, the difference between their solution and some third solution we proclaim as the "true" solution)
+- Create a basic framework to compare different solvers, their speed, memory requirements and "accuracy" of their solution (or, rather, the difference between their solution and some third solution we consider the "true" solution)
 
 ## Clients
 
