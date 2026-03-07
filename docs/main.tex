@@ -394,12 +394,27 @@ by sequential low-rank approximation of unfolding matrices
 \end{remark}
 
 \paragraph{Explanation (informal).}
+At step $k$ we reshape the tensor into a matrix that separates
+the first $k$ indices from the remaining $d-k$ indices.
+This matrix describes how these two groups of indices
+depend on each other.
 
-At step $k$ we view the tensor as a matrix that separates the first $k$
-variables from the remaining ones. The SVD extracts the minimal interaction
-dimension $r_k$. Each singular vector block becomes the matrix $G_k(i_k)$. Thus,
-TT-SVD sequentially extracts the ``interaction ranks'' between variable groups.
+We then compute a truncated Singular Value Decomposition (SVD)
+of this matrix to obtain a low-rank approximation.
+The rank $r_k$ of this approximation determines the next
+TT-rank.
 
+The left singular vectors are reshaped into blocks that form
+the $k$-th TT core $G_k(i_k)$.
+The remaining part of the tensor is passed to the next step,
+where the same procedure is applied again.
+
+By repeating this process for $k = 1,\dots,d-1$,
+the algorithm constructs all TT cores and determines
+the TT-ranks of the representation.
+
+In this way, TT-SVD builds the tensor train representation
+sequentially, extracting one core at a time.
 \paragraph{Code slot (NumPy).}
 
 \begin{minted}{python}
