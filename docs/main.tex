@@ -1,0 +1,1079 @@
+\documentclass[11pt,a4paper,parskip=half-]{scrartcl}
+
+%-------------------------
+% Packages
+%-------------------------
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+\usepackage{amsthm}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{minted}
+
+\usepackage{fnpct}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{enumitem}
+
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\usepackage{authoraftertitle}
+
+\usepackage[breaklinks]{hyperref}
+\usepackage{cleveref}
+
+% make footnotes rules as wide as the text
+\renewcommand{\footnoterule}{%
+  \kern -4pt
+  \hrule width \textwidth height 0.4pt
+  \kern 3.6pt
+}
+
+% define helper command for typesetting inline code
+\newcommand{\code}[1]{\texttt{#1}}
+
+\setstretch{1.125}
+
+%-------------------------
+% Theorem-like environments
+%-------------------------
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}{Example}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+%-------------------------
+% Common notation macros
+%-------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\newcommand{\ip}[2]{\left\langle #1,#2\right\rangle}
+
+% Tensor Train notation
+\newcommand{\TT}{\mathrm{TT}}
+\newcommand{\rank}{\text{rank}}
+\newcommand{\diag}{\mathrm{diag}}
+
+% Optional: consistent algorithm keyword styling
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+%-------------------------
+% Title info
+%-------------------------
+\title{Tensor Train (TT) Decomposition and PDE Solvers}
+\author{Pavel Altmann, Jakub Kopčil, Eva Trejbalová (WREN)}
+
+\hypersetup{
+  pdfborderstyle={/S/U/W 0.5},
+  pdftitle={\MyTitle},
+  pdfauthor={\MyAuthor}
+}
+\urlstyle{same}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  This document collects definitions and core algorithms for the tensor train
+  (TT) format, basic operations in TT, and how TT representations can be used to
+  solve higher-dimensional (4--10 dimensions) partial differential equations
+  (PDEs) in Python using NumPy.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+%==================================================
+\section{Motivation}
+%==================================================
+
+The goal of the Tensor Train (TT) decomposition is to represent
+such tensors using a number of parameters that grows only
+linearly in $d$, provided certain low-rank structure exists.
+
+High–dimensional problems naturally lead to tensors, i.e.,
+multidimensional arrays of numbers.
+
+If a function
+\[
+  f(x_1,\dots,x_d)
+\]
+is sampled on a tensor grid with $n_k$ points in each dimension,
+the resulting data structure is a tensor
+\[
+  A \in \mathbb{R}^{n_1 \times \cdots \times n_d}.
+\]
+
+Storing such a full tensor requires
+\[
+  n_1 n_2 \cdots n_d
+\]
+numbers, which grows exponentially in $d$. This phenomenon is known as the
+\textbf{curse of dimensionality} \cite{Oseledets2009TreeTucker,Oseledets2011TT}.
+Low–rank tensor formats aim to overcome this exponential growth.
+
+%==================================================
+\section{Tensor Definition}
+%==================================================
+
+\begin{definition}[Tensor]
+  A $d$-dimensional tensor $A$ is a multidimensional array
+  \[
+    A \in \mathbb{R}^{n_1 \times n_2 \times \cdots \times n_d},
+  \]
+  whose entries are indexed as
+  \[
+    A(i_1,\dots,i_d), \quad 1 \le i_k \le n_k.
+  \]
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+A tensor is simply a generalization of vectors and matrices to dimensions $d >
+2$. For example, a video can be thought of as a tensor with 4 dimensions: width
+$\times$ height $\times$ color channels $\times$ time. The problem is that
+storing all entries quickly becomes impossible when $d$ grows.
+
+\paragraph{Representation in code.}
+
+In numerical computing, a tensor is typically stored as an \code{ndarray}
+(NumPy array).
+
+\begin{definition}[Mode-$k$ unfolding]
+  Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$.
+
+  The $k$-th unfolding (or matricization) of $A$ is the matrix
+  \[
+    A^{\langle k\rangle}
+    \in
+    \mathbb{R}^{(n_1 \cdots n_k)\times(n_{k+1}\cdots n_d)}
+  \]
+  obtained by reshaping the tensor so that the first $k$
+  indices form the row index and the remaining indices form
+  the column index.
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+Unfolding allows us to covert a tensor with arbitrary dimensions into a single
+matrix by reshaping (similarly to how a matrix can be represented by a regular
+array given proper indexing). This is important because matrices can be
+approximated by low-rank factorizations using the Singular Value Decomposition
+(SVD).
+
+The SVD decomposition is of the form
+\[
+  A = U \Sigma V^\top,
+\]
+and truncating small singular values yields the best low-rank approximation in
+the Frobenius norm.
+
+TT decomposition is built from successive low-rank approximations of unfolding
+matrices\cite{Oseledets2011TT}.
+
+\paragraph{Representation in code.}
+
+In NumPy, unfolding is just a reshape:
+
+\begin{minted}{python}
+A_k = A.reshape(
+    np.prod(A.shape[:k]),
+    np.prod(A.shape[k:])
+)
+\end{minted}
+
+%==================================================
+\section{Tensor Train Decomposition}
+%==================================================
+
+\subsection{Definition}
+\begin{definition}[Tensor Train decomposition (TTD)]
+  A tensor $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$
+  is in Tensor Train (TT) format if it can be written as
+  \[
+    A(i_1,\dots,i_d)
+    =
+    G_1(i_1) G_2(i_2) \cdots G_d(i_d),
+  \]
+  where for each $k$:
+  \[
+    G_k(i_k) \in \mathbb{R}^{r_{k-1} \times r_k},
+  \]
+  and
+  \[
+    r_0 = r_d = 1.
+  \]
+
+  Equivalently, treating matrices as a function \(\R^2\to \R\):
+  \[
+    A(i_1,\dots,i_d)
+    =
+    \sum_{\alpha_1,\dots,\alpha_{d-1}}
+    G_1(i_1)(1,\alpha_1)
+    G_2(i_2)(\alpha_1,\alpha_2)
+    \cdots
+    G_d(i_d)(\alpha_{d-1},1).
+  \]
+\end{definition}
+
+\begin{remark}
+  The storage complexity of the TT format is
+  \[
+    \sum_{k=1}^d n_k r_{k-1} r_k.
+  \]
+
+  If $r_k \le r$ and $n_k = n$,
+  this becomes
+  \[
+    \mathcal{O}(d n r^2),
+  \]
+  which is linear in $d$. Thus, TT format breaks the curse of dimensionality
+  when TT-ranks remain moderate.
+\end{remark}
+
+\paragraph{Explanation (informal).}
+Each index $i_k$ selects a matrix $G_k(i_k)$. Multiplying these matrices yields
+a scalar because the boundary ranks satisfy $r_0 = r_d = 1$.
+
+Thus, the tensor entry is obtained by a chain of matrix multiplications.
+
+\paragraph{Explanation (informal).}
+Instead of storing the full tensor, we store small 3D tensors called
+\textbf{cores}. Each core connects only to its neighbors, forming a chain (a
+``train''). Instead of storing all $n^d$ elements, only approximately
+$\mathcal{O}(d n r^2)$ numbers are required when ranks $r_k$ are
+moderate\cite{Oseledets2011TT}.
+
+\paragraph{Representation in code.}
+
+In practice, TT format is stored as a list of cores:
+
+\begin{minted}{python}
+# TT tensor represented as list of cores
+G = [G1, G2, ..., Gd]
+# Each core has shape (r_{k-1}, n_k, r_k)
+Gk.shape = (r_prev, n_k, r_next)
+\end{minted}
+
+\subsection{TT-rank and related concepts}
+
+\begin{definition}[TT-rank]
+  Let $A^{\langle k\rangle}$ denote the $k$-th unfolding of $A$.
+  The TT-ranks are defined as
+  %TODO: better lay explenation
+  \[
+    r_k = \operatorname{rank}\!\left(A^{\langle k\rangle}\right),
+    \quad k=1,\dots,d-1.
+  \]
+\end{definition}
+
+\paragraph{Explanation (informal).}
+The rank $r_k$ measures how strongly the first $k$ variables interact with the
+remaining $d - k$ variables. If $r_k = 1$, the first $k$ variables are
+independent of the rest.
+
+These ranks determine the minimal possible internal dimensions of any TT
+representation.
+
+%==================================================
+\section{Basic Operations in TT Format}
+%==================================================
+
+\subsection{Computing TTD}
+\subsubsection{From Unfoldings to TT-SVD}
+\begin{definition}[Frobenius norm]
+  For a tensor $A$,
+  \[
+    \|A\|_F
+    =
+    \sqrt{
+      \sum_{i_1,\dots,i_d}
+      A(i_1,\dots,i_d)^2
+    }.
+  \]
+\end{definition}
+
+\paragraph{Conceptual idea.}
+The TT-SVD algorithm constructs a TT representation
+by applying truncated SVD to successive unfolding matrices.
+
+At each step:
+
+\begin{enumerate}
+  \item Reshape the tensor into a matrix.
+  \item Compute its truncated SVD.
+  \item Store left singular vectors as a TT core.
+  \item Pass the remainder to the next step.
+\end{enumerate}
+
+This produces a quasi-optimal low-rank TT approximation.
+
+\subsubsection{Algorithm for computing a TT decomposition (TT-SVD)}
+
+The TT-SVD algorithm constructs matrix-valued functions
+\[
+  G_k : \{1,\dots,n_k\} \to \mathbb{R}^{r_{k-1}\times r_k}
+\]
+by sequential low-rank approximation of unfolding matrices
+\cite{Oseledets2011TT} as described in \cref{alg:ttsvd}.
+
+\begin{algorithm}[ht]
+  \caption{TT-SVD in matrix-valued function notation}
+  \label{alg:ttsvd}
+  \begin{algorithmic}[1]
+    \Require Tensor $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$, tolerance
+    $\varepsilon$
+    \Ensure Matrix-valued functions $G_1,\dots,G_d$
+
+    \State Set $r_0 \gets 1$
+    \State Set $C \gets A$
+    \State Set $\delta \gets \dfrac{\varepsilon}{\sqrt{d-1}} \|A\|_F$
+
+    \For{$k=1$ to $d-1$}
+
+    \State Reshape $C$ into matrix
+    \[
+      C \in
+      \mathbb{R}^{(r_{k-1} n_k) \times (n_{k+1}\cdots n_d)}
+    \]
+
+    \State Compute truncated SVD
+    \[
+      C \approx U \Sigma V^\top,
+      \quad
+      \|C-U\Sigma V^\top\|_F \le \delta
+    \]
+
+    \State Let $r_k$ be the number of kept singular values
+
+    \State Partition $U$ into $n_k$ consecutive blocks of size
+    $r_{k-1} \times r_k$
+
+    \State Define matrix-valued function
+    \[
+      G_k(i_k) :=
+      \text{the block of $U$ corresponding to index $i_k$}
+    \]
+
+    \State Set $C \gets \Sigma V^\top$
+
+    \EndFor
+
+    \State Define $G_d(i_d)$ from the final matrix $C$
+    \[
+      C \in \mathbb{R}^{r_{d-1} \times n_d}
+    \]
+    by taking column $i_d$ as a matrix in $\mathbb{R}^{r_{d-1}\times 1}$.
+
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{remark}
+  A standard relative-accuracy choice is to distribute the Frobenius error
+  budget across the $d-1$ SVD truncations:
+  \[
+    \delta = \frac{\varepsilon}{\sqrt{d-1}}\,\|A\|_F,
+  \]
+  so that the final TT approximation satisfies $\|A-\widehat{A}\|_F
+  \le \varepsilon\|A\|_F$
+  (see the TT-SVD error bound in \cite{Oseledets2011TT}).
+\end{remark}
+
+\paragraph{Explanation (informal).}
+At step $k$ we reshape the tensor into a matrix that separates
+the first $k$ indices from the remaining $d-k$ indices.
+This matrix describes how these two groups of indices
+depend on each other.
+
+We then compute a truncated Singular Value Decomposition (SVD)
+of this matrix to obtain a low-rank approximation.
+The rank $r_k$ of this approximation determines the next
+TT-rank.
+
+The left singular vectors are reshaped into blocks that form
+the $k$-th TT core $G_k(i_k)$.
+The remaining part of the tensor is passed to the next step,
+where the same procedure is applied again.
+
+By repeating this process for $k = 1,\dots,d-1$,
+the algorithm constructs all TT cores and determines
+the TT-ranks of the representation.
+
+In this way, TT-SVD builds the tensor train representation
+sequentially, extracting one core at a time.
+\paragraph{Code slot (NumPy).}
+
+\begin{minted}{python}
+  # TODO implemented TTD
+\end{minted}
+
+\subsection{Rounding}
+
+\subsubsection{Algorithm for rounding (rank truncation / recompression)}
+
+Rounding (also called recompression) reduces inflated TT-ranks after operations
+(addition, etc.) while controlling the approximation error. The standard
+procedure is to orthogonalize (QR sweep) and then truncate (SVD sweep)
+\cite{Oseledets2011TT} as shown in \cref{alg:rounding}.
+
+\begin{algorithm}[ht]
+  \caption{TT rounding in matrix-valued function notation}
+  \label{alg:rounding}
+  \begin{algorithmic}[1]
+    \Require Matrix-valued functions $G_1,\dots,G_d$, tolerance $\varepsilon$
+    \Ensure Rounded matrix-valued functions
+    $\widetilde{G}_1,\dots,\widetilde{G}_d$
+
+    \State Set $\delta \gets \dfrac{\varepsilon}{\sqrt{d-1}} \|\widehat{A}\|_F$
+
+    \State \textbf{Left-to-right orthogonalization}
+
+    \For{$k=1$ to $d-1$}
+
+    \State Form matrix
+    \[
+      M_k :=
+      \begin{bmatrix}
+        G_k(1) \\
+        \vdots \\
+        G_k(n_k)
+      \end{bmatrix}
+      \in
+      \mathbb{R}^{(r_{k-1} n_k) \times r_k}
+    \]
+
+    \State Compute thin QR:
+    \[
+      M_k = Q_k R_k
+    \]
+
+    \State Redefine $G_k(i_k)$ as corresponding block of $Q_k$
+
+    \State Update next core:
+    \[
+      G_{k+1}(i_{k+1})
+      \leftarrow
+      R_k \, G_{k+1}(i_{k+1})
+    \]
+
+    \EndFor
+
+    \State \textbf{Right-to-left truncation}
+
+    \For{$k=d$ down to $2$}
+
+    \State Form matrix
+    \[
+      N_k :=
+      \begin{bmatrix}
+        G_k(1) & \cdots & G_k(n_k)
+      \end{bmatrix}
+      \in
+      \mathbb{R}^{r_{k-1} \times (n_k r_k)}
+    \]
+
+    \State Compute truncated SVD
+    \[
+      N_k \approx U \Sigma V^\top
+    \]
+
+    \State Update:
+    \[
+      G_k(i_k)
+      \leftarrow
+      \text{corresponding block of } V^\top
+    \]
+
+    \State Update previous core:
+    \[
+      G_{k-1}(i_{k-1})
+      \leftarrow
+      G_{k-1}(i_{k-1}) (U\Sigma)
+    \]
+
+    \EndFor
+
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{remark}
+  The QR sweep makes the partial products
+  \[
+    G_1(i_1)\cdots G_k(i_k)
+  \]
+  orthonormal in Frobenius norm.
+
+  This ensures that the subsequent SVD truncations behave like
+  optimal matrix approximations, leading to numerical stability
+  and quasi-optimal error control.
+\end{remark}
+
+\paragraph{Important distinction.}
+\begin{itemize}
+  \item TT-SVD constructs a TT representation from a full tensor.
+  \item Rounding reduces the ranks of an existing TT tensor
+    while controlling the approximation error.
+\end{itemize}
+
+\paragraph{Code slot (NumPy).}
+\begin{minted}{python}
+# TODO implemented rounding
+\end{minted}
+
+\subsection{Addition}
+
+Given $A$ and $B$ in TT format, a standard construction forms a TT
+representation of
+$C=A+B$ by stacking cores blockwise; ranks add (then we round).
+
+\paragraph{Construction (conceptual).}
+If $A$ has cores $G_A^{(k)} \in \mathbb{R}^{r_{k-1}^A \times n_k \times r_k^A}$
+and $B$ has $G_B^{(k)} \in \mathbb{R}^{r_{k-1}^B \times n_k \times r_k^B}$,
+define cores of $C$:
+
+\begin{itemize}[leftmargin=2em]
+  \item For $k=1$: concatenate along the last (right-rank) index:
+    \[
+      G_C^{(1)}(1,i_1,:) = \big[\,G_A^{(1)}(1,i_1,:)
+      \ \ \ G_B^{(1)}(1,i_1,:)\,\big]
+    \]
+  \item For $1<k<d$: block-diagonal stacking:
+    \[
+      G_C^{(k)}(:,i_k,:) =
+      \begin{bmatrix}
+        G_A^{(k)}(:,i_k,:) & 0\\
+        0 & G_B^{(k)}(:,i_k,:)
+      \end{bmatrix}
+    \]
+  \item For $k=d$: concatenate along the first (left-rank) index:
+    \[
+      G_C^{(d)}(:,i_d,1) =
+      \begin{bmatrix}
+        G_A^{(d)}(:,i_d,1)\\
+        G_B^{(d)}(:,i_d,1)
+      \end{bmatrix}
+    \]
+\end{itemize}
+
+This yields ranks $r_k^C = r_k^A + r_k^B$. The procedure is finalized by
+rounding $C$ (\cref{alg:rounding}).
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# then call tt_round(...)
+\end{minted}
+
+\paragraph{Scalar multiplication.}
+For $c\in\mathbb{R}$ and TT tensor $A$ with cores $G^{(k)}$, one may
+scale a single core:
+\[
+  (cA)\ \text{can be represented by cores}\ (c\,G^{(1)}),G^{(2)},\dots,G^{(d)}.
+\]
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# - scalar multiply: scale G[0] *= c
+\end{minted}
+
+\paragraph{Norms.}
+The Frobenius norm satisfies $\|A\|_F = \sqrt{\langle A,A\rangle}$, so it
+reduces to an inner product computation (see below). In practice,
+orthogonalization often improves stability.
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+  # TODO implemented proper norm_F
+\end{minted}
+
+% TODO: Norm computation via contractions; mention orthogonalization.
+
+\subsection{Inner products}
+
+\begin{definition}[Inner product in TT format]
+
+  Let $A$ and $B$ be two tensors in TT format with
+  matrix-valued cores
+
+  \[
+    G_k : \{1,\dots,n_k\} \to \mathbb{R}^{r_{k-1}\times r_k},
+    \quad
+    H_k : \{1,\dots,n_k\} \to \mathbb{R}^{s_{k-1}\times s_k}.
+  \]
+
+  The Frobenius inner product
+
+  \[
+    \langle A,B \rangle
+    =
+    \sum_{i_1,\dots,i_d}
+    A(i_1,\dots,i_d)\,
+    B(i_1,\dots,i_d)
+  \]
+
+  can be computed sequentially as follows.
+
+  Define $M_0 = [1]$ and recursively compute
+
+  \[
+    M_k
+    =
+    \sum_{i_k=1}^{n_k}
+    G_k(i_k)^\top
+    \, M_{k-1} \,
+    H_k(i_k),
+    \qquad k=1,\dots,d.
+  \]
+
+  Then
+
+  \[
+    \langle A,B \rangle = M_d.
+  \]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+Instead of summing over all $n_1\cdots n_d$ tensor entries,
+we contract the tensor cores one dimension at a time.
+
+At each step $k$, we accumulate a small matrix $M_k$ that carries the
+interaction
+between the first $k$ dimensions. Since the boundary ranks satisfy $r_0=s_0=1$,
+the final matrix $M_d$ is a scalar. This reduces exponential complexity to
+polynomial complexity.
+
+\paragraph{Complexity.}
+If $n_k \le n$ and all TT-ranks are bounded by $r$, the computational complexity
+is
+
+\[
+  \mathcal{O}(d\, n\, r^3).
+\]
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+  # inner product
+\end{minted}
+
+\subsection{Matrix-vector multiplication}
+
+\begin{definition}[TT matrix applied to TT vector]
+
+  A linear operator in TT format is represented by
+  matrix-valued functions
+
+  \[
+    A_k :
+    \{1,\dots,n_k\}\times\{1,\dots,m_k\}
+    \to
+    \mathbb{R}^{R_{k-1}\times R_k}.
+  \]
+
+  A TT vector is represented by cores
+
+  \[
+    G_k :
+    \{1,\dots,m_k\}
+    \to
+    \mathbb{R}^{r_{k-1}\times r_k}.
+  \]
+
+  The product $y = Ax$ is defined by
+
+  \[
+    y(i_1,\dots,i_d)
+    =
+    \sum_{j_1,\dots,j_d}
+    A(i_1,j_1,\dots,i_d,j_d)
+    x(j_1,\dots,j_d).
+  \]
+
+  The resulting TT cores are
+
+  \[
+    \widetilde{G}_k(i_k)
+    =
+    \sum_{j_k=1}^{m_k}
+    A_k(i_k,j_k)
+    \otimes
+    G_k(j_k),
+  \]
+
+  where $\otimes$ denotes the Kronecker product.
+
+\end{definition}
+\paragraph{Explanation (informal).}
+
+Each core of the operator interacts only with the corresponding core of the
+vector at the same dimension.
+
+For each dimension $k$ we combine:
+
+• the operator slice $A_k(i_k,j_k)$
+• the vector slice $G_k(j_k)$
+
+This produces a new core whose ranks are multiplied:
+
+\[
+  \tilde r_k \approx R_k r_k.
+\]
+
+Afterward, TT rounding is typically applied to control rank growth.
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# - represent TT-matrix cores Acores[k] with shape (R_{k-1}, n_k, m_k, R_k)
+# - represent TT-vector cores X[k] with shape (r_{k-1}, m_k, r_k)
+# - build Y[k] by contracting over m_k, ranks multiply
+# - round Y
+\end{minted}
+
+\section{PDEs and Using TT format to solve them}
+%==================================================
+
+\subsection{Definition of PDE}
+
+\begin{definition}[Partial Differential Equation]
+
+  Let $\Omega \subset \mathbb{R}^d$.
+  A partial differential equation (PDE) has the form
+
+  \[
+    \mathcal{L} u(x_1,\dots,x_d) = f(x_1,\dots,x_d),
+  \]
+
+  where
+
+  \begin{itemize}
+    \item $u : \Omega \to \mathbb{R}$ is the unknown function,
+    \item $\mathcal{L}$ is a differential operator,
+    \item $f$ is a given function.
+  \end{itemize}
+
+  Example (Poisson equation):
+
+  \[
+    -\Delta u = f,
+    \qquad
+    \Delta = \sum_{k=1}^d \frac{\partial^2}{\partial x_k^2}.
+  \]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+A PDE describes how a function of several variables changes in space.
+
+For example, the Poisson equation models heat distribution, electrostatics, or
+diffusion.
+
+In low dimensions ($d=1,2,3$), standard numerical methods work well.
+However, when $d$ becomes large (for example $d=6,8,10$), the computational cost
+grows rapidly.
+
+Tensor Train methods allow us to represent both:
+
+\begin{itemize}
+  \item the solution $u$,
+  \item the operator $\mathcal{L}$,
+\end{itemize}
+
+in compressed TT form.
+
+\subsection{Discretization and the Curse of Dimensionality}
+
+\begin{definition}[Finite-dimensional discretization]
+
+  Discretize each variable $x_k$ using $n$ grid points.
+
+  The continuous function $u(x_1,\dots,x_d)$ is replaced by a tensor
+
+  \[
+    U \in \mathbb{R}^{n \times \cdots \times n}
+    = \mathbb{R}^{n^d}.
+  \]
+
+  The differential operator $\mathcal{L}$ is replaced by a matrix
+
+  \[
+    A \in \mathbb{R}^{n^d \times n^d}.
+  \]
+
+  The PDE becomes the linear system
+
+  \[
+    A U = F.
+  \]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+After discretization, solving a PDE means solving a linear system. If each
+dimension has $n$ grid points, the number of unknowns is $n^d$.
+
+Even for moderate values, for example $n=50$ and $d=8$, the system has $50^8
+\approx 4 \times 10^{13}$ unknowns — far beyond what can be stored. This
+exponential growth is the result of the curse of dimensionality.
+
+\subsection{Tensor Structure of the Laplacian}
+\begin{definition}[Kronecker sum representation]
+  For the Poisson equation with constant coefficients, the discrete operator has
+  the form
+
+  \[
+    A
+    =
+    \sum_{k=1}^d
+    I \otimes \cdots \otimes
+    L
+    \otimes \cdots \otimes I,
+  \]
+
+  where $L \in \mathbb{R}^{n \times n}$ is the 1D discrete Laplacian, end $I$ is
+  the identity matrix.
+
+  This is called a Kronecker sum operator.
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+The $d$-dimensional Laplacian is simply the sum of independent 1D Laplacians.
+Each term acts only on one variable, while leaving others unchanged. This
+separability means the operator has a low-rank tensor structure. Instead of
+storing a matrix of size $n^d \times n^d$, we store $d$ small matrices of size
+$n \times n$. This is precisely the type of structure that the TT
+format can exploit.
+
+\subsection{PDEs with Constant Coefficients}
+\begin{definition}[Constant-coefficient PDE]
+
+  A linear second-order elliptic PDE has constant coefficients
+  if it can be written in the form
+
+  \[
+    -\sum_{k=1}^d c_k \frac{\partial^2 u}{\partial x_k^2}
+    = f(x),
+  \]
+
+  where the coefficients $c_k \in \mathbb{R}$ are constants (independent of
+  $x$).
+
+  In the special case $c_k = 1$ for all $k$, this reduces to the Poisson
+  equation
+
+  \[
+    -\Delta u = f.
+  \]
+
+\end{definition}
+\paragraph{Discretized form.}
+
+After discretization on a tensor grid with $n$ points per dimension,
+the PDE becomes a linear system
+
+\[
+  A U = F,
+\]
+
+where
+
+\[
+  A
+  =
+  \sum_{k=1}^d
+  I \otimes \cdots \otimes
+  L
+  \otimes \cdots \otimes I,
+\]
+
+and $L \in \mathbb{R}^{n \times n}$ is the one-dimensional discrete Laplacian.
+
+\paragraph{Explanation (informal).}
+
+When coefficients are constant, each spatial direction contributes the same type
+of operator.
+
+This leads to a separable Kronecker structure in the discretized matrix $A$.
+
+As a result:
+
+\begin{itemize}
+  \item $A$ has low TT-rank,
+  \item it can be stored efficiently in TT format,
+  \item high-dimensional problems become tractable.
+\end{itemize}
+
+The structure of the operator does not depend on position, which is what enables
+this strong separability.
+
+\subsection{PDEs with Variable Coefficients}
+\begin{definition}[Variable-coefficient PDE]
+
+  A second-order elliptic PDE has variable coefficients if it has the form
+
+  \[
+    -\nabla \cdot (a(x)\nabla u(x)) = f(x),
+  \]
+
+  where the coefficient function
+
+  \[
+    a : \Omega \to \mathbb{R}
+  \]
+
+  depends on the spatial variables.
+\end{definition}
+\paragraph{Discretized form.}
+
+After discretization, we again obtain a linear system
+
+\[
+  A(a) U = F,
+\]
+
+but the matrix $A(a)$ now depends on the spatially varying coefficient.
+
+\paragraph{Explanation (informal).}
+
+When $a(x)$ varies in space, the operator is no longer a simple Kronecker sum.
+
+However, if the coefficient function admits a low-rank tensor approximation, for
+example
+
+\[
+  a(x_1,\dots,x_d)
+  \approx
+  \sum_\alpha
+  a_1(x_1)\cdots a_d(x_d),
+\]
+
+then the discretized operator $A(a)$ can still be approximated in TT format.
+
+Thus, TT methods extend beyond constant-coefficient problems.
+%==================================================
+\section{Implicit Methods for Solving PDE}
+%==================================================
+
+\subsection{Implicit Method}
+
+\begin{definition}[Implicit time discretization]
+
+  Consider a time-dependent PDE of the form
+
+  \[
+    \frac{\partial u}{\partial t} = \mathcal{L} u + f,
+    \qquad u(0) = u_0.
+  \]
+
+  Let $t_n = n\Delta t$.
+
+  An implicit time-stepping scheme computes $u^{n+1}$
+  by solving an equation involving the unknown future value:
+
+  \[
+    \Phi(u^{n+1}, u^n) = 0.
+  \]
+
+  In general form:
+
+  \[
+    u^{n+1}
+    =
+    u^n
+    +
+    \Delta t \, \mathcal{L}(u^{n+1})
+    +
+    \Delta t \, f^{n+1}.
+  \]
+
+\end{definition}
+\paragraph{Explanation (informal).}
+
+In an implicit method, the new solution $u^{n+1}$ appears on both sides of the
+equation. This means we must solve a system of equations at every time step.
+
+Advantages:
+
+\begin{itemize}
+  \item Stable for large time steps
+  \item Often unconditionally stable
+  \item Suitable for stiff PDEs
+\end{itemize}
+
+Disadvantages:
+
+\begin{itemize}
+  \item Requires solving linear systems
+  \item Computationally more expensive per step
+\end{itemize}
+
+\subsection{Method A}
+
+%==================================================
+\section{Explicit Methods for Solving PDE}
+%==================================================
+\subsection{Explicit Method}
+
+\begin{definition}[Explicit time discretization]
+
+  An explicit time-stepping scheme computes $u^{n+1}$
+  using only already known quantities:
+
+  \[
+    u^{n+1}
+    =
+    u^n
+    +
+    \Delta t \, \mathcal{L}(u^n)
+    +
+    \Delta t \, f^n.
+  \]
+
+\end{definition}
+\paragraph{Explanation (informal).}
+
+In an explicit method,
+the new value $u^{n+1}$ is computed directly
+from previously known values.
+
+Advantages:
+
+\begin{itemize}
+  \item No linear system to solve
+  \item Cheap per time step
+  \item Easy to implement
+\end{itemize}
+
+Disadvantages:
+
+\begin{itemize}
+  \item Stability restrictions on $\Delta t$
+  \item CFL condition
+  \item Often requires very small time steps
+\end{itemize}
+\subsection{Method A}
+
+%==================================================
+\section{Conclusion and Further Reading}
+%==================================================
+% Add citations and key references here (TT-SVD, Oseledets, AMEn, etc.)
+
+\bibliographystyle{alpha}
+\bibliography{references}
+
+\end{document}
