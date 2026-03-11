@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from pde_solver.types import Matrix, Vector
+from pde_solver.our_types import Matrix, Vector
 
 
 @dataclass

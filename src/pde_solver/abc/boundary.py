@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from pde_solver.types import DType, Vector
+from pde_solver.our_types import DType, Vector
 
 
 class BoundaryCondition(ABC):
