@@ -1,0 +1,20 @@
+from abc import ABC, abstractmethod
+
+from pde_solver.abc.boundary import BoundaryCondition
+from pde_solver.abc.pde import PDE
+from pde_solver.types import NDArray
+
+
+class Solver(ABC):
+    """Interface for PDE solvers."""
+
+    @abstractmethod
+    def __call__(
+        self,
+        pde: PDE,
+        initial_condition: NDArray,
+        boundary_condition: BoundaryCondition,
+        time: float,
+    ) -> NDArray:
+        """Compute the state at the given time given the PDE and it's conditions."""
+        raise NotImplementedError
