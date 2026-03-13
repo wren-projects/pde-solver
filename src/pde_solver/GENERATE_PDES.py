@@ -1,6 +1,7 @@
+# ruff: noqa: ARG001, N999, T201
 import inspect
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
@@ -9,8 +10,10 @@ from pde_solver.our_types import DType, Function, Matrix, Scalar, TimeFunction, 
 
 
 class NoneType:
-    """Our custom None, cause Type[None] isnt working..."""
+    """Our custom None, cause Type[None] isn't working..."""
 
+
+NoneType.__name__ = "None"
 
 type data_type = TypeAliasType | type[NoneType]
 
@@ -18,12 +21,9 @@ type basic_data = Function[Scalar] | Scalar | Vector | Matrix
 type Entry = tuple[str, data_type]
 
 
-NoneType.__name__ = "None"
-
-
 def scalar_to_vector(dim: int, value: Scalar) -> Vector:
     """Transform scalar into a vector."""
-    return np.array([value for _ in range(dim)], dtype=DType)
+    return np.full(dim, value, dtype=DType)
 
 
 def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
@@ -45,7 +45,7 @@ def constant_zero(dim: int, value: None) -> Scalar:
 
 def constant_zero_vector(dim: int, value: None) -> Vector:
     """Cast None into Vector."""
-    return np.array([0] * dim, dtype=DType)
+    return np.zeros(dim, dtype=DType)
 
 
 def constant_zero_function(dim: int, value: None) -> Function[Scalar]:
@@ -96,7 +96,7 @@ diffusion: list[Entry] = [
 ]
 
 
-def create_name(*parts: str) -> str:
+def create_name(parts: Iterable[str]) -> str:
     """Create an appropriate class name."""
     return "".join(parts) + "PDE"
 
@@ -128,7 +128,7 @@ for (current_right_side, prev_right_side), (
     current_traits = [current_right_side, current_advection, current_diffusion]
     parent_traits = [prev_right_side, prev_advection, prev_diffusion]
 
-    name = create_name(*(a[0] for a in current_traits))
+    name = create_name(name for name, _ in current_traits)
     parent_names: list[str] = []
     super_calls: list[str] = []
 
@@ -136,38 +136,54 @@ for (current_right_side, prev_right_side), (
         (*current_traits[:i], parent_traits[i], *current_traits[i + 1 :])
         for i in range(len(current_traits))
     ]
-    for parent in possible_parents:
-        if any(trait is None for trait in parent):
-            # some part of parent doesnt exist - we are already at the top of the chain
+
+    for parent_traits in possible_parents:
+        if any(trait is None for trait in parent_traits):
+            # some part of parent doesn't exist - we are already at the top of the chain
             continue
-        parent = cast(tuple[Entry, ...], parent)
-        parent_name = create_name(*(a[0] for a in parent))
+
+        parent_traits = cast(tuple[Entry, ...], parent_traits)
+        parent_name = create_name(name for name, _ in parent_traits)
         parent_names.append(parent_name)
 
-        super_init_attributes: list[str] = ["self"]
-        for current_trait, parent_trait in zip(current_traits, parent, strict=True):
+        super_init_attributes = ["self", "dims"]
+        for current_trait, parent_trait in zip(
+            current_traits, parent_traits, strict=True
+        ):
+            current_trait_name, current_trait_type = current_trait
+            parent_trait_name, parent_traits_type = parent_trait
+
+            casted_name = casting[current_trait_type, parent_traits_type].__name__
             super_init_attributes.append(
-                f"{parent_trait[0]} = {casting[current_trait[1], parent_trait[1]].__name__}(dims, {current_trait[0]})"
+                f"{parent_trait_name} = {casted_name}(dims, {current_trait_name})"
             )
+
         super_calls.append(
             f"{parent_name}.__init__({', '.join(super_init_attributes)})"
         )
 
-    arguments = ["self", "dims: int", *(f"{x[0]}: {x[1]}" for x in current_traits)]
-    attributes = [
-        f"self._set_trait('{trait[0]}', {trait[0]})" for trait in current_traits
+    arguments = [
+        "self",
+        "dims: int",
+        *(f"{name}: {dtype}" for name, dtype in current_traits),
     ]
+    attributes = [f"self._set_trait('{name}', {name})" for name, _ in current_traits]
 
-    text = f"""
+    print(
+        f"""
 class {name} ({", ".join(parent_names)}):
     def __init__({", ".join(arguments)}):
         {"\n        ".join(super_calls)}
-        {"\n        ".join(attributes)}
-
+        {"\n        ".join(attributes)}"""
+        """
     def _set_trait(self, name, value):
         if hasattr(self, name) and getattr(self, name) != value:
-            raise TypeError("PDE structure latice is disrupted! Found value of attribute "+name+" to be "+getattr(self,name)+" when it should be "+getattr(self, value)
+            raise TypeError(
+                r"PDE structure latice is disrupted! Found value of attribute"
+                f"{name} to be {getattr(self, name)} when it should be"
+                f"{getattr(self, value)}"
+            )
+
         setattr(self,name, value)
         """
-
-    print(text)
+    )
