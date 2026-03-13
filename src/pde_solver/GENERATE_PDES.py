@@ -79,16 +79,6 @@ casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
     (Matrix, Function): constant_to_function,
 }
 
-print(
-    "from pde_solver.our_types import",
-    ", ".join(
-        type_to_import.__name__ for type_to_import in {b for a in casting for b in a}
-    ),
-)
-for fce in set(casting.values()):
-    print(inspect.getsource(fce))
-
-
 right_side: list[Entry] = [
     ("VariableInhomoginity", Function),
     ("Homoginity", NoneType),
@@ -109,6 +99,22 @@ diffusion: list[Entry] = [
 def create_name(*parts: str) -> str:
     """Create an appropriate class name."""
     return "".join(parts) + "PDE"
+
+
+# IMPORTS AND FUNCTIONS
+
+print(
+    "".join(
+        [
+            line
+            for line in open(__file__)
+            if len(line.split()) and line.split()[0] in ["from", "import"]
+        ]
+    )
+)
+
+for fce in set(casting.values()):
+    print(inspect.getsource(fce))
 
 
 for (current_right_side, prev_right_side), (
