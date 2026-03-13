@@ -5,21 +5,21 @@ import itertools
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, TypeAliasType, cast
+from types import NoneType
 
 import numpy as np
 
 from pde_solver.our_types import DType, Function, Matrix, Scalar, TimeFunction, Vector
 
 
-class NoneType:
-    """Custom None type since Type[None] has undefined __name__."""
-
-
-NoneType.__name__ = "None"
-
 type data_type = TypeAliasType | type[NoneType]
 
 type Entry = tuple[str, data_type]
+
+
+def to_camel_case(name: str) -> str:
+    """Transform a string from snake_case into camle_case."""
+    return "".join(word.title() for word in name.split())
 
 
 def scalar_to_vector(dim: int, value: Scalar) -> Vector:
@@ -105,7 +105,8 @@ def create_name(parts: Iterable[str]) -> str:
 
 
 # IMPORTS AND FUNCTIONS
-
+print("# pyright: reportUnsafeMultipleInheritance=false")
+print("# pyright reportMissingSuperCall=false")
 print(
     "".join(
         [
@@ -140,10 +141,13 @@ for (current_right_side, prev_right_side), (
         for i in range(len(current_traits))
     ]
 
+    parent_less = True
+
     for parent_traits in possible_parents:
         if any(trait is None for trait in parent_traits):
             # some part of parent doesn't exist - we are already at the top of the chain
             continue
+        parent_less = False
 
         parent_traits = cast(tuple[Entry, ...], parent_traits)
         parent_name = create_name(name for name, _ in parent_traits)
@@ -168,7 +172,12 @@ for (current_right_side, prev_right_side), (
     arguments = [
         "self",
         "dims: int",
-        *(f"{name}: {dtype}" for name, dtype in current_traits),
+        *(f"{name}: {dtype.__name__}" for name, dtype in current_traits),
+    ]
+    attributes = [
+        string
+        for name, _ in current_traits
+        for string in (f"self._set_trait('{name}', {name})", f"self.{name} = {name}")
     ]
     attributes = [f"self._set_trait('{name}', {name})" for name, _ in current_traits]
 
@@ -177,10 +186,12 @@ for (current_right_side, prev_right_side), (
 class {name} ({", ".join(parent_names)}):
     def __init__({", ".join(arguments)}):
         {"\n        ".join(super_calls)}
-        {"\n        ".join(attributes)}
-        """
-        """
-    def _set_trait(self, name, value):
+        {"\n        ".join(attributes)}"""
+    )
+
+    if parent_less:
+        print("""
+    def _set_trait(self, name: str, value: str):
         if hasattr(self, name) and getattr(self, name) != value:
             raise TypeError(
                 r"PDE structure latice is disrupted! Found value of attribute"
@@ -189,5 +200,4 @@ class {name} ({", ".join(parent_names)}):
             )
 
         setattr(self, name, value)
-        """
-    )
+        """)
