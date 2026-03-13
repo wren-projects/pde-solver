@@ -1,7 +1,9 @@
 # ruff: noqa: ARG001, N999, T201
+from enum import Enum, StrEnum
 import inspect
 import itertools
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
@@ -10,14 +12,13 @@ from pde_solver.our_types import DType, Function, Matrix, Scalar, TimeFunction, 
 
 
 class NoneType:
-    """Our custom None, cause Type[None] isn't working..."""
+    """Custom None type since Type[None] has undefined __name__."""
 
 
 NoneType.__name__ = "None"
 
 type data_type = TypeAliasType | type[NoneType]
 
-type basic_data = Function[Scalar] | Scalar | Vector | Matrix
 type Entry = tuple[str, data_type]
 
 
@@ -27,45 +28,45 @@ def scalar_to_vector(dim: int, value: Scalar) -> Vector:
 
 
 def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a vector."""
+    """Transform scalar into a matrix."""
     return value * np.eye(dim, dtype=DType)
 
 
 def constant_to_function[T: Scalar | Vector | Matrix](
     dim: int, value: T
 ) -> Function[T]:
-    """Transform scalar into a vector."""
+    """Transform scalar into a constant function."""
     return lambda _: value
 
 
 def constant_zero(dim: int, value: None) -> Scalar:
-    """Cast None into Scalar."""
+    """Transform None into zero scalar."""
     return DType(0)
 
 
 def constant_zero_vector(dim: int, value: None) -> Vector:
-    """Cast None into Vector."""
+    """Transform None into zero vector."""
     return np.zeros(dim, dtype=DType)
 
 
 def constant_zero_function(dim: int, value: None) -> Function[Scalar]:
-    """Cast None into Scalar."""
+    """Transform None into zero function."""
     return lambda _: DType(0)
 
 
-def indentity[T](dim: int, value: T) -> T:
-    """Cast Any value into itself."""
+def identity[T](dim: int, value: T) -> T:
+    """Transform value into itself."""
     return value
 
 
 casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
-    # constants
-    (NoneType, NoneType): indentity,
-    (Matrix, Matrix): indentity,
-    (Vector, Vector): indentity,
-    (Scalar, Scalar): indentity,
-    (Function, Function): indentity,
-    (TimeFunction, TimeFunction): indentity,
+    # identity
+    (NoneType, NoneType): identity,
+    (Matrix, Matrix): identity,
+    (Vector, Vector): identity,
+    (Scalar, Scalar): identity,
+    (Function, Function): identity,
+    (TimeFunction, TimeFunction): identity,
     # None
     (NoneType, Scalar): constant_zero,
     (NoneType, Vector): constant_zero_vector,
@@ -79,21 +80,23 @@ casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
     (Matrix, Function): constant_to_function,
 }
 
-right_side: list[Entry] = [
-    ("VariableInhomoginity", Function),
-    ("Homoginity", NoneType),
-]
-advection: list[Entry] = [
+right_side: tuple[Entry, ...] = (
+    ("VariableInhomogenity", Function),
+    ("Homogeneous", NoneType),
+)
+
+advection: tuple[Entry, ...] = (
     ("VariableVectorAdvection", Function),
     ("VectorAdvection", Vector),
     ("NoAdvection", NoneType),
-]
-diffusion: list[Entry] = [
+)
+
+diffusion: tuple[Entry, ...] = (
     ("VariableMatrixDiffusion", Function),
     ("MatrixDiffusion", Matrix),
     ("ScalarDiffusion", Scalar),
     ("NoDiffusion", NoneType),
-]
+)
 
 
 def create_name(parts: Iterable[str]) -> str:
@@ -107,14 +110,14 @@ print(
     "".join(
         [
             line
-            for line in open(__file__)
-            if len(line.split()) and line.split()[0] in ["from", "import"]
+            for line in Path(__file__).read_text()
+            if line.startswith(("from ", "import "))
         ]
     )
 )
 
-for fce in set(casting.values()):
-    print(inspect.getsource(fce))
+for function in set(casting.values()):
+    print(inspect.getsource(function))
 
 
 for (current_right_side, prev_right_side), (
@@ -151,9 +154,9 @@ for (current_right_side, prev_right_side), (
             current_traits, parent_traits, strict=True
         ):
             current_trait_name, current_trait_type = current_trait
-            parent_trait_name, parent_traits_type = parent_trait
+            parent_trait_name, parent_trait_type = parent_trait
 
-            casted_name = casting[current_trait_type, parent_traits_type].__name__
+            casted_name = casting[current_trait_type, parent_trait_type].__name__
             super_init_attributes.append(
                 f"{parent_trait_name} = {casted_name}(dims, {current_trait_name})"
             )
@@ -174,7 +177,8 @@ for (current_right_side, prev_right_side), (
 class {name} ({", ".join(parent_names)}):
     def __init__({", ".join(arguments)}):
         {"\n        ".join(super_calls)}
-        {"\n        ".join(attributes)}"""
+        {"\n        ".join(attributes)}
+        """
         """
     def _set_trait(self, name, value):
         if hasattr(self, name) and getattr(self, name) != value:
@@ -184,6 +188,6 @@ class {name} ({", ".join(parent_names)}):
                 f"{getattr(self, value)}"
             )
 
-        setattr(self,name, value)
+        setattr(self, name, value)
         """
     )
