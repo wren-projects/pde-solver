@@ -1,7 +1,6 @@
 import inspect
 import itertools
 from collections.abc import Callable
-from types import NoneType
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
@@ -9,14 +8,17 @@ import numpy as np
 from pde_solver.our_types import DType, Function, Matrix, Scalar, TimeFunction, Vector
 
 
-class Missing:
+class NoneType:
     """Our custom None, cause Type[None] isnt working..."""
 
 
 type data_type = TypeAliasType | type[NoneType]
 
-type basic_data = Function[Scalar] | Scalar | Vector | Matrix | Missing
-type entry = tuple[str, data_type]
+type basic_data = Function[Scalar] | Scalar | Vector | Matrix
+type Entry = tuple[str, data_type]
+
+
+NoneType.__name__ = "None"
 
 
 def scalar_to_vector(dim: int, value: Scalar) -> Vector:
@@ -37,29 +39,33 @@ def constant_to_function[T: Scalar | Vector | Matrix](
 
 
 def constant_zero(dim: int, value: None) -> Scalar:
+    """Cast None into Scalar."""
     return DType(0)
 
 
 def constant_zero_vector(dim: int, value: None) -> Vector:
+    """Cast None into Vector."""
     return np.array([0] * dim, dtype=DType)
 
 
 def constant_zero_function(dim: int, value: None) -> Function[Scalar]:
+    """Cast None into Scalar."""
     return lambda _: DType(0)
 
 
-def keep_same[T](dim: int, value: T) -> T:
+def indentity[T](dim: int, value: T) -> T:
+    """Cast Any value into itself."""
     return value
 
 
 casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
     # constants
-    (NoneType, NoneType): keep_same,
-    (Matrix, Matrix): keep_same,
-    (Vector, Vector): keep_same,
-    (Scalar, Scalar): keep_same,
-    (Function, Function): keep_same,
-    (TimeFunction, TimeFunction): keep_same,
+    (NoneType, NoneType): indentity,
+    (Matrix, Matrix): indentity,
+    (Vector, Vector): indentity,
+    (Scalar, Scalar): indentity,
+    (Function, Function): indentity,
+    (TimeFunction, TimeFunction): indentity,
     # None
     (NoneType, Scalar): constant_zero,
     (NoneType, Vector): constant_zero_vector,
@@ -83,16 +89,16 @@ for fce in set(casting.values()):
     print(inspect.getsource(fce))
 
 
-right_side: list[entry] = [
+right_side: list[Entry] = [
     ("VariableInhomoginity", Function),
     ("Homoginity", NoneType),
 ]
-advection: list[entry] = [
+advection: list[Entry] = [
     ("VariableVectorAdvection", Function),
     ("VectorAdvection", Vector),
     ("NoAdvection", NoneType),
 ]
-diffusion: list[entry] = [
+diffusion: list[Entry] = [
     ("VariableMatrixDiffusion", Function),
     ("MatrixDiffusion", Matrix),
     ("ScalarDiffusion", Scalar),
@@ -128,7 +134,7 @@ for (current_right_side, prev_right_side), (
         if any(trait is None for trait in parent):
             # some part of parent doesnt exist - we are already at the top of the chain
             continue
-        parent = cast(tuple[entry, ...], parent)
+        parent = cast(tuple[Entry, ...], parent)
         parent_name = create_name(*(a[0] for a in parent))
         parent_names.append(parent_name)
 
@@ -154,7 +160,7 @@ class {name} ({", ".join(parent_names)}):
 
     def _set_trait(self, name, value):
         if hasattr(self, name) and getattr(self, name) != value:
-            raise TypeError("PDE structure latice is disrupted! Found value of attribute "+name+" to be "+self.name+" when it should be "+self.value)
+            raise TypeError("PDE structure latice is disrupted! Found value of attribute "+name+" to be "+getattr(self,name)+" when it should be "+getattr(self, value)
         setattr(self,name, value)
         """
 
