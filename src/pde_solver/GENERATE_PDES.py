@@ -106,14 +106,12 @@ def create_name(parts: Iterable[str]) -> str:
 
 # IMPORTS AND FUNCTIONS
 print("# pyright: reportUnsafeMultipleInheritance=false")
-print("# pyright reportMissingSuperCall=false")
+print("# pyright: reportMissingSuperCall=false")
 print(
-    "".join(
-        [
-            line
-            for line in Path(__file__).read_text()
-            if line.startswith(("from ", "import "))
-        ]
+    "\n".join(
+        line
+        for line in Path(__file__).read_text().split("\n")
+        if line.startswith(("from ", "import "))
     )
 )
 
