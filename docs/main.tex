@@ -258,6 +258,31 @@ Instead of storing the full tensor, we store small 3D tensors called
 $\mathcal{O}(d n r^2)$ numbers are required when ranks $r_k$ are
 moderate\cite{Oseledets2011TT}.
 
+\paragraph{Example (TT representation).}
+Let $A \in \mathbb{R}^{2 \times 2 \times 2}$ be defined by
+\[
+A(i_1,i_2,i_3) = i_1 + i_2 + i_3.
+\]
+
+A TT representation writes
+\[
+A(i_1,i_2,i_3) = G_1(i_1)\,G_2(i_2)\,G_3(i_3),
+\]
+with
+\[
+G_1(i_1) \in \mathbb{R}^{1 \times r_1}, \quad
+G_2(i_2) \in \mathbb{R}^{r_1 \times r_2}, \quad
+G_3(i_3) \in \mathbb{R}^{r_2 \times 1}.
+\]
+
+\paragraph{Explanation (informal).}
+The tensor is not stored entrywise. Instead, each index selects a small matrix,
+and multiplying these matrices produces the scalar value.
+
+\paragraph{Explanation (informal).}
+For structured tensors (such as sums of variables), small ranks $r_k$ are
+sufficient. This yields a compressed representation.
+
 \paragraph{Representation in code.}
 
 In practice, TT format is stored as a list of cores:
@@ -415,8 +440,40 @@ the TT-ranks of the representation.
 
 In this way, TT-SVD builds the tensor train representation
 sequentially, extracting one core at a time.
-\paragraph{Code slot (NumPy).}
 
+\paragraph{Example (first TT-SVD step).}
+Let $A \in \mathbb{R}^{2 \times 3 \times 2}$.
+
+At step $k = 1$, reshape:
+\[
+A^{\langle 1 \rangle} \in \mathbb{R}^{2 \times 6}.
+\]
+
+Compute truncated SVD:
+\[
+A^{\langle 1 \rangle} \approx U \Sigma V^\top.
+\]
+
+Let $r_1$ be the number of retained singular values.
+
+Define:
+\[
+G_1(i_1) = \text{block of } U \text{ corresponding to } i_1,
+\]
+and set
+\[
+C = \Sigma V^\top.
+\]
+
+\paragraph{Explanation (informal).}
+We separate the first variable from the remaining ones and approximate their
+interaction by a low-rank matrix.
+
+\paragraph{Explanation (informal).}
+The matrix $U$ encodes how $i_1$ interacts with the rest. The remainder $C$
+is passed to the next step.
+
+\paragraph{Code slot (NumPy).}
 \begin{minted}{python}
   # TODO implemented TTD
 \end{minted}
@@ -528,6 +585,30 @@ procedure is to orthogonalize (QR sweep) and then truncate (SVD sweep)
   \item Rounding reduces the ranks of an existing TT tensor
     while controlling the approximation error.
 \end{itemize}
+
+\paragraph{Example (rank growth and truncation).}
+Let $A$ and $B$ be TT tensors with ranks
+\[
+r^A = (1,3,3,1), \quad r^B = (1,4,4,1).
+\]
+
+After addition:
+\[
+r^C = (1,7,7,1).
+\]
+
+After rounding:
+\[
+r^C \rightarrow (1,3,3,1).
+\]
+
+\paragraph{Explanation (informal).}
+Basic operations increase TT-ranks. This leads to higher storage and
+computational cost.
+
+\paragraph{Explanation (informal).}
+Rounding reduces ranks while controlling the approximation error. It restores
+a compact representation.
 
 \paragraph{Code slot (NumPy).}
 \begin{minted}{python}
@@ -663,6 +744,27 @@ is
 \[
   \mathcal{O}(d\, n\, r^3).
 \]
+
+\paragraph{Example (inner product complexity).}
+Let $A, B \in \mathbb{R}^{n \times n \times n}$.
+
+Full computation requires:
+\[
+\mathcal{O}(n^3).
+\]
+
+In TT format, compute recursively:
+\[
+M_k = \sum_{i_k} G_k(i_k)^\top M_{k-1} H_k(i_k).
+\]
+
+\paragraph{Explanation (informal).}
+The computation proceeds dimension by dimension. At each step, only small
+matrices are manipulated.
+
+\paragraph{Explanation (informal).}
+If TT-ranks are bounded by $r$, the complexity becomes
+$\mathcal{O}(d n r^3)$ instead of $\mathcal{O}(n^d)$.
 
 \paragraph{Code slot.}
 \begin{minted}{python}
