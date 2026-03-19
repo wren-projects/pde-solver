@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -14,4 +13,7 @@ type Matrix = np.ndarray[tuple[int, int], np.dtype[DType]]
 
 
 type Function[T: Scalar | Vector | Matrix] = Callable[[Vector], T]
+type ScalarFunction = Function[Scalar]
+type VectorFunction = Function[Vector]
+type MatrixFunction = Function[Matrix]
 type TimeFunction[T: Scalar | Vector | Matrix] = Callable[[DType, Vector], T]

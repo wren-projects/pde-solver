@@ -1,25 +1,50 @@
 # ruff: noqa: ARG001, N999, T201
-from enum import Enum, StrEnum
 import inspect
 import itertools
 from collections.abc import Callable, Iterable
-from pathlib import Path
-from typing import Any, TypeAliasType, cast
 from types import NoneType
+from typing import Any, TypeAliasType, cast
 
 import numpy as np
 
-from pde_solver.our_types import DType, Function, Matrix, Scalar, TimeFunction, Vector
+from pde_solver.our_types import (
+    DType,
+    Function,
+    Matrix,
+    MatrixFunction,
+    Scalar,
+    ScalarFunction,
+    TimeFunction,
+    Vector,
+    VectorFunction,
+)
 
+imports = """
+from types import NoneType
+from typing import Any
+
+import numpy as np
+
+from pde_solver.our_types import (
+    DType,
+    Function,
+    Matrix,
+    MatrixFunction,
+    Scalar,
+    ScalarFunction,
+    Vector,
+    VectorFunction,
+)
+"""
 
 type data_type = TypeAliasType | type[NoneType]
 
-type Entry = tuple[str, data_type]
+type Entry = tuple[str, data_type, str]
 
 
 def to_camel_case(name: str) -> str:
-    """Transform a string from snake_case into camle_case."""
-    return "".join(word.title() for word in name.split())
+    """Transform a string from snake_case into camel_case."""
+    return "".join(word.title() for word in name.split("_"))
 
 
 def scalar_to_vector(dim: int, value: Scalar) -> Vector:
@@ -49,7 +74,7 @@ def constant_zero_vector(dim: int, value: None) -> Vector:
     return np.zeros(dim, dtype=DType)
 
 
-def constant_zero_function(dim: int, value: None) -> Function[Scalar]:
+def constant_zero_function(dim: int, value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
 
@@ -65,59 +90,139 @@ casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
     (Matrix, Matrix): identity,
     (Vector, Vector): identity,
     (Scalar, Scalar): identity,
-    (Function, Function): identity,
+    (ScalarFunction, ScalarFunction): identity,
+    (VectorFunction, VectorFunction): identity,
+    (MatrixFunction, MatrixFunction): identity,
     (TimeFunction, TimeFunction): identity,
     # None
     (NoneType, Scalar): constant_zero,
     (NoneType, Vector): constant_zero_vector,
-    (NoneType, Function): constant_zero_function,
+    (NoneType, ScalarFunction): constant_zero_function,
     # Scalar
     (Scalar, Matrix): scalar_to_matrix,
-    (Scalar, Function): constant_to_function,
+    (Scalar, ScalarFunction): constant_to_function,
     # Vector
-    (Vector, Function): constant_to_function,
+    (Vector, VectorFunction): constant_to_function,
     # Matrix
-    (Matrix, Function): constant_to_function,
+    (Matrix, MatrixFunction): constant_to_function,
 }
 
 right_side: tuple[Entry, ...] = (
-    ("VariableInhomogenity", Function),
-    ("Homogeneous", NoneType),
+    ("variable_inhomogenity", ScalarFunction, "is some (scalar) function of position."),
+    (
+        "homogeneous",
+        NoneType,
+        "is always zero (i.e. homogenoues). Note that the datatype is None.",
+    ),
 )
 
 advection: tuple[Entry, ...] = (
-    ("VariableVectorAdvection", Function),
-    ("VectorAdvection", Vector),
-    ("NoAdvection", NoneType),
+    (
+        "variable_vector_advection",
+        VectorFunction,
+        "is some (vector) function of position.",
+    ),
+    ("vector_advection", Vector, "is some constant vector."),
+    (
+        "no_advection",
+        NoneType,
+        "is always zero (i.e. there is no advection). Note that the datatype is None.",
+    ),
 )
 
 diffusion: tuple[Entry, ...] = (
-    ("VariableMatrixDiffusion", Function),
-    ("MatrixDiffusion", Matrix),
-    ("ScalarDiffusion", Scalar),
-    ("NoDiffusion", NoneType),
+    (
+        "variable_matrix_diffusion",
+        MatrixFunction,
+        "is some (matrix) function of positon.",
+    ),
+    ("matrix_diffusion", Matrix, "is some constant matrix."),
+    (
+        "scalar_diffusion",
+        Scalar,
+        "is some constant scalar. The diffusion is then constant in all directions.",
+    ),
+    (
+        "no_diffusion",
+        NoneType,
+        "is always zero (i.e. there is no diffusion). Note that the datatype is None.",
+    ),
 )
 
 
 def create_name(parts: Iterable[str]) -> str:
     """Create an appropriate class name."""
-    return "".join(parts) + "PDE"
+    return to_camel_case("_".join(parts)) + "PDE"
+
+
+def create_class_docs(
+    class_name: str, right_side: Entry, advection: Entry, diffusion: Entry
+) -> str:
+    """Create an appropriate docs string for the class."""
+    return f'''    """
+    {class_name} is a representation of a diffusion-advection PDE.
+
+    The specific form of the PDE is:
+    uₜ + ∇(𝐚⋅u) + ∇⋅(𝐁⋅∇u) = f
+
+    Where 𝐚 is the vector of advection, 𝚩 is the matrix of diffusion and f is the right hand side.
+
+    In this exact class:
+    Diffusion is {diffusion[2]}.
+    Advection is {advection[2]}.
+    And right hand side {right_side[2]}.
+    """
+'''
+
+
+def create_init_docs(
+    class_name: str, right_side: Entry, advection: Entry, diffusion: Entry
+) -> str:
+    """Create an appropriate init doc string for the class."""
+    return f'''        """
+        Create an implementation of the {class_name} class.
+
+        Parameters
+        ----------
+        dims: int
+            The number of spacial dimensions of the PDE. This notably doesn't include
+            the time dimension.
+
+        {right_side[0]}: {right_side[1].__name__}
+            The right side of the PDE.
+            {right_side[2]}
+
+        {advection[0]}: {advection[1].__name__}
+            The advection part of the PDE.
+            {advection[2]}
+
+        {diffusion[0]}: {diffusion[1].__name__}
+            The diffusion part of the PDE.
+            {diffusion[2]}
+
+        """'''
+
+
+######################################################################
+# HERE STOPS THE CODE A FUTURE PROGRAM SHOULD EVER TOUCH OR EVEN SEE #
+######################################################################
 
 
 # IMPORTS AND FUNCTIONS
 print("# pyright: reportUnsafeMultipleInheritance=false")
 print("# pyright: reportMissingSuperCall=false")
-print(
-    "\n".join(
-        line
-        for line in Path(__file__).read_text().split("\n")
-        if line.startswith(("from ", "import "))
-    )
-)
+print("# pyright: reportUnusedParameter=false")
+print("# pyright: reportAny=false")
+print("# ruff: noqa: ARG001, ARG002, E501")
+print(imports)
+print()
 
 for function in set(casting.values()):
     print(inspect.getsource(function))
 
+#######################################
+# I MEAN IT! DON'T LOOK ANY FURTHER! #
+#######################################
 
 for (current_right_side, prev_right_side), (
     current_advection,
@@ -130,7 +235,7 @@ for (current_right_side, prev_right_side), (
     current_traits = [current_right_side, current_advection, current_diffusion]
     parent_traits = [prev_right_side, prev_advection, prev_diffusion]
 
-    name = create_name(name for name, _ in current_traits)
+    name = create_name(name for name, _, _ in current_traits)
     parent_names: list[str] = []
     super_calls: list[str] = []
 
@@ -148,15 +253,15 @@ for (current_right_side, prev_right_side), (
         parent_less = False
 
         parent_traits = cast(tuple[Entry, ...], parent_traits)
-        parent_name = create_name(name for name, _ in parent_traits)
+        parent_name = create_name(name for name, _, _ in parent_traits)
         parent_names.append(parent_name)
 
         super_init_attributes = ["self", "dims"]
         for current_trait, parent_trait in zip(
             current_traits, parent_traits, strict=True
         ):
-            current_trait_name, current_trait_type = current_trait
-            parent_trait_name, parent_trait_type = parent_trait
+            current_trait_name, current_trait_type, _ = current_trait
+            parent_trait_name, parent_trait_type, _ = parent_trait
 
             casted_name = casting[current_trait_type, parent_trait_type].__name__
             super_init_attributes.append(
@@ -170,32 +275,41 @@ for (current_right_side, prev_right_side), (
     arguments = [
         "self",
         "dims: int",
-        *(f"{name}: {dtype.__name__}" for name, dtype in current_traits),
+        *(f"{name}: {dtype.__name__}" for name, dtype, _ in current_traits),
     ]
     attributes = [
         string
-        for name, _ in current_traits
-        for string in (f"self._set_trait('{name}', {name})", f"self.{name} = {name}")
+        for name, dtype, _ in current_traits
+        for string in (
+            f'self._check_trait("{name}", {name})',
+            f"self.{name}: {dtype.__name__} = {name}",
+        )
     ]
-    attributes = [f"self._set_trait('{name}', {name})" for name, _ in current_traits]
 
-    print(
-        f"""
-class {name} ({", ".join(parent_names)}):
-    def __init__({", ".join(arguments)}):
-        {"\n        ".join(super_calls)}
-        {"\n        ".join(attributes)}"""
-    )
+    superclasses = f"({', '.join(parent_names)})" if parent_names else ""
+    lines: list[str] = []
+
+    ident = "    "
+    lines += [
+        f"class {name} {superclasses}:",
+        create_class_docs(name, *current_traits),
+        f"{ident}def __init__({', '.join(arguments)}) -> None:",
+        create_init_docs(name, *current_traits),
+    ]
+    lines += [f"{ident}{ident}{super_call}" for super_call in super_calls]
+    lines += [f"{ident}{ident}{att}" for att in attributes]
 
     if parent_less:
-        print("""
-    def _set_trait(self, name: str, value: str):
-        if hasattr(self, name) and getattr(self, name) != value:
-            raise TypeError(
-                r"PDE structure latice is disrupted! Found value of attribute"
-                f"{name} to be {getattr(self, name)} when it should be"
-                f"{getattr(self, value)}"
-            )
+        lines.append("")
+        lines.append(f"{ident}def _check_trait(self, name: str, value: Any) -> None:")
+        lines.append(
+            f"{ident}{ident}if hasattr(self, name) and getattr(self, name) != value:"
+        )
+        lines.append(
+            ident * 3
+            + 'raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, value)}")'
+        )
 
-        setattr(self, name, value)
-        """)
+    print("\n".join(lines))
+    print()
+    print()
