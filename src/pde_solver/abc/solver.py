@@ -13,8 +13,9 @@ class Solver(ABC):
         self,
         pde: PDE,
         initial_condition: NDArray,
+        discretization_step: DType,
         boundary_condition: BoundaryCondition,
-        time: float,
+        time: DType,
     ) -> NDArray:
         """Compute the state at the given time given the PDE and it's conditions."""
         raise NotImplementedError

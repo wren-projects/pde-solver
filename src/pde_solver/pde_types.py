@@ -11,6 +11,7 @@ type Scalar = DType
 type Vector = np.ndarray[tuple[int], np.dtype[DType]]
 type Matrix = np.ndarray[tuple[int, int], np.dtype[DType]]
 
+type Index = tuple[int, ...]
 
 type Function[T: Scalar | Vector | Matrix] = Callable[[Vector], T]
 type ScalarFunction = Function[Scalar]
