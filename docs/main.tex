@@ -844,6 +844,51 @@ Afterward, TT rounding is typically applied to control rank growth.
 # - round Y
 \end{minted}
 
+\subsection{Flipping an axis}
+
+\paragraph{Definition (axis flip).}
+Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be in TT format with cores
+\[
+G_k \in \mathbb{R}^{r_{k-1} \times n_k \times r_k}.
+\]
+
+Flipping axis $k$ produces a tensor $\tilde{A}$ such that
+\[
+\tilde{A}(i_1,\dots,i_k,\dots,i_d)
+=
+A(i_1,\dots,n_k - i_k + 1,\dots,i_d).
+\]
+
+\paragraph{Explanation (informal).}
+Flipping an axis corresponds to reversing the ordering of indices along that
+dimension.
+
+Since each dimension is represented independently in TT format, the operation
+affects only a single core.
+
+\paragraph{Construction.}
+The flipped tensor is obtained by reversing the index dimension of the $k$-th core:
+\[
+\tilde{G}_k(:, i_k, :) = G_k(:,\, n_k - i_k + 1, :).
+\]
+
+All other cores remain unchanged:
+\[
+\tilde{G}_j = G_j, \quad j \neq k.
+\]
+
+\paragraph{Remark.}
+The TT-ranks are unchanged by this operation.
+
+\paragraph{Complexity.}
+The operation requires $\mathcal{O}(r_{k-1} n_k r_k)$ operations.
+
+\paragraph{Code slot (NumPy).}
+\begin{minted}{python}
+#TODO implement
+\end{minted}
+
+
 \section{PDEs and Using TT format to solve them}
 %==================================================
 
