@@ -1,0 +1,9 @@
+NDArray
+NDArrays
+TTD
+args
+dtype
+func
+kwargs
+str
+ufunc
