@@ -1,4 +1,4 @@
-# ruff: noqa: ARG001, N999, T201
+# ruff: noqa: ARG001, T201, E501
 import inspect
 import itertools
 from collections.abc import Callable, Iterable
@@ -7,7 +7,7 @@ from typing import Any, TypeAliasType, cast
 
 import numpy as np
 
-from pde_solver.our_types import (
+from pde_solver.pde_types import (
     DType,
     Function,
     Matrix,
@@ -21,11 +21,11 @@ from pde_solver.our_types import (
 
 imports = """
 from types import NoneType
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
-from pde_solver.our_types import (
+from pde_solver.pde_types import (
     DType,
     Function,
     Matrix,
@@ -281,7 +281,7 @@ for (current_right_side, prev_right_side), (
         string
         for name, dtype, _ in current_traits
         for string in (
-            f'self._check_trait("{name}", {name})',
+            f'self._check_trait(dims, "{name}", {name})',
             f"self.{name}: {dtype.__name__} = {name}",
         )
     ]
@@ -300,15 +300,21 @@ for (current_right_side, prev_right_side), (
     lines += [f"{ident}{ident}{att}" for att in attributes]
 
     if parent_less:
-        lines.append("")
-        lines.append(f"{ident}def _check_trait(self, name: str, value: Any) -> None:")
-        lines.append(
-            f"{ident}{ident}if hasattr(self, name) and getattr(self, name) != value:"
-        )
-        lines.append(
-            ident * 3
-            + 'raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, value)}")'
-        )
+        lines += [
+            "",
+            f"{ident}def _check_function_equal(self, fce1: Callable, fce2: Callable, dims: int) -> bool:",
+            f"{ident}{ident}return np.array_equal(fce1(np.arange(dims)), fce2(np.arange(dims)))",
+            "",
+            f"{ident}def _check_trait(self, dims:int, name: str, value: Any) -> None:",
+            f"{ident}{ident}if not hasattr(self, name):",
+            f"{ident}{ident}{ident}return",
+            f"{ident}{ident}old = getattr(self, name)",
+            f"{ident}{ident}if (old is not value) and (old is None or value is None): return",
+            f"{ident}{ident}if (callable(value) and self._check_function_equal(old, value, dims)): return",
+            f"{ident}{ident}if (not callable(value)) and ((old is value) or np.array_equal(old, value)): return",
+            ident * 2
+            + 'raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, name)}")',
+        ]
 
     print("\n".join(lines))
     print()

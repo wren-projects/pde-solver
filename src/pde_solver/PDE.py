@@ -5,11 +5,11 @@
 # ruff: noqa: ARG001, ARG002, E501
 
 from types import NoneType
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
-from pde_solver.our_types import (
+from pde_solver.pde_types import (
     DType,
     Function,
     Matrix,
@@ -20,16 +20,6 @@ from pde_solver.our_types import (
     VectorFunction,
 )
 
-
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
-) -> Function[T]:
-    """Transform scalar into a constant function."""
-    return lambda _: value
-
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a matrix."""
-    return value * np.eye(dim, dtype=DType)
 
 def identity[T](dim: int, value: T) -> T:
     """Transform value into itself."""
@@ -46,6 +36,16 @@ def constant_zero(dim: int, value: None) -> Scalar:
 def constant_zero_function(dim: int, value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
+
+def constant_to_function[T: Scalar | Vector | Matrix](
+    dim: int, value: T
+) -> Function[T]:
+    """Transform scalar into a constant function."""
+    return lambda _: value
+
+def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
+    """Transform scalar into a matrix."""
+    return value * np.eye(dim, dtype=DType)
 
 class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE :
     """
@@ -85,16 +85,24 @@ class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE :
             is some (matrix) function of positon.
 
         """
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
-    def _check_trait(self, name: str, value: Any) -> None:
-        if hasattr(self, name) and getattr(self, name) != value:
-            raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, value)}")
+    def _check_function_equal(self, fce1: Callable, fce2: Callable, dims: int) -> bool:
+        return np.array_equal(fce1(np.arange(dims)), fce2(np.arange(dims)))
+
+    def _check_trait(self, dims:int, name: str, value: Any) -> None:
+        if not hasattr(self, name):
+            return
+        old = getattr(self, name)
+        if (old is not value) and (old is None or value is None): return
+        if (callable(value) and self._check_function_equal(old, value, dims)): return
+        if (not callable(value)) and ((old is value) or np.array_equal(old, value)): return
+        raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, name)}")
 
 
 class VariableInhomogenityVariableVectorAdvectionMatrixDiffusionPDE (VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE):
@@ -136,11 +144,11 @@ class VariableInhomogenityVariableVectorAdvectionMatrixDiffusionPDE (VariableInh
 
         """
         VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = identity(dims, variable_vector_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -183,11 +191,11 @@ class VariableInhomogenityVariableVectorAdvectionScalarDiffusionPDE (VariableInh
 
         """
         VariableInhomogenityVariableVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = identity(dims, variable_vector_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -230,11 +238,11 @@ class VariableInhomogenityVariableVectorAdvectionNoDiffusionPDE (VariableInhomog
 
         """
         VariableInhomogenityVariableVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = identity(dims, variable_vector_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
@@ -277,11 +285,11 @@ class VariableInhomogenityVectorAdvectionVariableMatrixDiffusionPDE (VariableInh
 
         """
         VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = constant_to_function(dims, vector_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
 
@@ -325,11 +333,11 @@ class VariableInhomogenityVectorAdvectionMatrixDiffusionPDE (VariableInhomogenit
         """
         VariableInhomogenityVariableVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = constant_to_function(dims, vector_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         VariableInhomogenityVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = identity(dims, vector_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -373,11 +381,11 @@ class VariableInhomogenityVectorAdvectionScalarDiffusionPDE (VariableInhomogenit
         """
         VariableInhomogenityVariableVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = constant_to_function(dims, vector_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         VariableInhomogenityVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = identity(dims, vector_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -421,11 +429,11 @@ class VariableInhomogenityVectorAdvectionNoDiffusionPDE (VariableInhomogenityVar
         """
         VariableInhomogenityVariableVectorAdvectionNoDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), variable_vector_advection = constant_to_function(dims, vector_advection), no_diffusion = identity(dims, no_diffusion))
         VariableInhomogenityVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = identity(dims, vector_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
@@ -468,11 +476,11 @@ class VariableInhomogenityNoAdvectionVariableMatrixDiffusionPDE (VariableInhomog
 
         """
         VariableInhomogenityVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = constant_zero_vector(dims, no_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
 
@@ -516,11 +524,11 @@ class VariableInhomogenityNoAdvectionMatrixDiffusionPDE (VariableInhomogenityVec
         """
         VariableInhomogenityVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = constant_zero_vector(dims, no_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         VariableInhomogenityNoAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), no_advection = identity(dims, no_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -564,11 +572,11 @@ class VariableInhomogenityNoAdvectionScalarDiffusionPDE (VariableInhomogenityVec
         """
         VariableInhomogenityVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = constant_zero_vector(dims, no_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         VariableInhomogenityNoAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), no_advection = identity(dims, no_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -612,11 +620,11 @@ class VariableInhomogenityNoAdvectionNoDiffusionPDE (VariableInhomogenityVectorA
         """
         VariableInhomogenityVectorAdvectionNoDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), vector_advection = constant_zero_vector(dims, no_advection), no_diffusion = identity(dims, no_diffusion))
         VariableInhomogenityNoAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = identity(dims, variable_inhomogenity), no_advection = identity(dims, no_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("variable_inhomogenity", variable_inhomogenity)
+        self._check_trait(dims, "variable_inhomogenity", variable_inhomogenity)
         self.variable_inhomogenity: ScalarFunction = variable_inhomogenity
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
@@ -659,11 +667,11 @@ class HomogeneousVariableVectorAdvectionVariableMatrixDiffusionPDE (VariableInho
 
         """
         VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
 
@@ -707,11 +715,11 @@ class HomogeneousVariableVectorAdvectionMatrixDiffusionPDE (VariableInhomogenity
         """
         VariableInhomogenityVariableVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         HomogeneousVariableVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -755,11 +763,11 @@ class HomogeneousVariableVectorAdvectionScalarDiffusionPDE (VariableInhomogenity
         """
         VariableInhomogenityVariableVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         HomogeneousVariableVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -803,11 +811,11 @@ class HomogeneousVariableVectorAdvectionNoDiffusionPDE (VariableInhomogenityVari
         """
         VariableInhomogenityVariableVectorAdvectionNoDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), no_diffusion = identity(dims, no_diffusion))
         HomogeneousVariableVectorAdvectionScalarDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = identity(dims, variable_vector_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("variable_vector_advection", variable_vector_advection)
+        self._check_trait(dims, "variable_vector_advection", variable_vector_advection)
         self.variable_vector_advection: VectorFunction = variable_vector_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
@@ -851,11 +859,11 @@ class HomogeneousVectorAdvectionVariableMatrixDiffusionPDE (VariableInhomogenity
         """
         VariableInhomogenityVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), vector_advection = identity(dims, vector_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
         HomogeneousVariableVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = constant_to_function(dims, vector_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
 
@@ -900,11 +908,11 @@ class HomogeneousVectorAdvectionMatrixDiffusionPDE (VariableInhomogenityVectorAd
         VariableInhomogenityVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), vector_advection = identity(dims, vector_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         HomogeneousVariableVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = constant_to_function(dims, vector_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         HomogeneousVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = identity(dims, vector_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -949,11 +957,11 @@ class HomogeneousVectorAdvectionScalarDiffusionPDE (VariableInhomogenityVectorAd
         VariableInhomogenityVectorAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), vector_advection = identity(dims, vector_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         HomogeneousVariableVectorAdvectionScalarDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = constant_to_function(dims, vector_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         HomogeneousVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = identity(dims, vector_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -998,11 +1006,11 @@ class HomogeneousVectorAdvectionNoDiffusionPDE (VariableInhomogenityVectorAdvect
         VariableInhomogenityVectorAdvectionNoDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), vector_advection = identity(dims, vector_advection), no_diffusion = identity(dims, no_diffusion))
         HomogeneousVariableVectorAdvectionNoDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), variable_vector_advection = constant_to_function(dims, vector_advection), no_diffusion = identity(dims, no_diffusion))
         HomogeneousVectorAdvectionScalarDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = identity(dims, vector_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("vector_advection", vector_advection)
+        self._check_trait(dims, "vector_advection", vector_advection)
         self.vector_advection: Vector = vector_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
@@ -1046,11 +1054,11 @@ class HomogeneousNoAdvectionVariableMatrixDiffusionPDE (VariableInhomogenityNoAd
         """
         VariableInhomogenityNoAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), no_advection = identity(dims, no_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
         HomogeneousVectorAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = constant_zero_vector(dims, no_advection), variable_matrix_diffusion = identity(dims, variable_matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("variable_matrix_diffusion", variable_matrix_diffusion)
+        self._check_trait(dims, "variable_matrix_diffusion", variable_matrix_diffusion)
         self.variable_matrix_diffusion: MatrixFunction = variable_matrix_diffusion
 
 
@@ -1095,11 +1103,11 @@ class HomogeneousNoAdvectionMatrixDiffusionPDE (VariableInhomogenityNoAdvectionM
         VariableInhomogenityNoAdvectionMatrixDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), no_advection = identity(dims, no_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         HomogeneousVectorAdvectionMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = constant_zero_vector(dims, no_advection), matrix_diffusion = identity(dims, matrix_diffusion))
         HomogeneousNoAdvectionVariableMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), no_advection = identity(dims, no_advection), variable_matrix_diffusion = constant_to_function(dims, matrix_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("matrix_diffusion", matrix_diffusion)
+        self._check_trait(dims, "matrix_diffusion", matrix_diffusion)
         self.matrix_diffusion: Matrix = matrix_diffusion
 
 
@@ -1144,11 +1152,11 @@ class HomogeneousNoAdvectionScalarDiffusionPDE (VariableInhomogenityNoAdvectionS
         VariableInhomogenityNoAdvectionScalarDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), no_advection = identity(dims, no_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         HomogeneousVectorAdvectionScalarDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = constant_zero_vector(dims, no_advection), scalar_diffusion = identity(dims, scalar_diffusion))
         HomogeneousNoAdvectionMatrixDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), no_advection = identity(dims, no_advection), matrix_diffusion = scalar_to_matrix(dims, scalar_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("scalar_diffusion", scalar_diffusion)
+        self._check_trait(dims, "scalar_diffusion", scalar_diffusion)
         self.scalar_diffusion: Scalar = scalar_diffusion
 
 
@@ -1193,11 +1201,11 @@ class HomogeneousNoAdvectionNoDiffusionPDE (VariableInhomogenityNoAdvectionNoDif
         VariableInhomogenityNoAdvectionNoDiffusionPDE.__init__(self, dims, variable_inhomogenity = constant_zero_function(dims, homogeneous), no_advection = identity(dims, no_advection), no_diffusion = identity(dims, no_diffusion))
         HomogeneousVectorAdvectionNoDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), vector_advection = constant_zero_vector(dims, no_advection), no_diffusion = identity(dims, no_diffusion))
         HomogeneousNoAdvectionScalarDiffusionPDE.__init__(self, dims, homogeneous = identity(dims, homogeneous), no_advection = identity(dims, no_advection), scalar_diffusion = constant_zero(dims, no_diffusion))
-        self._check_trait("homogeneous", homogeneous)
+        self._check_trait(dims, "homogeneous", homogeneous)
         self.homogeneous: NoneType = homogeneous
-        self._check_trait("no_advection", no_advection)
+        self._check_trait(dims, "no_advection", no_advection)
         self.no_advection: NoneType = no_advection
-        self._check_trait("no_diffusion", no_diffusion)
+        self._check_trait(dims, "no_diffusion", no_diffusion)
         self.no_diffusion: NoneType = no_diffusion
 
 
