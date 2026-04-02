@@ -2,9 +2,11 @@ from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, overload, override
 
+import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
-from numpy.typing import NDArray
+
+from numpy_ttd.types import Core, NDArray
 
 type AnyCallable = Callable[..., Any]
 
@@ -36,7 +38,7 @@ ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
-class TTD(NDArrayOperatorsMixin):
+class TTD[DType: np.floating](NDArrayOperatorsMixin):
     """
     Class for storing TTD encoded data.
 
@@ -46,9 +48,9 @@ class TTD(NDArrayOperatorsMixin):
     falls back on expanding to full NDArray if necessary.
     """
 
-    data: list[NDArray]
+    cores: list[Core[DType]]
 
-    def __init__(self, data: Iterable[NDArray] | None = None):
+    def __init__(self, data: Iterable[Core[DType]] | None = None) -> None:
         """
         Create a new empty TTD object.
 
@@ -65,10 +67,10 @@ class TTD(NDArrayOperatorsMixin):
 
         """
         super().__init__()
-        self.data = list(data) if data is not None else []
+        self.cores = list(data) if data is not None else []
 
     @staticmethod
-    def from_ndarray(array: NDArray) -> TTD:
+    def from_ndarray[DT: np.floating](_array: NDArray[DT]) -> "TTD[DT]":
         """Compress an NDArray into a TTD object."""
         # TODO: implement compression
         raise NotImplementedError
@@ -76,16 +78,16 @@ class TTD(NDArrayOperatorsMixin):
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return f"TTD({self.cores})"
 
     @override
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return f"TTD({self.cores})"
 
     def __array__(
-        self, dtype: npt.DTypeLike | None = None, copy: bool | None = None
-    ) -> NDArray:
+        self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
+    ) -> NDArray[DType]:
         """
         Expand a TTD object into a full NDArray.
 
@@ -103,7 +105,7 @@ class TTD(NDArrayOperatorsMixin):
 
         Returns
         -------
-        numpy.ndarray
+        NDArray
             The values in the series converted to a :class:`numpy.ndarray`
             with the specified `dtype`.
 
@@ -117,7 +119,7 @@ class TTD(NDArrayOperatorsMixin):
         method: str,
         *args: ArrayUFuncParams.args,
         **kwargs: ArrayUFuncParams.kwargs,
-    ) -> Self | NDArray:
+    ) -> "TTD[DType]" | NDArray[DType]:
         """
         Apply a NumPy ufunc to a TTD object.
 
@@ -147,15 +149,15 @@ class TTD(NDArrayOperatorsMixin):
         if handler is None:
             return NotImplemented
 
-        return cast(Self | NDArray, handler(*args, **kwargs))
+        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
 
-    def __array_function__(
+    def __array_function__[*Args](
         self,
-        func: Callable[..., Any],
-        types: tuple[type],
-        args: tuple[Any, ...],
+        func: Callable[[*Args], Any],
+        types: tuple[type, ...],
+        args: tuple[*Args],
         kwargs: dict[str, Any],
-    ) -> Self | NDArray:
+    ) -> "TTD[DType]" | NDArray[DType]:
         """
         Call a NumPy method on a TTD object.
 
@@ -177,14 +179,14 @@ class TTD(NDArrayOperatorsMixin):
 
         """
         # Need to handle functions in submodules
-        name = ".".join(func.__module__.split(".")[1:] + [func.__name__])
+        name = ".".join([*func.__module__.split(".")[1:], func.__name__])
 
         handler = HANDLED_FUNCTIONS.get(name)
 
         if handler is None:
             return NotImplemented
 
-        return cast(Self | NDArray, handler(*args, **kwargs))
+        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
 
     @implements_ufunc("sum")
     def sum(self: Self) -> float:
@@ -194,18 +196,20 @@ class TTD(NDArrayOperatorsMixin):
 
     # TODO: implement other NumPy functions
 
-    def _to_raw(self) -> list[NDArray]:
+    def _to_raw(self) -> list[Core[DType]]:
         """Retrieve the internal representation as a list of NDArrays."""
-        return self.data
+        return self.cores
 
     @overload
-    def __getitem__(self, key: tuple[int, ...]) -> NDArray: ...
+    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
     @overload
-    def __getitem__(self, key: EllipsisType) -> Self: ...
+    def __getitem__(self, key: EllipsisType) -> "TTD[DType]": ...
 
-    def __getitem__(self, key: EllipsisType | tuple[int, ...]) -> Self | NDArray:
+    def __getitem__(
+        self, key: EllipsisType | tuple[int, ...]
+    ) -> "TTD[DType]" | NDArray[DType]:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
-            return self.__class__(a.copy() for a in self.data)
+            return self.__class__(a.copy() for a in self.cores)
 
         raise NotImplementedError
