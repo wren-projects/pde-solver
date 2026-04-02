@@ -16,11 +16,11 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["numpy-ttd", "pde-solver"]
+[tool.hatch.build]
+sources = ["src"]
 
 [tool.basedpyright]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 
 reportExplicitAny = false
 reportImplicitStringConcatenation = false
