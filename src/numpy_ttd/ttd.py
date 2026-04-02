@@ -43,7 +43,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     Class for storing TTD encoded data.
 
     The class on the outside behaves like a NumPy NDArray but internally it
-    stores the data in a compressed form using a TTD (tensor train
+    stores the data in a compressed form using a TTD (Tensor Train
     decomposition). It also tries to perform all operations using this form but
     falls back on expanding to full NDArray if necessary.
     """
