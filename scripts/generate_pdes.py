@@ -35,6 +35,8 @@ from pde_solver.pde_types import (
     Vector,
     VectorFunction,
 )
+
+from pde_solver.abc.PDE import PDE
 """
 
 type data_type = TypeAliasType | type[NoneType]
@@ -286,7 +288,7 @@ for (current_right_side, prev_right_side), (
         )
     ]
 
-    superclasses = f"({', '.join(parent_names)})" if parent_names else ""
+    superclasses = f"({', '.join(parent_names)})" if not parent_less else "(PDE)"
     lines: list[str] = []
 
     ident = "    "
