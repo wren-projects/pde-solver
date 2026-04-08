@@ -14,12 +14,14 @@ class Solver(ABC):
         self, initial_condition: NDArray, boundary_condition: BoundaryCondition
     ) -> NDArray:
         padded = np.pad(initial_condition, pad_width=1)
-        return boundary_condition(padded, time=0)
+        return self._apply_boundary_condition(
+            padded, boundary_condition=boundary_condition, time=DType(0)
+        )
 
-    def _step_apply_boundary_condition(
+    def _apply_boundary_condition(
         self, step: NDArray, boundary_condition: BoundaryCondition, time: DType
     ) -> NDArray:
-        """Apply the boundary condition on a change of a state ("step")."""
+        """Apply the boundary condition to a state."""
         return boundary_condition(step, time=time)
 
     def __call__(
@@ -47,7 +49,7 @@ class Solver(ABC):
                 spacial_discretization_step=spacial_discretization_step,
                 time_discretization_step=time_discretization_step,
             )
-            step = self._step_apply_boundary_condition(
+            step = self._apply_boundary_condition(
                 step=step, boundary_condition=boundary_condition, time=current_time
             )
             state = prev_state + step

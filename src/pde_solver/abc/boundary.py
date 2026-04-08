@@ -8,5 +8,5 @@ class BoundaryCondition(ABC):
 
     @abstractmethod
     def __call__(self, state: NDArray, time: float) -> NDArray:
-        """Return the boundary values in given point at given time."""
+        """Set the boundary condition for the given state at a given time."""
         raise NotImplementedError
