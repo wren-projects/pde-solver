@@ -20,6 +20,18 @@ from pde_solver.pde_types import (
     VectorFunction,
 )
 
+from pde_solver.abc.PDE import PDE
+
+
+def constant_to_function[T: Scalar | Vector | Matrix](
+    dim: int, value: T
+) -> Function[T]:
+    """Transform scalar into a constant function."""
+    return lambda _: value
+
+def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
+    """Transform scalar into a matrix."""
+    return value * np.eye(dim, dtype=DType)
 
 def identity[T](dim: int, value: T) -> T:
     """Transform value into itself."""
@@ -37,17 +49,7 @@ def constant_zero_function(dim: int, value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
 
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
-) -> Function[T]:
-    """Transform scalar into a constant function."""
-    return lambda _: value
-
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a matrix."""
-    return value * np.eye(dim, dtype=DType)
-
-class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE :
+class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE (PDE):
     """
     VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE is a representation of a diffusion-advection PDE.
 
