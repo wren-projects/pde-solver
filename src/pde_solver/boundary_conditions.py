@@ -10,18 +10,19 @@ from pde_solver.pde_types import DType, Index, NDArray
 class ConstantDirichletBoundaryCondition(BoundaryCondition):
     """Boundary condition with constant value in all directions."""
 
-    def __init__(self, value: DType) -> None:
-        """
-        Create a constant Dirichlet boundary condition.
-
-        Parameters
-        ----------
-        value : DType
-            The value that should be present at all points of the boundary.
-
-        """
+    def __init__(self, value: float) -> None:
+        """One single value is present at all points outside the grid."""
         self.value = value
 
     @override
-    def __call__(self, state: NDArray, position: Index, time: float) -> DType:
-        return self.value
+    def __call__(self, state: NDArray, time: float) -> NDArray:
+        """Set the boundary condition for the given state at a given time."""
+        state = state.copy()
+        slices: list[slice | int] = [slice(None)] * state.ndim
+        for dim in range(state.ndim):
+            slices[dim] = 0
+            state[*slices] = self.value
+            slices[dim] = state.shape[dim] - 1
+            state[*slices] = self.value
+            slices[dim] = slice(None)
+        return state
