@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import functools
-
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -158,8 +156,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             r = new_core.shape[2]
 
             # 𝐂 = 𝐒𝐕ᵀ
-            # note: np.multiply(s[:, None], v_t) == np.diag(s) @ v_t
-            residue = np.multiply(s[:, None], v_t)
+            # note: equivalent to np.diag(s) @ v_t
+            residue = cast(Matrix[DT], np.einsum("i,ij->ij", s, v_t))
 
         cores.append(residue.reshape((*residue.shape, 1)))
 
@@ -217,14 +215,25 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
                 "single-dimensional array."
             )
 
-        result = np.squeeze(  # remove singleton dimensions
-            functools.reduce(  # multiply all cores along the second axis
-                functools.partial(np.tensordot, axes=1),
-                self.data,
-            )
+        # Multiply all cores together. This is equivalent to reduce(tensordot,
+        # self.data), but faster since einsum does compute order optimizations
+        # (at the cost of slightly uglier code).
+
+        summation_indices: list[Any] = [
+            item
+            for i, core in enumerate(self.data)
+            for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
+        ]
+
+        result = cast(
+            NDArray[DType],
+            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        return result if dtype is None else result.astype(dtype)
+        # remove singleton dimensions
+        squeezed = result.squeeze()
+
+        return squeezed if dtype is None else squeezed.astype(dtype)
 
     @override
     def __array_ufunc__(
