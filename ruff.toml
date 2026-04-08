@@ -77,3 +77,8 @@ ignore = [
   "INP001",  # implicit-namespace-package
   "PLR2004", # magic-value-comparison
 ]
+
+"src/pde_solver/abc/solver.py" = [
+  "PLR0913"
+
+]
