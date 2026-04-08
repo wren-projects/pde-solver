@@ -1,3 +1,4 @@
+import functools
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -180,21 +181,45 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         Parameters
         ----------
-        dtype : str or numpy.dtype, optional
+        dtype : numpy.dtype, optional
             The dtype to use for the resulting NumPy array. By default,
             the dtype is inferred from the data.
 
-        copy : bool or None, optional
-            See :func:`numpy.asarray`.
+        copy : bool, optional
+            See :func:`numpy.asarray`. Supported only if the TTD represents a 1D
+            vector.
 
         Returns
         -------
-        NDArray
+        NDArray[DType]
             The values in the series converted to a :class:`numpy.ndarray`
             with the specified `dtype`.
 
         """
-        raise NotImplementedError
+        # Empty TTD
+        if not self.data:
+            return np.empty((0,), dtype=dtype)
+
+        # 1D TTD
+        if len(self.data) == 1:
+            core = self.data[0]
+            reshaped = core.reshape((core.shape[1],))
+            return np.array(reshaped, dtype=dtype, copy=copy)
+
+        if copy is False:
+            raise ValueError(
+                "`copy=False` is supported only for TTD representing a "
+                "single-dimensional array."
+            )
+
+        result = np.squeeze(  # remove singleton dimensions
+            functools.reduce(  # multiply all cores along the second axis
+                functools.partial(np.tensordot, axes=1),
+                self.data,
+            )
+        )
+
+        return result if dtype is None else result.astype(dtype)
 
     @override
     def __array_ufunc__(
