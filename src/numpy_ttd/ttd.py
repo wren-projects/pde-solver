@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import functools
+
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -101,7 +104,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @staticmethod
     def from_ndarray[DT: np.floating](
         array: NDArray[DT], epsilon: np.floating | float = 1e-6
-    ) -> "TTD[DT]":
+    ) -> TTD[DT]:
         """
         Compress an NDArray into a TTD object.
 
@@ -228,7 +231,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         method: str,
         *args: ArrayUFuncParams.args,
         **kwargs: ArrayUFuncParams.kwargs,
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """
         Apply a NumPy ufunc to a TTD object.
 
@@ -258,7 +261,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if handler is None:
             return NotImplemented
 
-        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
+        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
     def __array_function__[*Args](
         self,
@@ -266,7 +269,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         types: tuple[type, ...],
         args: tuple[*Args],
         kwargs: dict[str, Any],
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """
         Call a NumPy method on a TTD object.
 
@@ -295,7 +298,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if handler is None:
             return NotImplemented
 
-        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
+        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
     @implements_ufunc("sum")
     def sum(self: Self) -> float:
@@ -312,11 +315,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
     @overload
-    def __getitem__(self, key: EllipsisType) -> "TTD[DType]": ...
+    def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     def __getitem__(
         self, key: EllipsisType | tuple[int, ...]
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
             return self.__class__(a.copy() for a in self.data)
