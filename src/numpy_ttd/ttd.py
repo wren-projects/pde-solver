@@ -18,6 +18,8 @@ type AnyCallable = Callable[..., Any]
 HANDLED_UFUNCS: dict[str, AnyCallable] = {}
 HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
 
+DEFAULT_EPSILON = np.float64(1e-6)
+
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
     """Register an `__array_ufunc__` implementation for TTD objects."""
@@ -103,7 +105,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
     @staticmethod
     def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: np.floating | float = 1e-6
+        array: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
     ) -> TTD[DT]:
         """
         Compress an NDArray into a TTD object.
