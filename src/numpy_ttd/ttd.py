@@ -77,31 +77,26 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             The datatype of the TTD object. Defaults to the dtype of the first
             core. Either way, the dtype must be the same for all cores.
 
-        Returns
-        -------
-            TTD object
-
         """
         super().__init__()
 
         if dtype is not None:
             self.dtype = dtype
             self.data = [core.astype(self.dtype) for core in data]
-            if not self.data:
-                raise ValueError("TTD must have at least one core")
-            return
+        else:
+            self.data = data if isinstance(data, list) else list(data)
+            self.dtype = self.data[0].dtype
+            if not all(core.dtype == self.dtype for core in self.data):
+                raise ValueError("All cores must have the same dtype")
 
-        self.data = data if isinstance(data, list) else list(data)
         if not self.data:
             raise ValueError("TTD must have at least one core")
 
-        self.dtype = self.data[0].dtype
-        if not all(core.dtype == self.dtype for core in self.data):
-            raise ValueError("All cores must have the same dtype")
-
-        self.dtype = self.data[0].dtype
-
-        assert all(core.dtype == self.dtype for core in self.data)
+        if not all(
+            a.shape[2] == b.shape[0]
+            for a, b in zip(self.data, self.data[1:], strict=False)
+        ):
+            raise ValueError("Missmatch in core shapes")
 
     @staticmethod
     def from_ndarray[DT: np.floating](
