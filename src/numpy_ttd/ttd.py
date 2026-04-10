@@ -57,6 +57,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
+    __slots__ = ("data", "dtype")
+
     def __init__(
         self,
         data: Iterable[Core[DType]],
@@ -172,6 +174,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
         return f"TTD({self.data})"
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Return the shape of the TTD object."""
+        return tuple(core.shape[1] for core in self.data)
+
+    @property
+    def ndim(self) -> int:
+        """Return the number of dimensions of the TTD object."""
+        return len(self.data)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
