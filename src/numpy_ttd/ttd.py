@@ -242,6 +242,77 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
+    @implements_function("vdot")
+    def inner_product(self, other: TTD[DType]) -> DType:
+        """
+        Compute the inner product of two TTD objects.
+
+        The inner product of two TTD objects is defined as the sum of inner
+        products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
+        and B = H₀, H₁, …, Hₙ, the inner product is defined as
+
+            ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᵀ Hₖ.
+
+        The inner product requires that the TTD objects have the same shape and the same
+        dtype.
+
+        Parameters
+        ----------
+        other : TTD[DType]
+            The other TTD object.
+
+        Returns
+        -------
+        DType
+            The inner product of the two TTD objects.
+
+        """
+        if self.shape != other.shape:
+            raise ValueError("TTD objects must have the same shape")
+
+        if self.dtype != other.dtype:
+            raise ValueError("TTD objects must have the same dtype")
+
+        n = len(self.data)
+
+        summation_indices: list[Any] = [
+            item
+            for i, (self_core, other_core) in enumerate(
+                zip(self.data, other.data, strict=True)
+            )
+            for item in (
+                self_core,
+                (2 * i + 0, 2 * i + 1, 2 * i + 2),
+                other_core,
+                (2 * (n + i) + 0, 2 * i + 1, 2 * (n + i) + 2),
+            )
+        ]
+
+        total = cast(
+            DType,
+            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+        )
+
+        return np.squeeze(total)
+
+    @implements_function("linalg.norm")
+    def frobenius_norm(self) -> DType:
+        """
+        Return the Frobenius norm of the TTD object.
+
+        The Frobenius norm of a TTD object is defined as the square root of its
+        inner product with itself:
+
+            ‖A‖ᶠ = √(⟨A, A⟩)
+
+        Returns
+        -------
+        DType
+            The Frobenius norm of the TTD object.
+
+        """
+        return cast(DType, np.sqrt(np.vdot(self, self)))
+
     @override
     def __array_ufunc__(
         self,

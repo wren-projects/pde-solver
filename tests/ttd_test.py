@@ -45,3 +45,19 @@ def test_roundtrip_compression(tensor: NDArray[Any]) -> None:
     assert np.allclose(np.asarray(ttd), tensor), (
         "TTD round-trip does not equal original tensor"
     )
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_inner_product(tensor: NDArray[Any]) -> None:
+    """Test inner norm."""
+    tensor_float: NDArray[np.float64] = tensor.astype(np.float64)
+    ttd = TTD.from_ndarray(tensor_float, epsilon=DEFAULT_EPSILON)
+    assert np.allclose(np.vdot(ttd, ttd), np.vdot(tensor_float, tensor_float))
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_frobenius_norm(tensor: NDArray[Any]) -> None:
+    """Test Frobenius norm."""
+    tensor_float: NDArray[np.float64] = tensor.astype(np.float64)
+    ttd = TTD.from_ndarray(tensor_float, epsilon=DEFAULT_EPSILON)
+    assert np.allclose(np.linalg.norm(ttd), np.linalg.norm(tensor_float))
