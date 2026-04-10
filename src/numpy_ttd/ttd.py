@@ -318,18 +318,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
-    @implements_ufunc("sum")
-    def sum(self: Self) -> float:
-        """Sum the elements of the TTD object."""
-        # NOTE: this is an example of ufunc, probably doesn't need to be implemented
-        raise NotImplementedError
-
-    # TODO: implement other NumPy functions
-
-    def _to_raw(self) -> list[Core[DType]]:
-        """Retrieve the internal representation as a list of NDArrays."""
-        return self.data
-
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
     @overload
