@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from numpy_ttd import ops
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
@@ -477,6 +478,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
+    @implements_ufunc("add")
+    @staticmethod
+    def add[DT: np.floating](
+        a: TTD[DT],
+        b: TTD[DT],
+        *,
+        out: tuple[TTD[DT]] | None = None,
+    ) -> TTD[DT]:
+        """Add two TTD objects."""
+        return ops.add(a, b, out=out)
+
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
@@ -493,3 +505,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return self._get_item(key)
 
         raise NotImplementedError
+
+    @override
+    def __add__(self, other: TTD[DType]) -> TTD[DType]:
+        """Add two TTD objects."""
+        return self.add(self, other)
+
+    @override
+    def __iadd__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place add another tensor."""
+        return self.add(self, other, out=(self,))
+
+    @override
+    def __radd__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse add another tensor."""
+        return self.add(other, self)
