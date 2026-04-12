@@ -320,7 +320,7 @@ representation.
 
 \subsection{Computing TTD}
 \subsubsection{From Unfoldings to TT-SVD}
-\begin{definition}[Frobenius norm]
+\begin{definition}[Frobenius norm of tensor]
   For a tensor $A$,
   \[
     \|A\|_F
@@ -610,6 +610,10 @@ computational cost.
 Rounding reduces ranks while controlling the approximation error. It restores
 a compact representation.
 
+\paragraph{Note.}
+The Frobenius norm satisfies $\|A\|_F = \sqrt{\langle A,A\rangle}$, so it
+reduces to an inner product computation (see \cref{sec:inner_product}).
+
 \paragraph{Code slot (NumPy).}
 \begin{minted}{python}
 # TODO implemented rounding
@@ -670,11 +674,6 @@ scale a single core:
 # - scalar multiply: scale G[0] *= c
 \end{minted}
 
-\paragraph{Norms.}
-The Frobenius norm satisfies $\|A\|_F = \sqrt{\langle A,A\rangle}$, so it
-reduces to an inner product computation (see below). In practice,
-orthogonalization often improves stability.
-
 \paragraph{Code slot.}
 \begin{minted}{python}
   # TODO implemented proper norm_F
@@ -683,6 +682,7 @@ orthogonalization often improves stability.
 % TODO: Norm computation via contractions; mention orthogonalization.
 
 \subsection{Inner products}
+\label{sec:inner_product}
 
 \begin{definition}[Inner product in TT format]
 
@@ -705,7 +705,8 @@ orthogonalization often improves stability.
     B(i_1,\dots,i_d)
   \]
 
-  can be computed sequentially as follows.
+  can be computed sequentially by summing the inner products of
+  the cores contracted by matrices $M_k$ as shown in \cref{alg:inner_product}.
 
   Define $M_0 = [1]$ and recursively compute
 
@@ -725,6 +726,26 @@ orthogonalization often improves stability.
     \langle A,B \rangle = M_d.
   \]
 
+  \begin{algorithm}[t]
+    \caption{Inner product in TT format}
+    \label{alg:inner_product}
+    \begin{algorithmic}[1]
+      \Require Matrix-valued functions $G_1,\dots,G_d$
+
+      \Ensure Inner product $\langle A,B \rangle$
+
+      \State Set $M_0 \coloneqq [1]$ \Comment{$1 \times 1$ matrix}
+
+      \For{$k = 1$ \textbf{to} $d$}
+
+      \State $M_k = \sum_{i_k} G_k(i_k)^T M_{k-1} H_k(i_k)$
+      \Comment{$M_k$ is $r_k \times r_k$}
+
+      \EndFor
+
+      \State \Return $M_d$ \Comment{$M_d$ is a $1 \times 1$ matrix}
+    \end{algorithmic}
+  \end{algorithm}
 \end{definition}
 
 \paragraph{Explanation (informal).}
@@ -732,39 +753,15 @@ Instead of summing over all $n_1\cdots n_d$ tensor entries,
 we contract the tensor cores one dimension at a time.
 
 At each step $k$, we accumulate a small matrix $M_k$ that carries the
-interaction
-between the first $k$ dimensions. Since the boundary ranks satisfy $r_0=s_0=1$,
-the final matrix $M_d$ is a scalar. This reduces exponential complexity to
-polynomial complexity.
+interaction between the first $k$ dimensions. Since the boundary ranks satisfy
+$r_0=s_0=1$, the final matrix $M_d$ has size $1\times 1$ and thus can be
+interpreted as a scalar. This reduces exponential complexity to polynomial
+complexity.
 
 \paragraph{Complexity.}
+
 If $n_k \le n$ and all TT-ranks are bounded by $r$, the computational complexity
-is
-
-\[
-  \mathcal{O}(d\, n\, r^3).
-\]
-
-\paragraph{Example (inner product complexity).}
-Let $A, B \in \mathbb{R}^{n \times n \times n}$.
-
-Full computation requires:
-\[
-\mathcal{O}(n^3).
-\]
-
-In TT format, compute recursively:
-\[
-M_k = \sum_{i_k} G_k(i_k)^\top M_{k-1} H_k(i_k).
-\]
-
-\paragraph{Explanation (informal).}
-The computation proceeds dimension by dimension. At each step, only small
-matrices are manipulated.
-
-\paragraph{Explanation (informal).}
-If TT-ranks are bounded by $r$, the complexity becomes
-$\mathcal{O}(d n r^3)$ instead of $\mathcal{O}(n^d)$.
+reduces from exponential $\mathcal{O}(n^d)$ to polynomial $\mathcal{O}(dnr^3)$.
 
 \paragraph{Code slot.}
 \begin{minted}{python}

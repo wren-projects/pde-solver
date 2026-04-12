@@ -10,28 +10,6 @@ from numpy_ttd.types import Matrix, Vector
 DEFAULT_EPSILON = np.float64(1e-9)
 
 
-def frobenius_norm[DT: np.floating](tensor: NDArray[DT]) -> DT:
-    """
-    Compute the Frobenius norm of a tensor.
-
-    Frobenius norm is defined as the square root of the sum of the squares of
-    all elements in the tensor.
-
-    Parameters
-    ----------
-    tensor : NDArray[DT]
-        The tensor to compute the norm of.
-
-    Returns
-    -------
-    DT
-        The Frobenius norm of the tensor.
-
-    """
-    # ‖A‖ᶠ = √(∑ᵢⱼₖ |aᵢⱼₖ|²)
-    return np.sqrt(np.sum(np.square(tensor)))  # pyright: ignore[reportAny]
-
-
 def truncation_parameter[DT: np.floating](
     tensor: NDArray[DT], epsilon: np.floating | float
 ) -> DT:
@@ -39,7 +17,7 @@ def truncation_parameter[DT: np.floating](
     assert tensor.ndim > 1, "Tensor must be at least 2D"
 
     # δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ = ‖A‖ᶠ ⋅ (ε / √(d - 1))
-    return frobenius_norm(tensor) * (epsilon / math.sqrt(tensor.ndim - 1))
+    return np.linalg.norm(tensor) * (epsilon / math.sqrt(tensor.ndim - 1))
 
 
 def delta_truncated_svd[DT: np.floating](
