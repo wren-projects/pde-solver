@@ -57,6 +57,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
+    __slots__ = ("data", "dtype")
+
     def __init__(
         self,
         data: Iterable[Core[DType]],
@@ -75,31 +77,26 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             The datatype of the TTD object. Defaults to the dtype of the first
             core. Either way, the dtype must be the same for all cores.
 
-        Returns
-        -------
-            TTD object
-
         """
         super().__init__()
 
         if dtype is not None:
             self.dtype = dtype
             self.data = [core.astype(self.dtype) for core in data]
-            if not self.data:
-                raise ValueError("TTD must have at least one core")
-            return
+        else:
+            self.data = data if isinstance(data, list) else list(data)
+            self.dtype = self.data[0].dtype
+            if not all(core.dtype == self.dtype for core in self.data):
+                raise ValueError("All cores must have the same dtype")
 
-        self.data = data if isinstance(data, list) else list(data)
         if not self.data:
             raise ValueError("TTD must have at least one core")
 
-        self.dtype = self.data[0].dtype
-        if not all(core.dtype == self.dtype for core in self.data):
-            raise ValueError("All cores must have the same dtype")
-
-        self.dtype = self.data[0].dtype
-
-        assert all(core.dtype == self.dtype for core in self.data)
+        if not all(
+            a.shape[2] == b.shape[0]
+            for a, b in zip(self.data, self.data[1:], strict=False)
+        ):
+            raise ValueError("Missmatch in core shapes")
 
     @staticmethod
     def from_ndarray[DT: np.floating](
@@ -172,6 +169,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
         return f"TTD({self.data})"
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Return the shape of the TTD object."""
+        return tuple(core.shape[1] for core in self.data)
+
+    @property
+    def ndim(self) -> int:
+        """Return the number of dimensions of the TTD object."""
+        return len(self.data)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
@@ -310,18 +317,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return NotImplemented
 
         return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
-
-    @implements_ufunc("sum")
-    def sum(self: Self) -> float:
-        """Sum the elements of the TTD object."""
-        # NOTE: this is an example of ufunc, probably doesn't need to be implemented
-        raise NotImplementedError
-
-    # TODO: implement other NumPy functions
-
-    def _to_raw(self) -> list[Core[DType]]:
-        """Retrieve the internal representation as a list of NDArrays."""
-        return self.data
 
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
