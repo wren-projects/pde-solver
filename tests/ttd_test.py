@@ -1,3 +1,4 @@
+import math
 from typing import Any
 
 import numpy as np
@@ -157,3 +158,14 @@ def test_add(tensors: tuple[NDArray[Any], NDArray[Any]]) -> None:
     # assert isinstance(ttd_sum, TTD)
     #
     # assert_ttd_approximates_tensor(ttd_sum, tensor_sum)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_scalar_multiplication(tensor: NDArray[Any]) -> None:
+    """Test that TTD scalar multiplication works."""
+    A = tensor.astype(np.float64)
+
+    ttd = TTD.from_ndarray(A)
+
+    for scalar in [1, 0.5, -1, 0, math.pi, -math.e]:
+        assert np.allclose(np.asarray(ttd * scalar), A * scalar)

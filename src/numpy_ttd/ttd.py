@@ -525,3 +525,33 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def __radd__(self, other: TTD[DType] | NDArray[DType]) -> TTD[DType]:
         """Reverse add another tensor."""
         return self.add(other, self)
+
+    @override
+    def __sub__(self, other: TTD[DType] | NDArray[DType]) -> TTD[DType]:
+        """Subtract two TTD objects."""
+        return self.add(self, -other)
+
+    @override
+    def __isub__(self, other: TTD[DType] | NDArray[DType]) -> TTD[DType]:
+        """In-place subtract another tensor."""
+        return self.add(self, -other, out=(self,))
+
+    @override
+    def __rsub__(self, other: TTD[DType] | NDArray[DType]) -> TTD[DType]:
+        """Reverse subtract another tensor."""
+        return self.add(-other, self)
+
+    @override
+    def __mul__(self, other: np.floating | float) -> TTD[DType]:
+        """Multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __rmul__(self, other: np.floating | float) -> TTD[DType]:
+        """Reverse multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __neg__(self) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.neg(self)
