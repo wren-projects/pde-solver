@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -13,6 +15,8 @@ type AnyCallable = Callable[..., Any]
 
 HANDLED_UFUNCS: dict[str, AnyCallable] = {}
 HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
+
+DEFAULT_EPSILON = np.float64(1e-6)
 
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
@@ -99,8 +103,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
     @staticmethod
     def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: np.floating | float = 1e-6
-    ) -> "TTD[DT]":
+        array: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+    ) -> TTD[DT]:
         """
         Compress an NDArray into a TTD object.
 
@@ -152,8 +156,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             r = new_core.shape[2]
 
             # 𝐂 = 𝐒𝐕ᵀ
-            # note: np.multiply(s[:, None], v_t) == np.diag(s) @ v_t
-            residue = np.multiply(s[:, None], v_t)
+            # note: equivalent to np.diag(s) @ v_t
+            residue = cast(Matrix[DT], np.einsum("i,ij->ij", s, v_t))
 
         cores.append(residue.reshape((*residue.shape, 1)))
 
@@ -180,21 +184,56 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         Parameters
         ----------
-        dtype : str or numpy.dtype, optional
+        dtype : numpy.dtype, optional
             The dtype to use for the resulting NumPy array. By default,
             the dtype is inferred from the data.
 
-        copy : bool or None, optional
-            See :func:`numpy.asarray`.
+        copy : bool, optional
+            See :func:`numpy.asarray`. Supported only if the TTD represents a 1D
+            vector.
 
         Returns
         -------
-        NDArray
+        NDArray[DType]
             The values in the series converted to a :class:`numpy.ndarray`
             with the specified `dtype`.
 
         """
-        raise NotImplementedError
+        # Empty TTD
+        if not self.data:
+            return np.empty((0,), dtype=dtype)
+
+        # 1D TTD
+        if len(self.data) == 1:
+            core = self.data[0]
+            reshaped = core.reshape((core.shape[1],))
+            return np.array(reshaped, dtype=dtype, copy=copy)
+
+        if copy is False:
+            raise ValueError(
+                "`copy=False` is supported only for TTD representing a "
+                "single-dimensional array."
+            )
+
+        # Multiply all cores together. This is equivalent to reduce(tensordot,
+        # self.data), but faster since einsum does compute order optimizations
+        # (at the cost of slightly uglier code).
+
+        summation_indices: list[Any] = [
+            item
+            for i, core in enumerate(self.data)
+            for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
+        ]
+
+        result = cast(
+            NDArray[DType],
+            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+        )
+
+        # remove singleton dimensions
+        squeezed = result.squeeze()
+
+        return squeezed if dtype is None else squeezed.astype(dtype)
 
     @override
     def __array_ufunc__(
@@ -203,7 +242,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         method: str,
         *args: ArrayUFuncParams.args,
         **kwargs: ArrayUFuncParams.kwargs,
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """
         Apply a NumPy ufunc to a TTD object.
 
@@ -233,7 +272,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if handler is None:
             return NotImplemented
 
-        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
+        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
     def __array_function__[*Args](
         self,
@@ -241,7 +280,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         types: tuple[type, ...],
         args: tuple[*Args],
         kwargs: dict[str, Any],
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """
         Call a NumPy method on a TTD object.
 
@@ -270,7 +309,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if handler is None:
             return NotImplemented
 
-        return cast("TTD[DType]" | NDArray[DType], handler(*args, **kwargs))
+        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
     @implements_ufunc("sum")
     def sum(self: Self) -> float:
@@ -287,11 +326,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
     @overload
-    def __getitem__(self, key: EllipsisType) -> "TTD[DType]": ...
+    def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     def __getitem__(
         self, key: EllipsisType | tuple[int, ...]
-    ) -> "TTD[DType]" | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType]:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
             return self.__class__(a.copy() for a in self.data)
