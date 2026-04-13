@@ -5,7 +5,9 @@ SVD
 TTD
 args
 dtype
+einsum
 func
 kwargs
 str
+tensordot
 ufunc
