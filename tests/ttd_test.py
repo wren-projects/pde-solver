@@ -68,3 +68,11 @@ def test_rounding(tensor: NDArray[Any]) -> None:
     """Test get value."""
     tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
     assert np.allclose(np.asarray(tensortrain.rounded()), tensor)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_get_element(tensor: NDArray[Any]) -> None:
+    """Test get value."""
+    tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
+    for index in np.ndindex(tensor.shape):
+        assert np.allclose(tensortrain[index], tensor[index])

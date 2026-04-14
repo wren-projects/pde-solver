@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -458,16 +459,37 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
+    def _get_item(self, indexes: tuple[int, ...]) -> NDArray[DType] | DType:
+        """Retrieve a single value from the TTD object."""
+        if len(indexes) == 0:
+            raise IndexError("Cannot index with an empty tuple")
+
+        if len(indexes) != len(self.data):
+            raise IndexError(
+                f"Cannot index with indexes {indexes}, "
+                f"expected {len(self.data)} indexes"
+            )
+
+        result = functools.reduce(
+            np.matmul,
+            (core[:, j] for core, j in zip(self.data, indexes)),  # noqa: B905
+        )
+
+        return result.squeeze()
+
     @overload
-    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
+    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     def __getitem__(
         self, key: EllipsisType | tuple[int, ...]
-    ) -> TTD[DType] | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType] | DType:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
             return self.__class__(a.copy() for a in self.data)
+
+        if isinstance(key, tuple):
+            return self._get_item(key)
 
         raise NotImplementedError
