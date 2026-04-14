@@ -61,3 +61,10 @@ def test_frobenius_norm(tensor: NDArray[Any]) -> None:
     tensor_float: NDArray[np.float64] = tensor.astype(np.float64)
     ttd = TTD.from_ndarray(tensor_float, epsilon=DEFAULT_EPSILON)
     assert np.allclose(np.linalg.norm(ttd), np.linalg.norm(tensor_float))
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_rounding(tensor: NDArray[Any]) -> None:
+    """Test get value."""
+    tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
+    assert np.allclose(np.asarray(tensortrain.rounded()), tensor)
