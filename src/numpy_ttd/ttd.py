@@ -509,14 +509,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @override
     def __add__(self, other: TTD[DType]) -> TTD[DType]:
         """Add two TTD objects."""
-        return self.add(self, other)
+        return ops.add(self, other)
 
     @override
     def __iadd__(self, other: TTD[DType]) -> TTD[DType]:
         """In-place add another tensor."""
-        return self.add(self, other, out=(self,))
+        return ops.add(self, other, out=(self,))
 
     @override
     def __radd__(self, other: TTD[DType]) -> TTD[DType]:
         """Reverse add another tensor."""
-        return self.add(other, self)
+        return ops.add(other, self)
