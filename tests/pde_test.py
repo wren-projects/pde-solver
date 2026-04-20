@@ -1,10 +1,10 @@
 import inspect
 import types
-from typing import Any, TypeAlias, TypeAliasType
+from typing import Any, TypeAliasType
 
-import numpy
+import numpy as np
 
-from pde_solver import PDE
+from pde_solver import pde
 from pde_solver.pde_types import (
     Matrix,
     MatrixFunction,
@@ -23,7 +23,7 @@ def get_defined_classes(module: types.ModuleType) -> list[type]:
     return [cls for name, cls in all_classes if cls.__module__ == module.__name__]
 
 
-all_pde_classes = get_defined_classes(PDE)
+all_pde_classes = get_defined_classes(pde)
 
 
 def test_pde_has_smallest_element() -> None:
@@ -57,14 +57,15 @@ def test_pde_has_largerst_element() -> None:
 
 
 def test_all_pdes_can_be_constructed() -> None:
+    """Test that all PDE's constructors work."""
     dummy_value_by_type: dict[type | TypeAliasType, Any] = {
         int: 3,
         Scalar: 3,
-        Vector: numpy.arange(3),
-        Matrix: numpy.arange(9).reshape((3, 3)),
+        Vector: np.arange(3),
+        Matrix: np.arange(9).reshape((3, 3)),
         ScalarFunction: lambda _: 0,
-        VectorFunction: lambda _: numpy.arange(3),
-        MatrixFunction: lambda _: numpy.arange(9).reshape((3, 3)),
+        VectorFunction: lambda _: np.arange(3),
+        MatrixFunction: lambda _: np.arange(9).reshape((3, 3)),
         types.NoneType: None,
     }
     for element in all_pde_classes:

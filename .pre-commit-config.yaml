@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: Linter
+        entry: uv run ruff check
+        language: system
+        require_serial: true
+        types_or: [python, pyi]
+
+      - id: pytest
+        name: Run Pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

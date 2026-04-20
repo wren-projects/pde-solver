@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 from collections.abc import Callable, Iterable
 from types import EllipsisType
-from typing import Any, ParamSpec, Self, cast, final, overload, override
+from typing import Any, ParamSpec, cast, final, overload, override
 
 import numpy as np
 import numpy.typing as npt
