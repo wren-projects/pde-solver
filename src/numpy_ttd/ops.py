@@ -17,7 +17,8 @@ def scalar_mul[DType: np.floating](
     """Multiply a TTD object by a scalar."""
     cores = a.data.copy()
 
-    index, _ = min(enumerate(cores), key=lambda el: prod(el[1].shape))
+    # find smallest core
+    _, index = min((prod(core.shape), index) for index, core in enumerate(cores))
 
     cores[index] = np.multiply(cores[index], b)
 
