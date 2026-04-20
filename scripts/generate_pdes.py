@@ -36,7 +36,7 @@ from pde_solver.pde_types import (
     VectorFunction,
 )
 
-from pde_solver.abc.PDE import PDE
+from pde_solver.abc.pde import PDE
 """
 
 type data_type = TypeAliasType | type[NoneType]
@@ -304,7 +304,7 @@ for (current_right_side, prev_right_side), (
     if parent_less:
         lines += [
             "",
-            f"{ident}def _check_function_equal(self, fce1: Callable, fce2: Callable, dims: int) -> bool:",
+            f"{ident}def _check_function_equal(self, fce1: Callable[..., Any], fce2: Callable[..., Any], dims: int) -> bool:",
             f"{ident}{ident}return np.array_equal(fce1(np.arange(dims)), fce2(np.arange(dims)))",
             "",
             f"{ident}def _check_trait(self, dims:int, name: str, value: Any) -> None:",
