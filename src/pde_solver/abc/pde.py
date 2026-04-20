@@ -10,8 +10,10 @@ class PDE(ABC):
     and have completely different interfaces. The only reason this ABC exists is to
     allow us to type hint solvers.
     """
+    
     @abstractmethod
     def __init__(self) -> None:
+        """A dummy init so that this can still be an ABC."""
         ...
 
     @override
