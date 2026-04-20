@@ -15,11 +15,15 @@ def scalar_mul[DType: np.floating](
     out: tuple[TTD[DType]] | None = None,
 ) -> TTD[DType]:
     """Multiply a TTD object by a scalar."""
-    cores = out[0].data if out is not None else a.data.copy()
+    cores = a.data.copy()
 
     index, _ = min(enumerate(cores), key=lambda el: prod(el[1].shape))
 
     cores[index] = np.multiply(cores[index], b)
+
+    if out is not None:
+        out[0].data = cores
+        return out[0]
 
     return a.__class__(cores, dtype=a.dtype)
 
