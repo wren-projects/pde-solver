@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
 from typing import override
 
 
-class PDE(ABC):
+class PDE:
     """
     Abstract base class for PDEs.
 
@@ -12,6 +11,5 @@ class PDE(ABC):
     """
 
     @override
-    @abstractmethod
     def __str__(self) -> str:
         return f"This is an implementation of {self.__class__.__name__} PDE."
