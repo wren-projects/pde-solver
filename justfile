@@ -14,4 +14,7 @@ lint:
 test:
     {{ uv }} run pytest
 
+setup:
+    {{ uv }} run pre-commit install --hook-type pre-commit --hook-type pre-push
+
 check: lint test
