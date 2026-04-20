@@ -1,7 +1,8 @@
+from abc import ABC, abstractmethod
 from typing import override
 
 
-class PDE:
+class PDE(ABC):
     """
     Abstract base class for PDEs.
 
@@ -9,6 +10,9 @@ class PDE:
     and have completely different interfaces. The only reason this ABC exists is to
     allow us to type hint solvers.
     """
+    @abstractmethod
+    def __init__(self) -> None:
+        ...
 
     @override
     def __str__(self) -> str:
