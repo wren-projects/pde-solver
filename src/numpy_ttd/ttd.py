@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, Self, cast, final, overload, override
@@ -8,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
-from numpy_ttd.math import delta_truncated_svd, truncation_parameter
+from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
 type AnyCallable = Callable[..., Any]
@@ -242,6 +243,75 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
+    def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
+        """
+        Round the TTD object by decreasing ranks.
+
+        Uses SVD for compression. Ensures that the ranks of the rounded TTD 𝐀̃
+        are maximally reduced, while ensuring that the relative error is less
+        than `epsilon`.
+
+        Operates on the TTD object in-place. See also :func:`TTD.rounded` to get
+        a rounded copy.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            The relative error tolerance for the compression. Uses system-wide default
+            value if not provided.
+
+        """
+        if self.ndim == 1:
+            return
+
+        # Suppose that 𝐀 is in the TT-format:
+        # 𝐀(i₁, ..., i_d) = 𝐆₁(i₁) 𝐆₂(i₂) ... 𝐆_d(i_d)
+
+        # (𝐆₁, ..., 𝐆_d)
+        # Note: cores are 0 indexed here but 1 indexed in the paper, so 𝐆ₖ = G[k - 1]
+        cores = self.data
+        d = len(cores)
+
+        for k in range(d, 1, -1):  # for k = d to 2 step -1
+            # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
+            # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
+            core = cores[k - 1]
+            alpha_k1, i_k, beta_k = core.shape
+            # 𝐐, 𝐑 = QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ)) = QR(𝐆ₖ(αₖ₋₁; iₖβₖ)ᵀ)ᵀ
+            q, r = qr_rows(core.reshape((alpha_k1, i_k * beta_k)))
+            # 𝐆ₖ(βₖ₋₁; iₖβₖ) = 𝐐
+            cores[k - 1] = q.reshape((-1, i_k, beta_k))
+            # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
+            # NOTE: there is a typo in the TTD paper: it incorrectly says 𝐆ₖ ×₃ 𝐑
+            cores[k - 2] = np.einsum("ijk,kl", cores[k - 2], r)
+
+        # this is necessary for Python's typing
+        delta = truncation_parameter(cast(NDArray[DType], cast(Any, self)), epsilon)
+
+        for k in range(1, d):  # for k = 1 to d-1
+            # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
+            core = cores[k - 1]
+            beta_k1, i_k, beta_k = core.shape
+            # 𝐔, 𝚲, 𝐕ᵀ := SVDᵟ(𝐆ₖ(βₖ₋₁; iₖβₖ))
+            u, s, v_t = delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k), delta)
+            # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
+            cores[k - 1] = u.reshape((beta_k1, i_k, -1))
+            # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ
+            cores[k] = np.einsum(
+                "ijk,hi,h->hjk",
+                cores[k],
+                v_t,
+                s,
+                # in 99% of cases, this is the optimal path
+                optimize=("einsum_path", (0, 1), (0, 1)),
+            )
+
+    def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
+        """Return a new rounded TTD object."""
+        ttd = self[...]
+        ttd.round(epsilon)
+        return ttd
+
     @implements_function("vdot")
     def inner_product(self, other: TTD[DType]) -> DType:
         """
@@ -389,16 +459,37 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
 
+    def _get_item(self, indexes: tuple[int, ...]) -> NDArray[DType] | DType:
+        """Retrieve a single value from the TTD object."""
+        if len(indexes) == 0:
+            raise IndexError("Cannot index with an empty tuple")
+
+        if len(indexes) != len(self.data):
+            raise IndexError(
+                f"Cannot index with indexes {indexes}, "
+                f"expected {len(self.data)} indexes"
+            )
+
+        result = functools.reduce(
+            np.matmul,
+            (core[:, j] for core, j in zip(self.data, indexes)),  # noqa: B905
+        )
+
+        return result.squeeze()
+
     @overload
-    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType]: ...
+    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     def __getitem__(
         self, key: EllipsisType | tuple[int, ...]
-    ) -> TTD[DType] | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType] | DType:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
             return self.__class__(a.copy() for a in self.data)
+
+        if isinstance(key, tuple):
+            return self._get_item(key)
 
         raise NotImplementedError
