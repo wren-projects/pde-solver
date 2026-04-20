@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 def scalar_mul[DType: np.floating](
     a: TTD[DType],
     b: np.floating | float,
-    out: tuple[TTD[DType]] | None = None,
+    out: TTD[DType] | None = None,
 ) -> TTD[DType]:
     """Multiply a TTD object by a scalar."""
     cores = a.data.copy()
@@ -22,8 +22,8 @@ def scalar_mul[DType: np.floating](
     cores[index] = np.multiply(cores[index], b)
 
     if out is not None:
-        out[0].data = cores
-        return out[0]
+        out.data = cores
+        return out
 
     return a.__class__(cores, dtype=a.dtype)
 

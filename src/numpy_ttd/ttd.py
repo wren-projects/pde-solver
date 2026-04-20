@@ -484,7 +484,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         a: TTD[DType] | np.floating | float,
         b: TTD[DType] | np.floating | float,
         *,
-        out: tuple[TTD[DType]] | None = None,
+        out: TTD[DType] | None = None,
     ) -> TTD[DType]:
         """Add two TTD objects."""
         if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
@@ -526,7 +526,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @override
     def __imul__(self, other: np.floating | float) -> TTD[DType]:
         """In-place multiply two TTD objects."""
-        return ops.scalar_mul(self, other, out=(self,))
+        return ops.scalar_mul(self, other, out=self)
 
     @override
     def __rmul__(self, other: np.floating | float) -> TTD[DType]:
