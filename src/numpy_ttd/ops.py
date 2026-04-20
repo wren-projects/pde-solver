@@ -14,7 +14,7 @@ def add[DType: np.floating](
     a: TTD[DType],
     b: TTD[DType],
     *,
-    out: tuple[TTD[DType]] | None = None,
+    out: TTD[DType] | None = None,
 ) -> TTD[DType]:
     """Add two TTD objects."""
     # the import has to be here to avoid circular imports
@@ -23,7 +23,7 @@ def add[DType: np.floating](
     if a.shape != b.shape:
         raise ValueError("Tensors with different shapes cannot be added.")
 
-    if out is not None and out[0].shape != a.shape:
+    if out is not None and out.shape != a.shape:
         raise ValueError("Output tensor has an incorrect shape.")
 
     cores = _add_cores(a.data, b.data, a.dtype)
@@ -31,8 +31,8 @@ def add[DType: np.floating](
     if out is None:
         return TTD(cores, dtype=a.dtype)
 
-    out[0].data = list(cores)
-    return out[0]
+    out.data = list(cores)
+    return out
 
 
 def _add_cores[DType: np.floating](
