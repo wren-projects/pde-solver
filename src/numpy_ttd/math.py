@@ -52,3 +52,23 @@ def delta_truncated_svd[DT: np.floating](
     # Keep only singular values >= delta
     mask = s >= delta
     return u[:, mask], s[mask], v_t[mask, :]
+
+
+def qr_rows[DT: np.floating](matrix: Matrix[DT]) -> tuple[Matrix[DT], Matrix[DT]]:
+    """
+    Compute the QR decomposition, where Q has orthogonal rows.
+
+    Parameters
+    ----------
+    matrix : Matrix[DT]
+        The matrix to compute the QR decomposition of.
+
+    Returns
+    -------
+    tuple[Matrix[DT], Matrix[DT]]
+        The QR decomposition in the form of matrix Q and matrix R.
+
+    """
+    q, r = np.linalg.qr(matrix.T)
+
+    return q.T, r.T
