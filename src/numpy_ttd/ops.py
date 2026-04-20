@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -40,7 +39,7 @@ def _add_cores[DType: np.floating](
     a: list[Core[DType]],
     b: list[Core[DType]],
     dtype: np.dtype,
-) -> Iterable[Core[DType]]:
+) -> list[Core[DType]]:
     # Add vectors
     if len(a) == len(b) == 1:
         return [np.add(a[0], b[0])]
