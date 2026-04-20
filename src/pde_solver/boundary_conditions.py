@@ -1,29 +1,27 @@
 from __future__ import annotations
-from typing import final
+
+from typing import final, override
 
 from pde_solver.abc.boundary import BoundaryCondition
-from pde_solver.pde_types import Index
+from pde_solver.pde_types import DType, Index, NDArray
 
 
 @final
 class ConstantDirichletBoundaryCondition(BoundaryCondition):
     """Boundary condition with constant value in all directions."""
 
-    def __init__(self, value: float) -> None:
+    def __init__(self, value: DType) -> None:
+        """
+        Create a constant Dirichlet boundary condition.
+
+        Parameters
+        ----------
+        value : DType
+            The value that should be present at all points of the boundary.
+
+        """
         self.value = value
 
-    def __call__(self, state: NDArray, position: Index, time: float) -> float:
+    @override
+    def __call__(self, state: NDArray, position: Index, time: float) -> DType:
         return self.value
-
-
-@final
-class VariableDirichletBoundaryCondition(BoundaryCondition):
-    """Boundary condition with variable value in all directions."""
-
-    func: Callable[[float], float]
-
-    def __init__(self, func: Callable[[float], float]) -> None:
-        self.func = func
-
-    def __call__(self, state: NDArray, position: Index, time: float) -> float:
-        return self.func(time)

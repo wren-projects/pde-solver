@@ -1,4 +1,4 @@
-# ruff: noqa: ARG001, T201, E501
+# ruff: noqa: ARG001, T201, E501, INP001
 import inspect
 import itertools
 from collections.abc import Callable, Iterable
@@ -311,9 +311,12 @@ for (current_right_side, prev_right_side), (
             f"{ident}{ident}if not hasattr(self, name):",
             f"{ident}{ident}{ident}return",
             f"{ident}{ident}old = getattr(self, name)",
-            f"{ident}{ident}if (old is not value) and (old is None or value is None): return",
-            f"{ident}{ident}if (callable(value) and self._check_function_equal(old, value, dims)): return",
-            f"{ident}{ident}if (not callable(value)) and ((old is value) or np.array_equal(old, value)): return",
+            f"{ident}{ident}if (old is not value) and (old is None or value is None):",
+            f"{ident}{ident}{ident}return",
+            f"{ident}{ident}if (callable(value) and self._check_function_equal(old, value, dims)):",
+            f"{ident}{ident}{ident}return",
+            f"{ident}{ident}if (not callable(value)) and ((old is value) or np.array_equal(old, value)):",
+            f"{ident}{ident}{ident}return",
             ident * 2
             + 'raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, name)}")',
         ]

@@ -2,13 +2,15 @@
 # pyright: reportMissingSuperCall=false
 # pyright: reportUnusedParameter=false
 # pyright: reportAny=false
-# ruff: noqa: ARG001, ARG002, E501
+# ruff: noqa: ARG001, E501
 
+from collections.abc import Callable
 from types import NoneType
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
+from pde_solver.abc.PDE import PDE
 from pde_solver.pde_types import (
     DType,
     Function,
@@ -20,18 +22,6 @@ from pde_solver.pde_types import (
     VectorFunction,
 )
 
-from pde_solver.abc.PDE import PDE
-
-
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
-) -> Function[T]:
-    """Transform scalar into a constant function."""
-    return lambda _: value
-
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a matrix."""
-    return value * np.eye(dim, dtype=DType)
 
 def identity[T](dim: int, value: T) -> T:
     """Transform value into itself."""
@@ -48,6 +38,16 @@ def constant_zero(dim: int, value: None) -> Scalar:
 def constant_zero_function(dim: int, value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
+
+def constant_to_function[T: Scalar | Vector | Matrix](
+    dim: int, value: T
+) -> Function[T]:
+    """Transform scalar into a constant function."""
+    return lambda _: value
+
+def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
+    """Transform scalar into a matrix."""
+    return value * np.eye(dim, dtype=DType)
 
 class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE (PDE):
     """
@@ -101,9 +101,12 @@ class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE (PDE
         if not hasattr(self, name):
             return
         old = getattr(self, name)
-        if (old is not value) and (old is None or value is None): return
-        if (callable(value) and self._check_function_equal(old, value, dims)): return
-        if (not callable(value)) and ((old is value) or np.array_equal(old, value)): return
+        if (old is not value) and (old is None or value is None):
+            return
+        if (callable(value) and self._check_function_equal(old, value, dims)):
+            return
+        if (not callable(value)) and ((old is value) or np.array_equal(old, value)):
+            return
         raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, name)}")
 
 
