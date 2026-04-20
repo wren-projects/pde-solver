@@ -503,6 +503,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         """Add two TTD objects."""
         return ops.add(a, b, out=out)
 
+    @implements_ufunc("subtract")
+    @staticmethod
+    def subtract[DT: np.floating](
+        a: TTD[DT],
+        b: TTD[DT],
+        *,
+        out: TTD[DT] | None = None,
+    ) -> TTD[DT]:
+        """Add two TTD objects."""
+        return ops.add(a, -b, out=out)
+
     @implements_ufunc("multiply")
     @staticmethod
     def multiply(
@@ -557,6 +568,21 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def __radd__(self, other: TTD[DType]) -> TTD[DType]:
         """Reverse add another tensor."""
         return ops.add(other, self)
+
+    @override
+    def __sub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Subtract two TTD objects."""
+        return ops.add(self, -other)
+
+    @override
+    def __isub__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place subtract another tensor."""
+        return ops.add(self, -other, out=self)
+
+    @override
+    def __rsub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse subtract another tensor."""
+        return ops.add(-other, self)
 
     @override
     def __mul__(self, other: np.floating | float) -> TTD[DType]:
