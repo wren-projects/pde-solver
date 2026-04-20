@@ -57,6 +57,7 @@ def test_pde_has_largerst_element() -> None:
 
 
 def test_all_pdes_can_be_constructed() -> None:
+    """Test that all PDE's constructors work."""
     dummy_value_by_type: dict[type | TypeAliasType, Any] = {
         int: 3,
         Scalar: 3,
