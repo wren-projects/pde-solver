@@ -14,10 +14,11 @@ def truncation_parameter[DT: np.floating](
     tensor: NDArray[DT], epsilon: np.floating | float
 ) -> DT:
     """Compute the truncation parameter of a tensor."""
-    assert tensor.ndim > 1, "Tensor must be at least 2D"
+    d = tensor.ndim
+    assert d > 1, "Tensor must be at least 2D"
 
-    # δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ = ‖A‖ᶠ ⋅ (ε / √(d - 1))
-    return np.linalg.norm(tensor) * (epsilon / math.sqrt(tensor.ndim - 1))
+    # δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ
+    return tensor.dtype.type(epsilon / math.sqrt(d - 1)) * np.linalg.norm(tensor)
 
 
 def delta_truncated_svd[DT: np.floating](
