@@ -1,4 +1,4 @@
-# ruff: noqa: ARG001, T201, E501
+# ruff: noqa: ARG001, T201, E501, INP001
 import inspect
 import itertools
 from collections.abc import Callable, Iterable
@@ -35,6 +35,8 @@ from pde_solver.pde_types import (
     Vector,
     VectorFunction,
 )
+
+from pde_solver.abc.pde import PDE
 """
 
 type data_type = TypeAliasType | type[NoneType]
@@ -286,7 +288,7 @@ for (current_right_side, prev_right_side), (
         )
     ]
 
-    superclasses = f"({', '.join(parent_names)})" if parent_names else ""
+    superclasses = f"({', '.join(parent_names)})" if not parent_less else "(PDE)"
     lines: list[str] = []
 
     ident = "    "
@@ -302,16 +304,19 @@ for (current_right_side, prev_right_side), (
     if parent_less:
         lines += [
             "",
-            f"{ident}def _check_function_equal(self, fce1: Callable, fce2: Callable, dims: int) -> bool:",
+            f"{ident}def _check_function_equal(self, fce1: Callable[..., Any], fce2: Callable[..., Any], dims: int) -> bool:",
             f"{ident}{ident}return np.array_equal(fce1(np.arange(dims)), fce2(np.arange(dims)))",
             "",
             f"{ident}def _check_trait(self, dims:int, name: str, value: Any) -> None:",
             f"{ident}{ident}if not hasattr(self, name):",
             f"{ident}{ident}{ident}return",
             f"{ident}{ident}old = getattr(self, name)",
-            f"{ident}{ident}if (old is not value) and (old is None or value is None): return",
-            f"{ident}{ident}if (callable(value) and self._check_function_equal(old, value, dims)): return",
-            f"{ident}{ident}if (not callable(value)) and ((old is value) or np.array_equal(old, value)): return",
+            f"{ident}{ident}if (old is not value) and (old is None or value is None):",
+            f"{ident}{ident}{ident}return",
+            f"{ident}{ident}if (callable(value) and self._check_function_equal(old, value, dims)):",
+            f"{ident}{ident}{ident}return",
+            f"{ident}{ident}if (not callable(value)) and ((old is value) or np.array_equal(old, value)):",
+            f"{ident}{ident}{ident}return",
             ident * 2
             + 'raise TypeError(f"PDE structure latice is disrupted! Found value of attribute {name} to be {getattr(self, name)} when it should be {getattr(self, name)}")',
         ]

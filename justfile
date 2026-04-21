@@ -17,4 +17,8 @@ test:
 setup:
     {{ uv }} run pre-commit install --hook-type pre-commit --hook-type pre-push
 
+generate-pdes:
+    {{ uv }} run scripts/generate_pdes.py > src/pde_solver/pde.py
+    {{ uv }} run ruff check src/pde_solver/pde.py --fix
+
 check: lint test
