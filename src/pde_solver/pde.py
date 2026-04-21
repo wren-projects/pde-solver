@@ -23,6 +23,16 @@ from pde_solver.pde_types import (
 )
 
 
+def constant_to_function[T: Scalar | Vector | Matrix](
+    dim: int, value: T
+) -> Function[T]:
+    """Transform scalar into a constant function."""
+    return lambda _: value
+
+def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
+    """Transform scalar into a matrix."""
+    return value * np.eye(dim, dtype=DType)
+
 def identity[T](dim: int, value: T) -> T:
     """Transform value into itself."""
     return value
@@ -38,16 +48,6 @@ def constant_zero(dim: int, value: None) -> Scalar:
 def constant_zero_function(dim: int, value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
-
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
-) -> Function[T]:
-    """Transform scalar into a constant function."""
-    return lambda _: value
-
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a matrix."""
-    return value * np.eye(dim, dtype=DType)
 
 class VariableInhomogenityVariableVectorAdvectionVariableMatrixDiffusionPDE (PDE):
     """
