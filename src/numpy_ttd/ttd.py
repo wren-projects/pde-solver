@@ -164,12 +164,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data}, shape={self.shape})"
+        return str(self)
 
     @override
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data}, shape={self.shape})"
+        return f"TTD(shape={self.shape},\n{'\n\n'.join(map(str, self.data))})"
 
     @property
     def shape(self) -> tuple[int, ...]:
