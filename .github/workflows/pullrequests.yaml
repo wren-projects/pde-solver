@@ -44,8 +44,11 @@ jobs:
       - name: Setup just
         uses: extractions/setup-just@v4
 
+      - name: Backup original
+        run: cp -a src/ backup/
+        
       - name: Run just
         run: just generate-pdes
 
-      - name: Check difference
-        run: git diff --exit-code
+      - name: Check diff
+        run: diff -ruN src/ backup/
