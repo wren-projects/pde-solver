@@ -51,4 +51,4 @@ jobs:
         run: just generate-pdes
 
       - name: Check diff
-        run: diff -ruN src/ backup/
+        run: diff -ruN -X .gitignore src/ backup/
