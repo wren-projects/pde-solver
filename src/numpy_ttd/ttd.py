@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from numpy_ttd import ops
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
@@ -491,6 +492,29 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
+    @implements_ufunc("multiply")
+    @staticmethod
+    def multiply(
+        a: TTD[DType] | np.floating | float,
+        b: TTD[DType] | np.floating | float,
+        *,
+        out: TTD[DType] | None = None,
+    ) -> TTD[DType]:
+        """Add two TTD objects."""
+        if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
+            return ops.scalar_mul(a, b, out=out)
+
+        if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
+            return ops.scalar_mul(b, a, out=out)
+
+        return NotImplemented
+
+    @implements_ufunc("negative")
+    @staticmethod
+    def negative(a: TTD[DType]) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.scalar_mul(a, -1)
+
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
@@ -507,3 +531,23 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return self._get_item(key)
 
         raise NotImplementedError
+
+    @override
+    def __mul__(self, other: np.floating | float) -> TTD[DType]:
+        """Multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __imul__(self, other: np.floating | float) -> TTD[DType]:
+        """In-place multiply two TTD objects."""
+        return ops.scalar_mul(self, other, out=self)
+
+    @override
+    def __rmul__(self, other: np.floating | float) -> TTD[DType]:
+        """Reverse multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __neg__(self) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.neg(self)
