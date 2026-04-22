@@ -223,9 +223,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
                 "single-dimensional array."
             )
 
-        # Multiply all cores together. This is equivalent to reduce(tensordot,
-        # self.data), but faster since einsum does compute order optimizations
-        # (at the cost of slightly uglier code).
+        # Multiply all cores together. This is equivalent to a repeated
+        # tensordot, but faster since einsum does compute order optimizations.
+        # The generated expression looks like ABC,CDE,FGH,…, XYZ->ABCD…YZ, where
+        # A and Z are singleton dimensions (from TTD) making the final
+        # (squeezed) result BCD…Y.
 
         summation_indices: list[Any] = [
             item
@@ -233,12 +235,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
         ]
 
+        # einsum accepts besides a string, also an alternating list of indices
+        # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
+
         result = cast(
             NDArray[DType],
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        # remove singleton dimensions
         squeezed = result.squeeze()
 
         return squeezed if dtype is None else squeezed.astype(dtype)
@@ -345,6 +349,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         n = len(self.data)
 
+        # NOTE: See `TTD.__array__` for the general generated einsum index idea.
+
+        # ‌The generated einsum expression is in the form ABC,EBG,CDE,GDI->AI.
+        # ABC is the first core of A, EBG is the first core of B, CDE is the
+        # second core of A, …. Consequently, it first sums the matching cores
+        # along the second (rank) axis (ABC,EBG->ACEG / CDE,GDI->CEGI), then
+        # sums the results along all axes except the first and the last
+        # (ACEG,CEGI->AI). Since both A and I are always 1 long, the result is a
+        # matrix of size 1 × 1, which can be squeezed to a scalar.
+
         summation_indices: list[Any] = [
             item
             for i, (self_core, other_core) in enumerate(
@@ -363,7 +377,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        return np.squeeze(total)
+        return total.squeeze()
 
     @implements_function("linalg.norm")
     def frobenius_norm(self) -> DType:
