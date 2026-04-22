@@ -1,3 +1,4 @@
+import math
 from typing import Any
 
 import numpy as np
@@ -34,6 +35,53 @@ TEST_TENSORS: tuple[NDArray, ...] = (
     # ---- 10D ----
     np.arange(2 * 2 * 2 * 3 * 2 * 2 * 3 * 2 * 2 * 3).reshape(
         2, 2, 2, 3, 2, 2, 3, 2, 2, 3
+    ),
+)
+
+
+TEST_PAIR_TENSORS: tuple[tuple[NDArray, NDArray], ...] = (
+    # ---- 1D ----
+    (np.arange(8), np.ones(8)),
+    # ---- 2D ----
+    (
+        np.arange(12).reshape(3, 4),
+        np.random.default_rng(0).integers(0, 10, size=(3, 4)),
+    ),
+    # ---- 3D ----
+    (np.arange(24).reshape(2, 3, 4), np.ones((2, 3, 4))),
+    # ---- 4D ----
+    (
+        np.arange(2 * 3 * 4 * 5).reshape(2, 3, 4, 5),
+        np.random.default_rng(1).normal(size=(2, 3, 4, 5)),
+    ),
+    # ---- 5D ----
+    (np.zeros((2, 2, 3, 4, 3)), np.arange(2 * 2 * 3 * 4 * 3).reshape(2, 2, 3, 4, 3)),
+    # ---- 6D ----
+    (
+        np.arange(2 * 3 * 2 * 3 * 2 * 4).reshape(2, 3, 2, 3, 2, 4),
+        np.random.default_rng(2).integers(0, 5, size=(2, 3, 2, 3, 2, 4)),
+    ),
+    # ---- 7D ----
+    (
+        np.arange(2 * 2 * 3 * 2 * 4 * 3 * 2).reshape(2, 2, 3, 2, 4, 3, 2),
+        np.ones((2, 2, 3, 2, 4, 3, 2)),
+    ),
+    # ---- 8D ----
+    (
+        np.arange(2 * 3 * 2 * 4 * 2 * 3 * 2 * 3).reshape(2, 3, 2, 4, 2, 3, 2, 3),
+        np.random.default_rng(3).random((2, 3, 2, 4, 2, 3, 2, 3)),
+    ),
+    # ---- 9D ----
+    (
+        np.arange(2 * 2 * 3 * 2 * 3 * 2 * 3 * 2 * 3).reshape(2, 2, 3, 2, 3, 2, 3, 2, 3),
+        np.ones((2, 2, 3, 2, 3, 2, 3, 2, 3)),
+    ),
+    # ---- 10D ----
+    (
+        np.arange(2 * 2 * 2 * 3 * 2 * 2 * 3 * 2 * 2 * 3).reshape(
+            2, 2, 2, 3, 2, 2, 3, 2, 2, 3
+        ),
+        np.random.default_rng(4).integers(0, 10, size=(2, 2, 2, 3, 2, 2, 3, 2, 2, 3)),
     ),
 )
 
@@ -76,3 +124,58 @@ def test_get_element(tensor: NDArray[Any]) -> None:
     tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
     for index in np.ndindex(tensor.shape):
         assert np.allclose(tensortrain[index], tensor[index])
+
+
+@pytest.mark.parametrize("tensors", TEST_PAIR_TENSORS)
+def test_add(tensors: tuple[NDArray[Any], NDArray[Any]]) -> None:
+    """Test that TTD addition works."""
+    # TODO: abstract this for other operator tests
+    A, B = (t.astype(np.float64) for t in tensors)
+    assert A.shape == B.shape
+    tensor_sum = A + B
+
+    ttd_a = TTD.from_ndarray(A)
+    ttd_b = TTD.from_ndarray(B)
+
+    ttd_sum = ttd_a + ttd_b
+    assert np.allclose(np.asarray(ttd_sum), tensor_sum)
+
+    ttd_sum.round()
+    assert np.allclose(np.asarray(ttd_sum), tensor_sum)
+
+    assert np.allclose(np.asarray(ttd_b + ttd_a), tensor_sum)
+    assert np.allclose(np.asarray(np.add(ttd_a, ttd_b)), tensor_sum)
+    assert np.allclose(np.asarray(np.add(ttd_b, ttd_a)), tensor_sum)
+
+    ttd_a += ttd_b
+
+    assert np.allclose(np.asarray(ttd_a), tensor_sum)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_scalar_multiplication(tensor: NDArray[Any]) -> None:
+    """Test that TTD scalar multiplication works."""
+    A = tensor.astype(np.float64)
+
+    ttd = TTD.from_ndarray(A)
+
+    for scalar in [1, 0.5, -1, 0, math.pi, -math.e]:
+        assert np.allclose(np.asarray(ttd * scalar), A * scalar)
+        assert np.allclose(np.asarray(scalar * ttd), A * scalar)
+        assert np.allclose(np.asarray(np.multiply(ttd, scalar)), A * scalar)
+        assert np.allclose(np.asarray(np.multiply(scalar, ttd)), A * scalar)
+
+        ttd_copy = ttd[...]
+        ttd_copy *= scalar
+        assert np.allclose(np.asarray(ttd_copy), A * scalar)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_negation(tensor: NDArray[Any]) -> None:
+    """Test that TTD negation works."""
+    A = tensor.astype(np.float64)
+
+    ttd = TTD.from_ndarray(A)
+
+    assert np.allclose(np.asarray(-ttd), -A)
+    assert np.allclose(np.asarray(np.negative(ttd)), -A)
