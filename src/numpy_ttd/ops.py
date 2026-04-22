@@ -4,6 +4,7 @@ from math import prod
 from typing import TYPE_CHECKING
 
 import numpy as np
+
 from numpy_ttd.types import Core
 
 if TYPE_CHECKING:
