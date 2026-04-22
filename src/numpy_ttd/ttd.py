@@ -18,7 +18,7 @@ type AnyCallable = Callable[..., Any]
 HANDLED_UFUNCS: dict[str, AnyCallable] = {}
 HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
 
-DEFAULT_EPSILON = np.float64(1e-6)
+DEFAULT_EPSILON = np.float64(1e-9)
 
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
