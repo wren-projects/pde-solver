@@ -33,6 +33,26 @@ jobs:
       - name: Run basedpyright
         run: uv run basedpyright src/
 
+  check_pdes_is_build:
+    name: Ensure pde.py were not manually altered
+    runs-on: ubuntu-latest
+    container: ${{ vars.UV_CONTAINER_IMAGE }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup just
+        uses: extractions/setup-just@v4
+
+      - name: Backup original
+        run: cp -a src/ backup/
+        
+      - name: Run just
+        run: just generate-pdes
+
+      - name: Check diff
+        run: diff -ruN -X .gitignore src/ backup/
+       
   check_formatter:
     name: Check formatter doesn't change code
     runs-on: ubuntu-latest
