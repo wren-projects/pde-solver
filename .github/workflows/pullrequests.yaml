@@ -52,3 +52,12 @@ jobs:
 
       - name: Check diff
         run: diff -ruN -X .gitignore src/ backup/
+       
+  check_formatter:
+    name: Check formatter doesn't change code
+    runs-on: ubuntu-latest
+    container: ${{ vars.UV_CONTAINER_IMAGE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run basedpyright
+        run: uv run ruff format --check
