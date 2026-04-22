@@ -1,3 +1,4 @@
+import math
 from typing import Any
 
 import numpy as np
@@ -149,3 +150,32 @@ def test_add(tensors: tuple[NDArray[Any], NDArray[Any]]) -> None:
     ttd_a += ttd_b
 
     assert np.allclose(np.asarray(ttd_a), tensor_sum)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_scalar_multiplication(tensor: NDArray[Any]) -> None:
+    """Test that TTD scalar multiplication works."""
+    A = tensor.astype(np.float64)
+
+    ttd = TTD.from_ndarray(A)
+
+    for scalar in [1, 0.5, -1, 0, math.pi, -math.e]:
+        assert np.allclose(np.asarray(ttd * scalar), A * scalar)
+        assert np.allclose(np.asarray(scalar * ttd), A * scalar)
+        assert np.allclose(np.asarray(np.multiply(ttd, scalar)), A * scalar)
+        assert np.allclose(np.asarray(np.multiply(scalar, ttd)), A * scalar)
+
+        ttd_copy = ttd[...]
+        ttd_copy *= scalar
+        assert np.allclose(np.asarray(ttd_copy), A * scalar)
+
+
+@pytest.mark.parametrize("tensor", TEST_TENSORS)
+def test_negation(tensor: NDArray[Any]) -> None:
+    """Test that TTD negation works."""
+    A = tensor.astype(np.float64)
+
+    ttd = TTD.from_ndarray(A)
+
+    assert np.allclose(np.asarray(-ttd), -A)
+    assert np.allclose(np.asarray(np.negative(ttd)), -A)
