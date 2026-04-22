@@ -22,18 +22,6 @@ from pde_solver.pde_types import (
     VectorFunction,
 )
 
-from pde_solver.abc.PDE import PDE
-
-
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
-) -> Function[T]:
-    """Transform scalar into a constant function."""
-    return lambda _: value
-
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
-    """Transform scalar into a matrix."""
-    return value * np.eye(dim, dtype=DType)
 
 def identity[T](dim: int, value: T) -> T:
     """Transform value into itself."""
