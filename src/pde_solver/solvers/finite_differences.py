@@ -48,7 +48,13 @@ class FiniteDifferences(Solver):
 
         state = initial_condition
 
+        state = boundary_condition(state, 0.0)  # enforce boundary_condition at time = 0
+
+        # look for the class of the PDE and set parameters True/False accordingly
+        # So it knows if it needs time_derivative, second_order space_deriv, and first order space_deri
         for step in range(ceil(time / self.timestep)):
+            current_time = step * self.timestep
+
             new_state = state.copy()
             for i in range(dim):
                 # update state
