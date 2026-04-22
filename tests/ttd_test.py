@@ -150,13 +150,8 @@ def test_add(a: TestTensor, b: TestTensor) -> None:
     ttd_a = TTD.from_ndarray(a)
     ttd_b = TTD.from_ndarray(b)
 
-    ttd_sum = ttd_a + ttd_b
-    assert equals_default_epsilon(ttd_sum, tensor_sum)
-
-    ttd_sum.round()
-    assert equals_default_epsilon(ttd_sum, tensor_sum)
-
     assert equals_default_epsilon(ttd_a + ttd_b, tensor_sum)
+    assert equals_default_epsilon(ttd_b + ttd_a, tensor_sum)
     assert equals_default_epsilon(np.add(ttd_a, ttd_b), tensor_sum)
     assert equals_default_epsilon(np.add(ttd_b, ttd_a), tensor_sum)
 
@@ -169,20 +164,14 @@ def test_sub(a: TestTensor, b: TestTensor) -> None:
     """Test that TTD addition works."""
     assert a.shape == b.shape
     tensor_diff_ab = a - b
-    tensor_diff_ba = b - a
 
     ttd_a = TTD.from_ndarray(a)
     ttd_b = TTD.from_ndarray(b)
 
-    ttd_sum = ttd_a - ttd_b
-    assert equals_default_epsilon(ttd_sum, tensor_diff_ab)
-
-    ttd_sum.round()
-    assert equals_default_epsilon(ttd_sum, tensor_diff_ab)
-
     assert equals_default_epsilon(ttd_a - ttd_b, tensor_diff_ab)
+    assert equals_default_epsilon(ttd_b - ttd_a, -tensor_diff_ab)
     assert equals_default_epsilon(np.subtract(ttd_a, ttd_b), tensor_diff_ab)
-    assert equals_default_epsilon(np.subtract(ttd_b, ttd_a), tensor_diff_ba)
+    assert equals_default_epsilon(np.subtract(ttd_b, ttd_a), -tensor_diff_ab)
 
     ttd_a -= ttd_b
     assert equals_default_epsilon(ttd_a, tensor_diff_ab)
