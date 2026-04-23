@@ -8,4 +8,5 @@ dtype
 func
 kwargs
 str
+tridiagonal
 ufunc

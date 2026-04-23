@@ -1,139 +1,134 @@
-from dataclasses import dataclass
 import numpy as np
-from numpy_ttd.types import Matrix, Core, MatrixCore
+
+from numpy_ttd.types import Matrix
+from numpy_ttd.tt_matrix import TTMatrix
 
 
-@dataclass
-class TTMatrix[T: np.floating]:
-    """Class for storing operators in TT format."""
-
-    cores: list[MatrixCore[T]]
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Return the shape of the TTMatrix object."""
-        return tuple(core.shape[1] for core in self.data)
-
-    @property
-    def ndim(self) -> int:
-        """Return the number of dimensions of the TTMatrix object."""
-        return len(self.cores)
-
-    @property
-    def col_shape(self) -> tuple[int, ...]:
-        return tuple(core.shape[2] for core in self.cores)
-
-
-def laplace_1d[T: np.floating](n: int, h: float, dtype: np.dtype[T]) -> Matrix[T]:
+def laplace_1d[T: np.floating](n: int, h: T | float, dtype: np.dtype[T]) -> Matrix[T]:
     """
-    Build the 1D finite-difference matrix for -d^2/dx^2
-    with the stencil (1/h^2) * tridiag(-1, 2, -1).
+    Build the 1D finite-difference matrix for the Laplacian.
+
+    The resulting n × n matrix is in the format
+
+        h⁻² * tridiagonal(-1, 2, -1).
+
+    Parameters
+    ----------
+    n : int
+        Number of grid points.
+    h : float
+        Spacing between grid points.
+    dtype : np.dtype
+        NumPy dtype, e.g. np.float64.
+
+    Returns
+    -------
+    Matrix[T]
+        The 1D finite-difference matrix.
+
     """
     if n <= 0:
         raise ValueError("n must be positive")
+
     if h <= 0:
         raise ValueError("h must be positive")
 
-    L = np.zeros((n, n), dtype=dtype)
+    laplacian = np.zeros((n, n), dtype=dtype)
 
-    diag = 2.0 / (h * h)
-    offdiag = -1.0 / (h * h)
+    laplacian += np.eye(n, k=-1)
+    laplacian += np.eye(n, k=1)
+    laplacian -= 2 * np.eye(n)
 
-    for i in range(n):
-        L[i, i] = diag
-        if i > 0:
-            L[i, i - 1] = offdiag
-        if i < n - 1:
-            L[i, i + 1] = offdiag
-
-    return L
+    return np.divide(laplacian, h * h)
 
 
-def tt_laplacian[T: np.floating](
-    shape: list[int],
-    h: float | list[float],
-    dtype: np.dtype[T] = np.float64,
-) -> TTMatrix[T]:
+def tt_laplace[DT: np.floating](
+    shape: tuple[int, ...], h: float | DT | tuple[float | DT, ...], dtype: np.dtype[DT]
+) -> TTMatrix[DT]:
     """
     Build the full high-dimensional Laplacian in TT-matrix form.
 
-    Input
-    -----
+    The resulting TT operator is in the format
+
+        A = ∑ᵢᵏ I₁ ⊗ I₂ ⊗ … ⊗ Iᵢ₋₁ ⊗ Lᵢ ⊗ Iᵢ₊₁ ⊗ … ⊗ Iₖ,
+
+    where Lᵢ is the 1D Laplacian on axis i.
+
+    The shapes of the cores are
+        first core:   1 × n₁ × n₁ × 2
+        middle cores: 2 × nᵢ × nᵢ × 2
+        last core:    2 × nₖ × nₖ × 1
+
+    Parameters
+    ----------
     shape:
-        [n1, n2, ..., nD]
+        [n₁, n₂, ..., nₖ]
         Number of grid points in each physical dimension.
 
     h:
-        Either one scalar spacing for all dimensions,
-        or a list [h1, ..., hD].
+        Either one scalar spacing for all dimensions or a tuple with spacing for
+        each dimension: (h₁, h₂, ..., hₖ)
 
     dtype:
         NumPy dtype, e.g. np.float64.
 
-    Output
-    ------
+    Returns
+    -------
     TTMatrix[T]
-        TT operator representing
+        The high-dimensional Laplacian in TT-matrix form.
 
-            A = sum_k I ⊗ ... ⊗ L_k ⊗ ... ⊗ I
-
-        where L_k is the 1D Laplacian on axis k.
-
-    Core shapes
-    -----------
-    first core:  (1, n1, n1, 2)
-    middle core: (2, nk, nk, 2)
-    last core:   (2, nD, nD, 1)
     """
-    if len(shape) == 0:
+    if not shape:
         raise ValueError("shape must not be empty")
 
-    D = len(shape)  # number of dimensions
+    dimensions = len(shape)  # number of dimensions
 
-    if isinstance(h, (int, float)):
-        steps = [float(h)] * D
-    else:
-        steps = [float(v) for v in h]
-        if len(steps) != D:
+    if isinstance(h, tuple):
+        if len(h) != dimensions:
             raise ValueError("h must be a scalar or have the same length as shape")
+        steps = [dtype.type(v) for v in h]
+    else:
+        steps = [dtype.type(h)] * dimensions
 
-    Ls: list[Matrix[T]] = []
-    Is: list[Matrix[T]] = []
+    def L(k: int) -> Matrix[DT]:
+        return laplace_1d(shape[k], steps[k], dtype)
 
-    for n_k, h_k in zip(shape, steps):
-        Ls.append(laplace_1d(n_k, h_k, dtype))
-        Is.append(np.eye(n_k, dtype=dtype))
+    def I(k: int) -> Matrix[DT]:
+        return np.eye(shape[k], dtype=dtype)
 
-    cores: list[MatrixCore[T]] = []
+    def core(r_l: int, k: int, r_r: int) -> Matrix[DT]:
+        n = shape[k]
+        return np.zeros((r_l, n, n, r_r), dtype=dtype)
 
-    if D == 1:
-        G = np.zeros((1, shape[0], shape[0], 1), dtype=dtype)
-        G[0, :, :, 0] = Ls[0]
-        return TTMatrix([G])
+    if dimensions == 1:
+        G = core(1, 0, 1)
+        G[0, :, :, 0] = L(0)
+        return TTMatrix([G], shape)
+
+    cores: list[MatrixCore[DT]] = []
 
     # First core: [L1, I1]
     n1 = shape[0]
-    G1 = np.zeros((1, n1, n1, 2), dtype=dtype)
-    G1[0, :, :, 0] = Ls[0]
-    G1[0, :, :, 1] = Is[0]
+    G1 = core(1, 0, 2)
+    G1[0, :, :, 0] = L(0)
+    G1[0, :, :, 1] = I(0)
     cores.append(G1)
 
     # Middle cores: [[Ik, 0], [Lk, Ik]]
-    for k in range(1, D - 1):
-        nk = shape[k]
-        Gk = np.zeros((2, nk, nk, 2), dtype=dtype)
+    for k in range(1, dimensions - 1):
+        Gk = core(2, k, 2)
 
-        Gk[0, :, :, 0] = Is[k]
-        Gk[1, :, :, 0] = Ls[k]
-        Gk[1, :, :, 1] = Is[k]
+        Ik = I(k)
+        Gk[0, :, :, 0] = Ik
+        Gk[1, :, :, 0] = L(k)
+        Gk[1, :, :, 1] = Ik
 
         cores.append(Gk)
 
     # Last core: [[ID], [LD]]
-    nD = shape[-1]
-    GD = np.zeros((2, nD, nD, 1), dtype=dtype)
-    GD[0, :, :, 0] = Is[-1]
-    GD[1, :, :, 0] = Ls[-1]
+    GD = core(2, -1, 1)
+    GD[0, :, :, 0] = I(-1)
+    GD[1, :, :, 0] = L(-1)
     cores.append(GD)
 
-    return TTMatrix(cores)
+    return TTMatrix(cores, shape)

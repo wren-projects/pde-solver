@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Any
 
 import numpy as np
@@ -5,6 +6,7 @@ import pytest
 from numpy.typing import NDArray
 
 from numpy_ttd import DEFAULT_EPSILON, TTD
+from numpy_ttd.laplace import laplace_1d, tt_laplace
 
 TEST_TENSORS: tuple[NDArray, ...] = (
     # ---- 2D ----
@@ -76,3 +78,12 @@ def test_get_element(tensor: NDArray[Any]) -> None:
     tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
     for index in np.ndindex(tensor.shape):
         assert np.allclose(tensortrain[index], tensor[index])
+
+
+def test_laplace() -> None:
+    """Test."""
+    laplacian = tt_laplace((4, 4), 1, np.dtype(np.float64))
+
+    A = np.arange(4**2, dtype=np.float64).reshape(4, 4)
+
+    laplaced = laplacian @ TTD.from_ndarray(A)

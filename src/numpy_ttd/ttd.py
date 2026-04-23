@@ -44,7 +44,6 @@ ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
-@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin):
     """
     Class for storing TTD encoded data.
@@ -58,7 +57,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__ = ("data", "dtype")
+    __slots__: tuple[str, ...] = ("data", "dtype")
 
     def __init__(
         self,
@@ -181,9 +180,19 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         """Return the number of dimensions of the TTD object."""
         return len(self.data)
 
+    @overload
+    def __array__(
+        self, dtype: None = None, *, copy: bool | None = None
+    ) -> NDArray[DType]: ...
+
+    @overload
+    def __array__[DT: np.floating](
+        self, dtype: np.dtype[DT], *, copy: bool | None = None
+    ) -> NDArray[DT]: ...
+
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
-    ) -> NDArray[DType]:
+    ) -> NDArray[Any]:
         """
         Expand a TTD object into a full NDArray.
 
@@ -207,6 +216,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             with the specified `dtype`.
 
         """
+        if dtype is None:
+            dtype = self.dtype
+
         # Empty TTD
         if not self.data:
             return np.empty((0,), dtype=dtype)
@@ -241,7 +253,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         # remove singleton dimensions
         squeezed = result.squeeze()
 
-        return squeezed if dtype is None else squeezed.astype(dtype)
+        return squeezed.astype(dtype)
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
