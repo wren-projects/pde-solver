@@ -1,11 +1,11 @@
 from collections.abc import Iterable
-from typing import Any, final, overload, override
+from typing import Any, cast, final, overload
 
 import numpy as np
 import numpy.typing as npt
 
 from numpy_ttd import TTD
-from numpy_ttd.types import Core, Matrix, MatrixCore, NDArray
+from numpy_ttd.types import Core, MatrixCore, NDArray
 
 
 @final
@@ -115,12 +115,14 @@ class TTMatrix[DType: np.floating]:
             raise ValueError("Number of cores must match.")
 
         def multiply_core(a: MatrixCore[DType], b: Core[DType]) -> Core[DType]:
-            r_prev, i, j, r_next = a.shape
-            s_prev, j, s_next = b.shape
+            r_prev, i, j_a, r_next = a.shape
+            s_prev, j_b, s_next = b.shape
 
-            return np.einsum("rijR,sjS->rsiRS", a, b, optimize=True).reshape(
-                r_prev * s_prev, i, r_next * s_next
-            )
+            assert j_a == j_b, "TT-matrix and TT-tensor cores must have the same shape"
+
+            return cast(
+                Core[DType], np.einsum("rijR,sjS->rsiRS", a, b, optimize=True)
+            ).reshape(r_prev * s_prev, i, r_next * s_next)
 
         return TTD(map(multiply_core, self.data, vector.data))
 
