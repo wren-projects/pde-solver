@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from numpy_ttd import ops
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
@@ -17,7 +18,7 @@ type AnyCallable = Callable[..., Any]
 HANDLED_UFUNCS: dict[str, AnyCallable] = {}
 HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
 
-DEFAULT_EPSILON = np.float64(1e-6)
+DEFAULT_EPSILON = np.float64(1e-9)
 
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
@@ -163,12 +164,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return str(self)
 
     @override
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return f"TTD(shape={self.shape},\n{'\n\n'.join(map(str, self.data))})"
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -235,9 +236,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
                 "single-dimensional array."
             )
 
-        # Multiply all cores together. This is equivalent to reduce(tensordot,
-        # self.data), but faster since einsum does compute order optimizations
-        # (at the cost of slightly uglier code).
+        # Multiply all cores together. This is equivalent to a repeated
+        # tensordot, but faster since einsum does compute order optimizations.
+        # The generated expression looks like ABC,CDE,FGH,…, XYZ->ABCD…YZ, where
+        # A and Z are singleton dimensions (from TTD) making the final
+        # (squeezed) result BCD…Y.
 
         summation_indices: list[Any] = [
             item
@@ -245,12 +248,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
         ]
 
+        # einsum accepts besides a string, also an alternating list of indices
+        # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
+
         result = cast(
             NDArray[DType],
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        # remove singleton dimensions
         squeezed = result.squeeze()
 
         return squeezed.astype(dtype)
@@ -357,6 +362,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         n = len(self.data)
 
+        # NOTE: See `TTD.__array__` for the general generated einsum index idea.
+
+        # ‌The generated einsum expression is in the form ABC,EBG,CDE,GDI->AI.
+        # ABC is the first core of A, EBG is the first core of B, CDE is the
+        # second core of A, …. Consequently, it first sums the matching cores
+        # along the second (rank) axis (ABC,EBG->ACEG / CDE,GDI->CEGI), then
+        # sums the results along all axes except the first and the last
+        # (ACEG,CEGI->AI). Since both A and I are always 1 long, the result is a
+        # matrix of size 1 × 1, which can be squeezed to a scalar.
+
         summation_indices: list[Any] = [
             item
             for i, (self_core, other_core) in enumerate(
@@ -375,7 +390,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        return np.squeeze(total)
+        return total.squeeze()
 
     @implements_function("linalg.norm")
     def frobenius_norm(self) -> DType:
@@ -489,6 +504,40 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
+    @implements_ufunc("add")
+    @staticmethod
+    def add[DT: np.floating](
+        a: TTD[DT],
+        b: TTD[DT],
+        *,
+        out: TTD[DT] | None = None,
+    ) -> TTD[DT]:
+        """Add two TTD objects."""
+        return ops.add(a, b, out=out)
+
+    @implements_ufunc("multiply")
+    @staticmethod
+    def multiply(
+        a: TTD[DType] | np.floating | float,
+        b: TTD[DType] | np.floating | float,
+        *,
+        out: TTD[DType] | None = None,
+    ) -> TTD[DType]:
+        """Add two TTD objects."""
+        if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
+            return ops.scalar_mul(a, b, out=out)
+
+        if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
+            return ops.scalar_mul(b, a, out=out)
+
+        return NotImplemented
+
+    @implements_ufunc("negative")
+    @staticmethod
+    def negative(a: TTD[DType]) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.scalar_mul(a, -1)
+
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
@@ -505,3 +554,38 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return self._get_item(key)
 
         raise NotImplementedError
+
+    @override
+    def __add__(self, other: TTD[DType]) -> TTD[DType]:
+        """Add two TTD objects."""
+        return ops.add(self, other)
+
+    @override
+    def __iadd__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place add another tensor."""
+        return ops.add(self, other, out=self)
+
+    @override
+    def __radd__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse add another tensor."""
+        return ops.add(other, self)
+
+    @override
+    def __mul__(self, other: np.floating | float) -> TTD[DType]:
+        """Multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __imul__(self, other: np.floating | float) -> TTD[DType]:
+        """In-place multiply two TTD objects."""
+        return ops.scalar_mul(self, other, out=self)
+
+    @override
+    def __rmul__(self, other: np.floating | float) -> TTD[DType]:
+        """Reverse multiply two TTD objects."""
+        return ops.scalar_mul(self, other)
+
+    @override
+    def __neg__(self) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.neg(self)

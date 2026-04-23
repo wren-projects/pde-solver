@@ -32,3 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run basedpyright
         run: uv run basedpyright src/
+
+  check_formatter:
+    name: Check formatter doesn't change code
+    runs-on: ubuntu-latest
+    container: ${{ vars.UV_CONTAINER_IMAGE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run basedpyright
+        run: uv run ruff format --check
