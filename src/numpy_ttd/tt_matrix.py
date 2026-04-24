@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, cast, final, overload
+from typing import Any, final, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -8,28 +8,36 @@ from numpy_ttd import TTD
 from numpy_ttd.types import Core, MatrixCore, NDArray
 
 
+def _to_3d_core[DType: np.floating](core: MatrixCore[DType]) -> Core[DType]:
+    return core.reshape(core.shape[0], -1, core.shape[3])
+
+
 @final
 class TTMatrix[DType: np.floating]:
-    """Class for storing operators in TT format."""
+    """Class for storing matrices in TT format."""
 
-    __slots__ = ("data", "dtype", "shape")
+    __slots__ = ("columns", "rows", "ttd")
 
-    data: list[MatrixCore[DType]]
-    dtype: np.dtype[DType]
-    shape: tuple[int, ...]
+    ttd: TTD[DType]
+    rows: tuple[int, ...]
+    columns: tuple[int, ...]
 
-    def __init__(self, data: Iterable[MatrixCore[DType]], shape: tuple[int, ...]):
-        self.data = list(data)
-        self.dtype = self.data[0].dtype
-        self.shape = shape
+    def __init__(self, data: Iterable[MatrixCore[DType]]):
+        """
+        Create a new TT-matrix.
 
-    @property
-    def row_shape(self) -> tuple[int, ...]:
-        return tuple(core.shape[1] for core in self.data)
+        Parameters
+        ----------
+        data : Iterable[MatrixCore[DType]]
+            The cores of the TT-matrix.
+        shape : tuple[int, ...]
+            The shape of the TT-matrix.
 
-    @property
-    def col_shape(self) -> tuple[int, ...]:
-        return tuple(core.shape[2] for core in self.data)
+        """
+        cores = list(data)
+        self.rows = tuple(core.shape[1] for core in cores)
+        self.columns = tuple(core.shape[2] for core in cores)
+        self.ttd = TTD(map(_to_3d_core, cores))
 
     @overload
     def __array__(
@@ -65,69 +73,8 @@ class TTMatrix[DType: np.floating]:
             The matrix as a 2D :class:`numpy.ndarray` with the specified `dtype`.
 
         """
-        if dtype is None:
-            dtype = self.dtype
-
-        # Empty TTD
-        if not self.data:
-            return np.empty((0,), dtype=dtype)
-
-        if copy is False:
-            raise ValueError("`copy=False` is not supported for TT-matrices.")
-
-        # Multiply all cores together. This is equivalent to reduce(tensordot,
-        # self.data), but faster since einsum does compute order optimizations
-        # (at the cost of slightly uglier code).
-
-        summation_indices: list[Any] = [
-            item
-            for i, core in enumerate(self.data)
-            for item in (core, (3 * i, 3 * i + 1, 3 * i + 2, 3 * i + 3))
-        ]
-
-        result = cast(
-            NDArray[DType],
-            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+        # Inflate the inner TTD and reshape it back into the original matrix
+        return np.asarray(self.ttd, dtype=dtype, copy=copy).reshape(
+            # for rows n, m and columns i, j produces (n, i, m, j)
+            sum(zip(self.rows, self.columns, strict=True), start=())
         )
-
-        # remove singleton dimensions
-        squeezed = result.squeeze()
-
-        return squeezed.astype(dtype)
-
-    def apply(self, vector: TTD[DType]) -> TTD[DType]:
-        """
-        Multiply a TT-matrix with a TT-tensor.
-
-        Parameters
-        ----------
-        vector : NDArray[DType]
-            The vector to multiply with the TT-matrix.
-
-        Returns
-        -------
-        NDArray[DType]
-            The result of the multiplication -- a TT-tensor with the same shape
-            as the input.
-
-        """
-        if len(self.data) != len(vector.data):
-            raise ValueError("Number of cores must match.")
-
-        def multiply_core(a: MatrixCore[DType], b: Core[DType]) -> Core[DType]:
-            r_prev, i, j_a, r_next = a.shape
-            s_prev, j_b, s_next = b.shape
-
-            assert j_a == j_b, "TT-matrix and TT-tensor cores must have the same shape"
-
-            return cast(
-                Core[DType], np.einsum("rijR,sjS->rsiRS", a, b, optimize=True)
-            ).reshape(r_prev * s_prev, i, r_next * s_next)
-
-        return TTD(map(multiply_core, self.data, vector.data))
-
-    def __matmul__(self, other: TTD[DType]) -> TTD[DType]:
-        return self.apply(other)
-
-    def __rmatmul__(self, other: TTD[DType]) -> TTD[DType]:
-        return other.apply(self)

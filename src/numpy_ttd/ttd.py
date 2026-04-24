@@ -22,6 +22,7 @@ ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
+@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin):
     """
     Class for storing TTD encoded data.
@@ -35,7 +36,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__: tuple[str, ...] = ("data", "dtype")
+    __slots__ = ("data", "dtype")
 
     def __init__(
         self,

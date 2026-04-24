@@ -1,7 +1,7 @@
 import numpy as np
 
-from numpy_ttd.types import Matrix
 from numpy_ttd.tt_matrix import TTMatrix
+from numpy_ttd.types import Matrix, MatrixCore
 
 
 def laplace_1d[T: np.floating](n: int, h: T | float, dtype: np.dtype[T]) -> Matrix[T]:
@@ -35,15 +35,18 @@ def laplace_1d[T: np.floating](n: int, h: T | float, dtype: np.dtype[T]) -> Matr
 
     laplacian = np.zeros((n, n), dtype=dtype)
 
-    laplacian += np.eye(n, k=-1)
-    laplacian += np.eye(n, k=1)
-    laplacian -= 2 * np.eye(n)
+    laplacian += np.eye(n, k=-1, dtype=dtype)
+    laplacian += np.eye(n, k=1, dtype=dtype)
+    laplacian -= 2 * np.eye(n, dtype=dtype)
 
     return np.divide(laplacian, h * h)
 
 
 def tt_laplace[DT: np.floating](
-    shape: tuple[int, ...], h: float | DT | tuple[float | DT, ...], dtype: np.dtype[DT]
+    shape: tuple[int, ...],
+    h: float | DT | tuple[float | DT, ...] = 1.0,
+    *,
+    dtype: np.dtype[DT],
 ) -> TTMatrix[DT]:
     """
     Build the full high-dimensional Laplacian in TT-matrix form.
@@ -96,27 +99,26 @@ def tt_laplace[DT: np.floating](
     def I(k: int) -> Matrix[DT]:
         return np.eye(shape[k], dtype=dtype)
 
-    def core(r_l: int, k: int, r_r: int) -> Matrix[DT]:
+    def empty_core(r_l: int, k: int, r_r: int) -> MatrixCore[DT]:
         n = shape[k]
         return np.zeros((r_l, n, n, r_r), dtype=dtype)
 
-    if dimensions == 1:
-        G = core(1, 0, 1)
-        G[0, :, :, 0] = L(0)
-        return TTMatrix([G], shape)
-
     cores: list[MatrixCore[DT]] = []
 
+    if dimensions == 1:
+        G = empty_core(1, 0, 1)
+        G[0, :, :, 0] = L(0)
+        return TTMatrix([G])
+
     # First core: [L1, I1]
-    n1 = shape[0]
-    G1 = core(1, 0, 2)
+    G1 = empty_core(1, 0, 2)
     G1[0, :, :, 0] = L(0)
     G1[0, :, :, 1] = I(0)
     cores.append(G1)
 
     # Middle cores: [[Ik, 0], [Lk, Ik]]
     for k in range(1, dimensions - 1):
-        Gk = core(2, k, 2)
+        Gk = empty_core(2, k, 2)
 
         Ik = I(k)
         Gk[0, :, :, 0] = Ik
@@ -126,9 +128,9 @@ def tt_laplace[DT: np.floating](
         cores.append(Gk)
 
     # Last core: [[ID], [LD]]
-    GD = core(2, -1, 1)
+    GD = empty_core(2, -1, 1)
     GD[0, :, :, 0] = I(-1)
     GD[1, :, :, 0] = L(-1)
     cores.append(GD)
 
-    return TTMatrix(cores, shape)
+    return TTMatrix(cores)

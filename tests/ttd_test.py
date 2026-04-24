@@ -3,6 +3,9 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
+from numpy_ttd import TTD
+from numpy_ttd.laplace import tt_laplace
+from numpy_ttd.ops import matvec
 from tests.common import (
     TEST_PAIR_TTD,
     TEST_SCALARS,
@@ -13,6 +16,8 @@ from tests.common import (
     TestTTDPair,
     assert_default_epsilon,
 )
+
+rng = np.random.default_rng(0)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -122,7 +127,6 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
         np.transpose(ttd, axes),
         np.transpose(tensor, axes),
     )
-
     axes = (*range(1, tensor.ndim), 0)
     assert_default_epsilon(
         np.transpose(ttd, axes),
@@ -192,3 +196,15 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert_default_epsilon(
         np.tensordot(ttd_a, ttd_b, axes=axes), np.tensordot(a, b, axes=axes)
     )
+
+
+def test_laplace() -> None:
+    """Test."""
+    laplacian = tt_laplace((3, 3), dtype=np.dtype(np.float64))
+    print(np.asarray(laplacian))
+
+    A = np.arange(3 * 3, dtype=np.float64).reshape(3, 3)
+
+    laplaced = matvec(laplacian, TTD.from_ndarray(A))
+    print(np.asarray(laplaced))
+    raise AssertionError
