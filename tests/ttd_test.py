@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from numpy_ttd import TTD
+from numpy_ttd.gradient import tt_gradient
 from numpy_ttd.laplace import tt_laplace
 from numpy_ttd.ops import matvec
 from tests.common import (
@@ -208,3 +209,15 @@ def test_laplace() -> None:
     laplaced = matvec(laplacian, TTD.from_ndarray(A))
     print(np.asarray(laplaced))
     raise AssertionError
+
+
+def test_gradient() -> None:
+    """Test."""
+    gradient = tt_gradient((3, 2), 1, np.dtype(np.float64))
+
+    print(np.asarray(gradient))
+
+    A = np.arange(3 * 2, dtype=np.float64).reshape(3, 2)
+
+    grad = matvec(gradient, TTD.from_ndarray(A))
+    print(np.asarray(grad))
