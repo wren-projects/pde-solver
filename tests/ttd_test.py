@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 
 from numpy_ttd import DEFAULT_EPSILON, TTD
 from numpy_ttd.laplace import laplace_1d, tt_laplace
+from numpy_ttd.ops import matvec
 
 rng = np.random.default_rng(0)
 
@@ -196,8 +197,11 @@ def test_negation(tensor: TestTensor) -> None:
 
 def test_laplace() -> None:
     """Test."""
-    laplacian = tt_laplace((4, 4), 1, np.dtype(np.float64))
+    laplacian = tt_laplace((3, 3), dtype=np.dtype(np.float64))
+    print(np.asarray(laplacian))
 
-    A = np.arange(4**2, dtype=np.float64).reshape(4, 4)
+    A = np.arange(3 * 3, dtype=np.float64).reshape(3, 3)
 
-    laplaced = laplacian @ TTD.from_ndarray(A)
+    laplaced = matvec(laplacian, TTD.from_ndarray(A))
+    print(np.asarray(laplaced))
+    raise AssertionError

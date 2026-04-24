@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from math import prod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
-from numpy_ttd.types import Core
+from numpy_ttd.types import Core, MatrixCore, NDArray
 
 if TYPE_CHECKING:
+    from numpy_ttd.tt_matrix import TTMatrix
     from numpy_ttd.ttd import TTD
 
 
@@ -91,3 +92,48 @@ def neg[DType: np.floating](
 ) -> TTD[DType]:
     """Negate a TTD object."""
     return scalar_mul(a, -1.0)
+
+
+def matvec[DType: np.floating](
+    matrix: TTMatrix[DType], vector: TTD[DType]
+) -> TTD[DType]:
+    """
+    Multiply a TT-matrix with a TT-tensor.
+
+    Parameters
+    ----------
+    matrix : TTMatrix[DType]
+        The TT-matrix to multiply.
+    vector : NDArray[DType]
+        The vector to multiply by the TT-matrix.
+
+    Returns
+    -------
+    NDArray[DType]
+        The result of the multiplication -- a TT-tensor with the same shape
+        as the input vector.
+
+    """
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    if len(matrix.ttd.data) != len(vector.data):
+        raise ValueError(
+            f"Missmatched number of cores: {len(matrix.ttd.data)} != {len(vector.data)}."
+        )
+
+    def multiply_cores(a: Core[DType], i: int, j: int, b: Core[DType]) -> Core[DType]:
+        r_prev, _, r_next = a.shape
+        s_prev, _, s_next = b.shape
+
+        print(a.shape, b.shape, i, j)
+
+        return cast(
+            NDArray[DType],
+            np.einsum(
+                "rijR,sjS->rsiRS", a.reshape(r_prev, i, j, r_next), b, optimize=True
+            ),
+        ).reshape(r_prev * s_prev, i, r_next * s_next)
+
+    return TTD(
+        map(multiply_cores, matrix.ttd.data, matrix.rows, matrix.columns, vector.data)
+    )

@@ -45,6 +45,7 @@ ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
+@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin):
     """
     Class for storing TTD encoded data.
@@ -58,7 +59,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__: tuple[str, ...] = ("data", "dtype")
+    __slots__ = ("data", "dtype")
 
     def __init__(
         self,
@@ -85,7 +86,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             self.dtype = dtype
             self.data = [core.astype(self.dtype) for core in data]
         else:
-            self.data = data if isinstance(data, list) else list(data)
+            self.data = list(data)
             self.dtype = self.data[0].dtype
             if not all(core.dtype == self.dtype for core in self.data):
                 raise ValueError("All cores must have the same dtype")
