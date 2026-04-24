@@ -1,3 +1,4 @@
+from numpy_ttd.gradient import tt_gradient
 from itertools import product
 from typing import Any
 import math
@@ -205,3 +206,15 @@ def test_laplace() -> None:
     laplaced = matvec(laplacian, TTD.from_ndarray(A))
     print(np.asarray(laplaced))
     raise AssertionError
+
+
+def test_gradient() -> None:
+    """Test."""
+    gradient = tt_gradient((3, 2), 1, np.dtype(np.float64))
+
+    print(np.asarray(gradient))
+
+    A = np.arange(3 * 2, dtype=np.float64).reshape(3, 2)
+
+    grad = matvec(gradient, TTD.from_ndarray(A))
+    print(np.asarray(grad))
