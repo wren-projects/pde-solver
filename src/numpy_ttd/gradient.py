@@ -77,21 +77,21 @@ def tt_gradient[DT: np.floating](
 
     first: MatrixCore[DT] = core(1, 0, 2)
     first[0, :, :, 0] = I(0)
-    first[0, :, :, 1] = J(0)
+    first[0, :, :, 1] = -J(0)
 
     cores.append(first)
 
-    for i in range(dimensions - 2):
+    for i in range(1, dimensions - 1):
         middle: MatrixCore[DT] = core(2, i, 2)
         middle[0, :, :, 0] = I(i)
-        middle[0, :, :, 1] = J(i)
+        middle[0, :, :, 1] = -J(i)
         middle[1, :, :, 1] = J(i).T
 
         cores.append(middle)
 
     last = core(2, -1, 1)
-    last[0, :, :, 0] = I(-1) - J(-1)
-    last[1, :, :, 0] = -J(-1).T
+    last[0, :, :, 0] = J(-1) - I(k=-1)
+    last[1, :, :, 0] = J(-1).T
 
     cores.append(last)
 
