@@ -22,7 +22,7 @@ class TTMatrix[DType: np.floating]:
     rows: tuple[int, ...]
     columns: tuple[int, ...]
 
-    def __init__(self, data: Iterable[MatrixCore[DType]]):
+    def __init__(self, data: Iterable[MatrixCore[DType]]) -> None:
         """
         Create a new TT-matrix.
 
