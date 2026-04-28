@@ -10,6 +10,7 @@ import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
+from numpy_ttd._helpers import reverse_cores
 from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -70,11 +71,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if not self.data:
             raise ValueError("TTD must have at least one core")
 
-        if not all(
-            a.shape[2] == b.shape[0]
-            for a, b in zip(self.data, self.data[1:], strict=False)
-        ):
-            raise ValueError("Missmatch in core shapes")
+        for a, b in zip(self.data, self.data[1:], strict=False):
+            if a.shape[2] != b.shape[0]:
+                raise ValueError(
+                    f"Missmatch in core shapes: {a.shape} does not match {b.shape}"
+                )
+
+        if not (self.data[0].shape[0] == self.data[-1].shape[2] == 1):
+            raise ValueError("The boundary ranks have to be 1")
 
     @staticmethod
     def from_ndarray[DT: np.floating](
@@ -192,7 +196,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if len(self.data) == 1:
             core = self.data[0]
             reshaped = core.reshape((core.shape[1],))
-            return np.array(reshaped, dtype=dtype, copy=copy)
+            return np.asarray(reshaped, dtype=dtype, copy=copy)
 
         if copy is False:
             raise ValueError(
@@ -202,7 +206,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         # Multiply all cores together. This is equivalent to a repeated
         # tensordot, but faster since einsum does compute order optimizations.
-        # The generated expression looks like ABC,CDE,FGH,…, XYZ->ABCD…YZ, where
+        # The generated expression looks like ABC,CDE,EFG,…, XYZ->ABCD…YZ, where
         # A and Z are singleton dimensions (from TTD) making the final
         # (squeezed) result BCD…Y.
 
@@ -413,7 +417,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
         """Return the transpose of the TTD object."""
-        return TTD([core.T for core in reversed(self.data)], dtype=self.dtype)
+        return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
