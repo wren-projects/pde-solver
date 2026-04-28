@@ -123,7 +123,7 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
         np.transpose(tensor, axes),
     )
 
-    axes = (1, 0, *range(2, tensor.ndim))
+    axes = (*range(1, tensor.ndim), 0)
     assert_default_epsilon(
         np.transpose(ttd, axes),
         np.transpose(tensor, axes),
@@ -133,4 +133,47 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(
         np.transpose(ttd, axes),
         np.transpose(tensor, axes),
+    )
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_tensordot(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD tensordot works."""
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd.T, axes=1),
+        np.tensordot(tensor, tensor.T, axes=1),
+    )
+
+    axes = (1, 0, *range(2, ttd.ndim))
+    assert_default_epsilon(
+        np.tensordot(ttd, np.transpose(ttd.T, axes=axes)),
+        np.tensordot(tensor, np.transpose(tensor.T, axes=axes)),
+    )
+
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd, axes=(0, 0)),
+        np.tensordot(tensor, tensor, axes=(0, 0)),
+    )
+
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd, axes=(-1, -1)),
+        np.tensordot(tensor, tensor, axes=(-1, -1)),
+    )
+
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd, axes=(1, 1)),
+        np.tensordot(tensor, tensor, axes=(1, 1)),
+    )
+
+    axes_single = tuple(range(tensor.ndim - 1))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd, axes=axes),
+        np.tensordot(tensor, tensor, axes=axes),
+    )
+
+    axes_single = tuple(range(tensor.ndim))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd, ttd, axes=axes), np.tensordot(tensor, tensor, axes=axes)
     )
