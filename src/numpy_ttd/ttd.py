@@ -325,7 +325,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             # only handle callable ufuncs
             return NotImplemented
 
-        if not hasattr(ufunc, "__name__") or not isinstance(ufunc.__name__, str):
+        if not hasattr(ufunc, "__name__") or not isinstance(ufunc.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             # not a valid ufunc
             raise ValueError(f"Invalid ufunc: {ufunc}")
 
@@ -364,7 +364,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             The result of the NumPy method applied to the TTD object.
 
         """
-        if not hasattr(func, "__name__") or not isinstance(func.__name__, str):
+        if not hasattr(func, "__name__") or not isinstance(func.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             # not a valid function
             raise ValueError(f"Invalid array function: {func}")
 
