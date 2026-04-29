@@ -1,23 +1,50 @@
 from __future__ import annotations
 
 from math import prod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
+from numpy_ttd._numpy_api import implements_function, implements_ufunc
 from numpy_ttd.types import Core
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
 
 
+@implements_ufunc("add")
 def add[DType: np.floating](
     a: TTD[DType],
     b: TTD[DType],
     *,
     out: TTD[DType] | None = None,
 ) -> TTD[DType]:
-    """Add two TTD objects."""
+    """
+    Add two tensors in the TTD representation.
+
+    For two TTD objects A = G₀ ⊗ G₁ ⊗ … ⊗ Gₙ and B = H₀ ⊗ H₁ ⊗ … ⊗ Hₙ, the
+    addition is defined as
+
+        A + B = (G₀ H₀) ⊗ (G₁ 0 ; 0 H₁) ⊗ (G₂ 0 ; 0 H₂) ⊗ … ⊗ (Gₙ ; Hₙ).
+
+    The addition requires that the TTD objects have the same shape and the same
+    dtype.
+
+    Parameters
+    ----------
+    a : TTD[DType]
+        The first TTD object.
+    b : TTD[DType]
+        The second TTD object.
+    out : TTD[DType], optional
+        The output TTD object. If not provided, a new TTD object is created.
+
+    Returns
+    -------
+    TTD[DType]
+        The result of the addition.
+
+    """
     # the import has to be here to avoid circular imports
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
@@ -37,11 +64,9 @@ def add[DType: np.floating](
 
 
 def _add_cores[DType: np.floating](
-    a: list[Core[DType]],
-    b: list[Core[DType]],
-    dtype: np.dtype,
+    a: list[Core[DType]], b: list[Core[DType]], dtype: np.dtype
 ) -> list[Core[DType]]:
-    # Add vectors
+    # Add vectors directly
     if len(a) == len(b) == 1:
         return [np.add(a[0], b[0])]
 
@@ -66,28 +91,204 @@ def _add_cores[DType: np.floating](
     ]
 
 
-def scalar_mul[DType: np.floating](
-    a: TTD[DType],
-    b: np.floating | float,
+@overload
+def multiply[DType: np.floating](
+    a: TTD[DType], b: np.floating | float, out: TTD[DType] | None = None
+) -> TTD[DType]: ...
+
+
+@overload
+def multiply[DType: np.floating](
+    a: np.floating | float, b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]: ...
+
+
+@implements_ufunc("multiply")
+def multiply[DType: np.floating](
+    a: TTD[DType] | np.floating | float,
+    b: TTD[DType] | np.floating | float,
     out: TTD[DType] | None = None,
 ) -> TTD[DType]:
-    """Multiply a TTD object by a scalar."""
-    cores = a.data.copy()
+    """
+    Multiply a TTD object by a scalar.
 
-    # find smallest core
-    _, index = min((prod(core.shape), index) for index, core in enumerate(cores))
+    For a TTD object A = G₀ ⊗ G₁ ⊗ ... ⊗ Gₙ, the multiplication by a scalar k is defined
+    as
 
-    cores[index] = np.multiply(cores[index], b)
+        kA = G₀ ⊗ G₁ ⊗ … ⊗ kGᵢ ⊗ … ⊗ Gₙ,
 
-    if out is not None:
-        out.data = cores
-        return out
+    where the choice of i is arbitrary from 0 to n. For performance reasons, we choose
+    the smallest core.
 
-    return a.__class__(cores, dtype=a.dtype)
+    Parameters
+    ----------
+    a : TTD[DType]
+        The TTD object to multiply.
+    b : np.floating | float
+        The scalar to multiply the TTD object by.
+    out : TTD[DType], optional
+        The output TTD object. If not provided, a new TTD object is created.
+
+    Returns
+    -------
+    TTD[DType]
+        The result of the multiplication.
+
+    """
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    def impl(
+        ttd: TTD[DType], scalar: np.floating | float, out: TTD[DType] | None = None
+    ) -> TTD[DType]:
+        cores = ttd.data.copy()
+
+        # find smallest core
+        _, index = min((prod(core.shape), index) for index, core in enumerate(cores))
+
+        cores[index] = np.multiply(cores[index], scalar)
+
+        if out is not None:
+            out.data = cores
+            return out
+
+        return TTD(cores, dtype=ttd.dtype)
+
+    if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
+        return impl(a, b, out=out)
+
+    if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
+        return impl(b, a, out=out)
+
+    return NotImplemented
 
 
-def neg[DType: np.floating](
-    a: TTD[DType],
+@implements_ufunc("negative")
+def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
+    """
+    Negate a TTD object.
+
+    This is a shorthand for multiplication by -1.
+
+    Parameters
+    ----------
+    a : TTD[DType]
+        The TTD object to negate.
+
+    Returns
+    -------
+    TTD[DType]
+        The negated TTD object.
+
+    """
+    return multiply(a, -1.0)
+
+
+@implements_ufunc("subtract")
+def subtract[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]:
-    """Negate a TTD object."""
-    return scalar_mul(a, -1.0)
+    """
+    Subtract two TTD objects.
+
+    This is a shorthand for addition with the second TTD object negated. See
+    `add` and `neg` for more details.
+
+    Parameters
+    ----------
+    a : TTD[DType]
+        The first TTD object.
+    b : TTD[DType]
+        The second TTD object.
+    out : TTD[DType], optional
+        The output TTD object. If not provided, a new TTD object is created.
+
+    Returns
+    -------
+    TTD[DType]
+        The result of the subtraction.
+
+    """
+    return add(a, neg(b), out=out)
+
+
+@implements_function("vdot")
+def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
+    """
+    Compute the inner product of two TTD objects.
+
+    The inner product of two TTD objects is defined as the sum of inner
+    products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
+    and B = H₀, H₁, …, Hₙ, the inner product is defined as
+
+        ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᵀ Hₖ.
+
+    The inner product requires that the TTD objects have the same shape and the same
+    dtype.
+
+    Parameters
+    ----------
+    a : TTD[DType]
+        The first TTD object.
+    b : TTD[DType]
+        The second TTD object.
+
+    Returns
+    -------
+    DType
+        The inner product of the two TTD objects.
+
+    """
+    if a.shape != b.shape:
+        raise ValueError("TTD objects must have the same shape")
+
+    if a.dtype != b.dtype:
+        raise ValueError("TTD objects must have the same dtype")
+
+    n = len(a.data)
+
+    # NOTE: See `TTD.__array__` for the general generated einsum index idea.
+
+    # ‌The generated einsum expression is in the form ABC,EBG,CDE,GDI->AI.
+    # ABC is the first core of A, EBG is the first core of B, CDE is the
+    # second core of A, …. Consequently, it first sums the matching cores
+    # along the second (rank) axis (ABC,EBG->ACEG / CDE,GDI->CEGI), then
+    # sums the results along all axes except the first and the last
+    # (ACEG,CEGI->AI). Since both A and I are always 1 long, the result is a
+    # matrix of size 1 × 1, which can be squeezed to a scalar.
+
+    summation_indices: list[Any] = [
+        item
+        for i, (a_core, b_core) in enumerate(zip(a.data, b.data, strict=True))
+        for item in (
+            a_core,
+            (2 * i + 0, 2 * i + 1, 2 * i + 2),
+            b_core,
+            (2 * (n + i) + 0, 2 * i + 1, 2 * (n + i) + 2),
+        )
+    ]
+
+    total = cast(
+        DType,
+        np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+    )
+
+    return total.squeeze()
+
+
+@implements_function("linalg.norm")
+def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
+    """
+    Return the Frobenius norm of the TTD object.
+
+    The Frobenius norm of a TTD object is defined as the square root of its
+    inner product with itself:
+
+        ‖A‖ᶠ = √(⟨A, A⟩)
+
+    Returns
+    -------
+    DType
+        The Frobenius norm of the TTD object.
+
+    """
+    return cast(DType, np.sqrt(np.vdot(ttd, ttd)))

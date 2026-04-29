@@ -10,35 +10,11 @@ import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
+from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
-type AnyCallable = Callable[..., Any]
-
-HANDLED_UFUNCS: dict[str, AnyCallable] = {}
-HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
-
 DEFAULT_EPSILON = np.float64(1e-9)
-
-
-def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_ufunc__` implementation for TTD objects."""
-
-    def decorator(func: F) -> F:
-        HANDLED_UFUNCS[name] = func
-        return func
-
-    return decorator
-
-
-def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_function__` implementation for TTD objects."""
-
-    def decorator(func: F) -> F:
-        HANDLED_FUNCTIONS[name] = func
-        return func
-
-    return decorator
 
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
@@ -86,7 +62,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             self.dtype = dtype
             self.data = [core.astype(self.dtype) for core in data]
         else:
-            self.data = data if isinstance(data, list) else list(data)
+            self.data = list(data)
             self.dtype = self.data[0].dtype
             if not all(core.dtype == self.dtype for core in self.data):
                 raise ValueError("All cores must have the same dtype")
@@ -317,87 +293,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         ttd.round(epsilon)
         return ttd
 
-    @implements_function("vdot")
-    def inner_product(self, other: TTD[DType]) -> DType:
-        """
-        Compute the inner product of two TTD objects.
-
-        The inner product of two TTD objects is defined as the sum of inner
-        products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
-        and B = H₀, H₁, …, Hₙ, the inner product is defined as
-
-            ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᵀ Hₖ.
-
-        The inner product requires that the TTD objects have the same shape and the same
-        dtype.
-
-        Parameters
-        ----------
-        other : TTD[DType]
-            The other TTD object.
-
-        Returns
-        -------
-        DType
-            The inner product of the two TTD objects.
-
-        """
-        if self.shape != other.shape:
-            raise ValueError("TTD objects must have the same shape")
-
-        if self.dtype != other.dtype:
-            raise ValueError("TTD objects must have the same dtype")
-
-        n = len(self.data)
-
-        # NOTE: See `TTD.__array__` for the general generated einsum index idea.
-
-        # ‌The generated einsum expression is in the form ABC,EBG,CDE,GDI->AI.
-        # ABC is the first core of A, EBG is the first core of B, CDE is the
-        # second core of A, …. Consequently, it first sums the matching cores
-        # along the second (rank) axis (ABC,EBG->ACEG / CDE,GDI->CEGI), then
-        # sums the results along all axes except the first and the last
-        # (ACEG,CEGI->AI). Since both A and I are always 1 long, the result is a
-        # matrix of size 1 × 1, which can be squeezed to a scalar.
-
-        summation_indices: list[Any] = [
-            item
-            for i, (self_core, other_core) in enumerate(
-                zip(self.data, other.data, strict=True)
-            )
-            for item in (
-                self_core,
-                (2 * i + 0, 2 * i + 1, 2 * i + 2),
-                other_core,
-                (2 * (n + i) + 0, 2 * i + 1, 2 * (n + i) + 2),
-            )
-        ]
-
-        total = cast(
-            DType,
-            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
-        )
-
-        return total.squeeze()
-
-    @implements_function("linalg.norm")
-    def frobenius_norm(self) -> DType:
-        """
-        Return the Frobenius norm of the TTD object.
-
-        The Frobenius norm of a TTD object is defined as the square root of its
-        inner product with itself:
-
-            ‖A‖ᶠ = √(⟨A, A⟩)
-
-        Returns
-        -------
-        DType
-            The Frobenius norm of the TTD object.
-
-        """
-        return cast(DType, np.sqrt(np.vdot(self, self)))
-
     @override
     def __array_ufunc__(
         self,
@@ -430,12 +325,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             # only handle callable ufuncs
             return NotImplemented
 
+        if not hasattr(ufunc, "__name__") or not isinstance(ufunc.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            # not a valid ufunc
+            raise ValueError(f"Invalid ufunc: {ufunc}")
+
         handler = HANDLED_UFUNCS.get(ufunc.__name__)
 
-        if handler is None:
-            return NotImplemented
-
-        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+        return (
+            cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+            if handler is not None
+            else NotImplemented
+        )
 
     def __array_function__[*Args](
         self,
@@ -464,15 +364,20 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             The result of the NumPy method applied to the TTD object.
 
         """
+        if not hasattr(func, "__name__") or not isinstance(func.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            # not a valid function
+            raise ValueError(f"Invalid array function: {func}")
+
         # Need to handle functions in submodules
         name = ".".join([*func.__module__.split(".")[1:], func.__name__])
 
         handler = HANDLED_FUNCTIONS.get(name)
 
-        if handler is None:
-            return NotImplemented
-
-        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+        return (
+            cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+            if handler is not None
+            else NotImplemented
+        )
 
     def _get_item(self, indexes: tuple[int, ...]) -> NDArray[DType] | DType:
         """Retrieve a single value from the TTD object."""
@@ -492,39 +397,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
-    @implements_ufunc("add")
-    @staticmethod
-    def add[DT: np.floating](
-        a: TTD[DT],
-        b: TTD[DT],
-        *,
-        out: TTD[DT] | None = None,
-    ) -> TTD[DT]:
-        """Add two TTD objects."""
-        return ops.add(a, b, out=out)
-
-    @implements_ufunc("multiply")
-    @staticmethod
-    def multiply(
-        a: TTD[DType] | np.floating | float,
-        b: TTD[DType] | np.floating | float,
-        *,
-        out: TTD[DType] | None = None,
-    ) -> TTD[DType]:
-        """Add two TTD objects."""
-        if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
-            return ops.scalar_mul(a, b, out=out)
-
-        if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
-            return ops.scalar_mul(b, a, out=out)
-
-        return NotImplemented
-
-    @implements_ufunc("negative")
-    @staticmethod
-    def negative(a: TTD[DType]) -> TTD[DType]:
-        """Negate a TTD object."""
-        return ops.scalar_mul(a, -1)
+    def copy(self) -> TTD[DType]:
+        """Return a copy of the TTD object."""
+        return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
 
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
@@ -536,7 +411,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     ) -> TTD[DType] | NDArray[DType] | DType:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
-            return self.__class__(a.copy() for a in self.data)
+            return self.copy()
 
         if isinstance(key, tuple):
             return self._get_item(key)
@@ -559,19 +434,34 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         return ops.add(other, self)
 
     @override
+    def __sub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Subtract two TTD objects."""
+        return ops.add(self, -other)
+
+    @override
+    def __isub__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place subtract another tensor."""
+        return ops.add(self, -other, out=self)
+
+    @override
+    def __rsub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse subtract another tensor."""
+        return ops.add(-other, self)
+
+    @override
     def __mul__(self, other: np.floating | float) -> TTD[DType]:
         """Multiply two TTD objects."""
-        return ops.scalar_mul(self, other)
+        return ops.multiply(self, other)
 
     @override
     def __imul__(self, other: np.floating | float) -> TTD[DType]:
         """In-place multiply two TTD objects."""
-        return ops.scalar_mul(self, other, out=self)
+        return ops.multiply(self, other, out=self)
 
     @override
     def __rmul__(self, other: np.floating | float) -> TTD[DType]:
         """Reverse multiply two TTD objects."""
-        return ops.scalar_mul(self, other)
+        return ops.multiply(self, other)
 
     @override
     def __neg__(self) -> TTD[DType]:
