@@ -14,7 +14,9 @@ type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
 
 TEST_TENSORS: list[TestTensor] = [
-    tensor.astype(np.float64)
+    # add a small epsilon to all tensors to remove zero values as they break
+    # relative errors
+    tensor.astype(np.float64) + 1e-5
     for tensor in [
         # ---- 2D ----
         np.arange(12).reshape(3, 4),
@@ -25,9 +27,10 @@ TEST_TENSORS: list[TestTensor] = [
         rng.normal(size=(2, 3, 5)),
         # ---- 4D ----
         np.arange(2 * 3 * 4 * 5).reshape(2, 3, 4, 5),
-        np.ones((2, 3, 2, 4)),
+        10e50 * np.ones((2, 3, 2, 4)),
         # ---- 5D ----
         np.arange(3 * 2 * 3 * 4 * 2).reshape(3, 2, 3, 4, 2),
+        -10e-5 * np.arange(3 * 2 * 3 * 4 * 2).reshape(3, 2, 3, 4, 2),
         # ---- 6D ----
         np.arange(2 * 3 * 2 * 3 * 2 * 4).reshape(2, 3, 2, 3, 2, 4),
         # ---- 7D ----
@@ -107,7 +110,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 ]
 
 
-TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e)
+TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e3)
 
 type EpsilonComparable = NDArray[np.float64] | TTD[np.float64] | np.floating | float
 

@@ -84,20 +84,18 @@ def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), TEST_TTD)
-def test_scalar_multiplication(tensor: TestTensor, ttd: TestTTD) -> None:
+@pytest.mark.parametrize(("scalar"), TEST_SCALARS)
+def test_scalar_multiplication(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
     """Test that TTD scalar multiplication works."""
-    ttd = TTD.from_ndarray(tensor)
+    scaled_tensor = tensor * scalar
+    assert_default_epsilon(ttd * scalar, scaled_tensor)
+    assert_default_epsilon(scalar * ttd, scaled_tensor)
+    assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor)
+    assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor)
 
-    for scalar in TEST_SCALARS:
-        scaled_tensor = tensor * scalar
-        assert_default_epsilon(ttd * scalar, scaled_tensor)
-        assert_default_epsilon(scalar * ttd, scaled_tensor)
-        assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor)
-        assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor)
-
-        ttd_copy = ttd[...]
-        ttd_copy *= scalar
-        assert_default_epsilon(ttd_copy, scaled_tensor)
+    ttd_copy = ttd[...]
+    ttd_copy *= scalar
+    assert_default_epsilon(ttd_copy, scaled_tensor)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), TEST_TTD)
