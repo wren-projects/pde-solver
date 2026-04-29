@@ -116,5 +116,15 @@ type EpsilonComparable = NDArray[np.float64] | TTD[np.float64] | np.floating | f
 
 
 def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
-    """Compare two tensors for equality within the default epsilon."""
+    """
+    Compare two tensors for equality within the default epsilon.
+
+    Implicitly expands TTDs to ndarrays for comparison.
+
+    Parameters
+    ----------
+        a: The first tensor to compare.
+        b: The second tensor to compare.
+
+    """
     np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=DEFAULT_EPSILON)

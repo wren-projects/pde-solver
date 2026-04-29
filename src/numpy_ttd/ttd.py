@@ -397,6 +397,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
+    def copy(self) -> TTD[DType]:
+        """Return a copy of the TTD object."""
+        return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
+
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
@@ -407,7 +411,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     ) -> TTD[DType] | NDArray[DType] | DType:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
-            return self.__class__(a.copy() for a in self.data)
+            return self.copy()
 
         if isinstance(key, tuple):
             return self._get_item(key)
