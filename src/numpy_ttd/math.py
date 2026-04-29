@@ -11,13 +11,35 @@ DEFAULT_EPSILON = np.float64(1e-9)
 
 
 def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT], epsilon: np.floating | float
+    tensor: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
 ) -> DT:
-    """Compute the truncation parameter of a tensor."""
-    d = tensor.ndim
-    assert d > 1, "Tensor must be at least 2D"
+    """
+    Compute the truncation parameter of a tensor.
 
-    # δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ
+    It uses the formula δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
+
+    Parameters
+    ----------
+    tensor : NDArray[DT]
+        The tensor to compute the truncation parameter of.
+    epsilon : np.floating | float, optional
+        The error tolerance for the compression, by default DEFAULT_EPSILON.
+
+    Returns
+    -------
+    DT
+        The truncation parameter.
+
+    Raises
+    ------
+    ValueError
+        If the tensor has less than 2 dimensions.
+
+    """
+    d = tensor.ndim
+    if d <= 1:
+        raise ValueError("Tensor must be at least 2D")
+
     return tensor.dtype.type(epsilon / math.sqrt(d - 1)) * np.linalg.norm(tensor)
 
 
