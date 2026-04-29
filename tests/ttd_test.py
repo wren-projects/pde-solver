@@ -23,7 +23,7 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_inner_product(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-    """Test inner norm."""
+    """Test inner product."""
     ttd_a, ttd_b = ttds
     tensor_a, tensor_b = tensors
 
@@ -38,7 +38,7 @@ def test_frobenius_norm(tensor: TestTensor, ttd: TestTTD) -> None:
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
-    """Test get value."""
+    """Test rounding."""
     assert_default_epsilon(ttd.rounded(), tensor)
 
 
