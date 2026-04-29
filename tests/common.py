@@ -124,8 +124,10 @@ def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
 
     Parameters
     ----------
-        a: The first tensor to compare.
-        b: The second tensor to compare.
+    a
+        The first tensor to compare.
+    b
+        The second tensor to compare.
 
     """
     np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=DEFAULT_EPSILON)
