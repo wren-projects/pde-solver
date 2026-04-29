@@ -20,10 +20,13 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(ttd, tensor)
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), TEST_TTD)
-def test_inner_product(tensor: TestTensor, ttd: TestTTD) -> None:
+@pytest.mark.parametrize(("tensors", "ttds"), TEST_PAIR_TTD)
+def test_inner_product(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test inner norm."""
-    assert_default_epsilon(np.vdot(ttd, ttd), np.vdot(tensor, tensor))
+    ttd_a, ttd_b = ttds
+    tensor_a, tensor_b = tensors
+
+    assert_default_epsilon(np.vdot(ttd_a, ttd_b), np.vdot(tensor_a, tensor_b))
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), TEST_TTD)
