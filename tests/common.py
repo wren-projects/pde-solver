@@ -51,6 +51,7 @@ TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
 ]
 
 
+# NOTE: each pair of tensors must have the same shape
 TEST_PAIR_TENSORS: list[TestTensorPair] = [
     (a.astype(np.float64), b.astype(np.float64))
     for a, b in [
