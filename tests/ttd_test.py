@@ -18,6 +18,8 @@ from tests.common import (
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test the round-trip compression/decompression of a tensor."""
+    # the compression is done in TEST_TTD and the decompression is done
+    # implicitly inside assert_default_epsilon
     assert_default_epsilon(ttd, tensor)
 
 
