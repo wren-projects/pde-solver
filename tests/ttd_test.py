@@ -109,3 +109,28 @@ def test_negation(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test that TTD negation works."""
     assert_default_epsilon(-ttd, -tensor)
     assert_default_epsilon(np.negative(ttd), np.negative(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD transpose works."""
+    assert_default_epsilon(np.transpose(ttd), np.transpose(tensor))
+    assert_default_epsilon(ttd.T, tensor.T)
+
+    axes = (1, 0, *range(2, tensor.ndim))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
+    axes = (1, 0, *range(2, tensor.ndim))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
+    axes = tuple(reversed(range(tensor.ndim)))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
