@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from math import prod
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
 from numpy_ttd._numpy_api import implements_function, implements_ufunc
-from numpy_ttd.types import Core
+from numpy_ttd.math import DEFAULT_EPSILON, delta_truncated_svd, truncation_parameter
+from numpy_ttd.types import Core, Matrix, NDArray
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
@@ -292,3 +294,104 @@ def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
 
     """
     return cast(DType, np.sqrt(np.vdot(ttd, ttd)))
+
+
+def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]:
+    return tuple((i + n) % n for i in axes)
+
+
+@implements_function("transpose")
+def transpose[DType: np.floating](
+    ttd: TTD[DType],
+    axes: Sequence[int] | None = None,
+    epsilon: float | DType = DEFAULT_EPSILON,
+) -> TTD[DType]:
+    """
+    Permute modes of a TT tensor (NumPy-like transpose).
+
+    This is implemented via a sequence of adjacent swaps. Each adjacent swap
+    is done by contracting two neighboring TT cores, permuting the two physical
+    dimensions, then TT-SVD splitting back with truncation.
+
+    Parameters
+    ----------
+    ttd : TTD
+        Input TT tensor.
+    axes : sequence[int] | None
+        Permutation of axes. If None, reverse axes.
+    epsilon : float
+        Relative tolerance for truncation during swapping.
+
+    Returns
+    -------
+    TTD
+        Transposed TT tensor.
+
+    """
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    d = ttd.ndim
+
+    # if axes is None, reverse the order of cores
+    if axes is None:
+        return ttd.T
+
+    perm = _normalize_axes(map(int, axes), d)
+
+    if len(perm) != d:
+        raise ValueError("axes must have length equal to a.ndim")
+
+    if d <= 1 or perm == tuple(range(d)):
+        return ttd[...]
+
+    if perm == tuple(reversed(range(d))):
+        return ttd.T
+
+    order = list(range(d))
+
+    if sorted(perm) != order:
+        raise ValueError("axes must be a permutation of range(a.ndim)")
+
+    delta = truncation_parameter(ttd, epsilon)
+    cores = ttd.data.copy()
+
+    def swap_adjacent(k: int) -> None:
+        """In=place swap modes at positions k and k+1 in the TT cores list."""
+        G1 = cores[k]
+        G2 = cores[k + 1]
+        r0, n1, r1 = G1.shape
+        r1b, n2, r2 = G2.shape
+
+        order[k], order[k + 1] = order[k + 1], order[k]
+
+        assert r1 == r1b, "Core rank mismatch"
+
+        # if the outside ranks are both equal to 1, we can just swap the cores
+        if r0 == r2 == 1:
+            cores[k] = G2
+            cores[k + 1] = G1
+            return
+
+        residue = cast(
+            NDArray[DType],
+            np.einsum("ais,sjb->ajib", G1, G2),
+        ).reshape((r0 * n2, n1 * r2))
+
+        u, s, v_t = delta_truncated_svd(residue, delta)
+
+        r1_new = len(s)
+        assert r1_new > 0, "SVD truncated all singular values"
+
+        cores[k] = u.reshape((r0, n2, r1_new))
+        cores[k + 1] = cast(Matrix[DType], np.einsum("i,ij->ij", s, v_t)).reshape(
+            (r1_new, n1, r2)
+        )
+
+    # Bubble-sort-like: for each desired position p, bring that axis there by swaps.
+    for target_pos in range(d):
+        cur_pos = order.index(perm[target_pos])
+        while cur_pos > target_pos:
+            swap_adjacent(cur_pos - 1)
+            cur_pos -= 1
+
+    return TTD(cores, dtype=ttd.dtype)

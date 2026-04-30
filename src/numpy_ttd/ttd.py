@@ -267,7 +267,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             cores[k - 2] = np.einsum("ijk,kl", cores[k - 2], r)
 
         # this is necessary for Python's typing
-        delta = truncation_parameter(cast(NDArray[DType], cast(Any, self)), epsilon)
+        delta = truncation_parameter(self, epsilon)
 
         for k in range(1, d):  # for k = 1 to d-1
             # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
@@ -400,6 +400,20 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def copy(self) -> TTD[DType]:
         """Return a copy of the TTD object."""
         return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
+
+    def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
+        """
+        Transpose the TTD object.
+
+        Warning: outside of a few trivial cases this is a slow operation as it
+        involves a re-compression of parts of the TTD using TT-SVD.
+        """
+        return ops.transpose(self, axes)
+
+    @property
+    def T(self) -> TTD[DType]:  # noqa: N802
+        """Return the transpose of the TTD object."""
+        return TTD([core.T for core in reversed(self.data)], dtype=self.dtype)
 
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
