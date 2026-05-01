@@ -307,11 +307,12 @@ def transpose[DType: np.floating](
     epsilon: float | DType = DEFAULT_EPSILON,
 ) -> TTD[DType]:
     """
-    Permute modes of a TT tensor (NumPy-like transpose).
+    Permute the modes of a TT-compressed tensor.
 
     This is implemented via a sequence of adjacent swaps. Each adjacent swap
     is done by contracting two neighboring TT cores, permuting the two physical
-    dimensions, then TT-SVD splitting back with truncation.
+    dimensions, then TT-SVD splitting back with truncation. This makes the operation
+    very slow, so it should not be used often.
 
     Parameters
     ----------
@@ -342,7 +343,7 @@ def transpose[DType: np.floating](
         raise ValueError("axes must have length equal to a.ndim")
 
     if d <= 1 or perm == tuple(range(d)):
-        return ttd[...]
+        return ttd.copy()
 
     if perm == tuple(reversed(range(d))):
         return ttd.T
@@ -356,7 +357,7 @@ def transpose[DType: np.floating](
     cores = ttd.data.copy()
 
     def swap_adjacent(k: int) -> None:
-        """In=place swap modes at positions k and k+1 in the TT cores list."""
+        """In-place swap cores at positions k and k + 1."""
         G1 = cores[k]
         G2 = cores[k + 1]
         r0, n1, r1 = G1.shape
@@ -374,7 +375,7 @@ def transpose[DType: np.floating](
 
         residue = cast(
             NDArray[DType],
-            np.einsum("ais,sjb->ajib", G1, G2),
+            np.einsum("ajb,biz", G1, G2),
         ).reshape((r0 * n2, n1 * r2))
 
         u, s, v_t = delta_truncated_svd(residue, delta)
