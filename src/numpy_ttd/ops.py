@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from itertools import pairwise
 from math import prod
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
 from numpy_ttd._numpy_api import implements_function, implements_ufunc
-from numpy_ttd.math import DEFAULT_EPSILON, delta_truncated_svd, truncation_parameter
-from numpy_ttd.types import Core, Matrix, NDArray
+from numpy_ttd.math import (
+    DEFAULT_EPSILON,
+    delta_truncated_svd,
+    qr_rows,
+    truncation_parameter,
+)
+from numpy_ttd.types import Core, NDArray
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
@@ -356,43 +362,57 @@ def transpose[DType: np.floating](
     delta = truncation_parameter(ttd, epsilon)
     cores = ttd.data.copy()
 
-    def swap_adjacent(k: int) -> None:
-        """In-place swap cores at positions k and k + 1."""
-        G1 = cores[k]
-        G2 = cores[k + 1]
-        r0, n1, r1 = G1.shape
-        r1b, n2, r2 = G2.shape
+    # list of target positions of each core
+    target = [perm.index(i) for i in range(d)]
 
-        order[k], order[k + 1] = order[k + 1], order[k]
+    # TODO: consider, if the QR-orthogonalisation is actually needed. It is used
+    # in some libraries (e.g. ttpy aka TT-toolbox) but non-othogonal cores still
+    # produce correct results.
 
-        assert r1 == r1b, "Core rank mismatch"
+    # RL-orthogonalise
+    for i in reversed(range(1, d)):
+        core = cores[i]
+        r0, n1, r1 = core.shape
+        q, r = qr_rows(core.reshape((r0, n1 * r1)))
+        cores[i] = q.reshape((-1, n1, r1))
+        cores[i - 1] = np.einsum("ijk,kl", cores[i - 1], r)
 
-        # if the outside ranks are both equal to 1, we can just swap the cores
-        if r0 == r2 == 1:
-            cores[k] = G2
-            cores[k + 1] = G1
-            return
+    sorted_prefix = 0
+    while True:
+        # Find a pair of cores that's not yet transposed
+        try:
+            k = next(i for i, (a, b) in enumerate(pairwise(target)) if a > b)
+        except StopIteration:
+            # All cores are already in the correct order
+            break
 
-        residue = cast(
-            NDArray[DType],
-            np.einsum("ajb,biz", G1, G2),
-        ).reshape((r0 * n2, n1 * r2))
+        # Move orthogonal center to k
+        for i in range(sorted_prefix, k):
+            core = cores[i]
+            r0, n1, r1 = core.shape
+            q, r = np.linalg.qr(core.reshape((r0 * n1, r1)))
+            cores[i] = q.reshape((r0, n1, -1))
+            cores[i + 1] = np.einsum("jkl,ji", cores[i + 1], r)
 
-        u, s, v_t = delta_truncated_svd(residue, delta)
+        # Swap cores
+        core_0 = cores[k]
+        core_1 = cores[k + 1]
+        r0, n1, r1 = core_0.shape
+        r1b, n2, r2 = core_1.shape
+
+        assert r1 == r1b, f"Internal rank mismatch: {r1} != {r1b}"
+
+        merged = cast(NDArray[Any], np.einsum("ajk,kiz", core_0, core_1)).reshape(
+            (r0 * n2, n1 * r2)
+        )
+        u, s, v_t = delta_truncated_svd(merged, delta)
 
         r1_new = len(s)
-        assert r1_new > 0, "SVD truncated all singular values"
+        cores[k] = (u * s).reshape((r0, n2, r1_new))
+        cores[k + 1] = v_t.reshape((r1_new, n1, r2))
 
-        cores[k] = u.reshape((r0, n2, r1_new))
-        cores[k + 1] = cast(Matrix[DType], np.einsum("i,ij->ij", s, v_t)).reshape(
-            (r1_new, n1, r2)
-        )
+        target[k], target[k + 1] = target[k + 1], target[k]
 
-    # Bubble-sort-like: for each desired position p, bring that axis there by swaps.
-    for target_pos in range(d):
-        cur_pos = order.index(perm[target_pos])
-        while cur_pos > target_pos:
-            swap_adjacent(cur_pos - 1)
-            cur_pos -= 1
+        sorted_prefix = max(k - 1, 0)
 
     return TTD(cores, dtype=ttd.dtype)
