@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from numpy_ttd._helpers import reverse_cores
+from numpy_ttd._helpers import reverse_cores, to_int_tuple
 from numpy_ttd._numpy_api import implements_function, implements_ufunc
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
@@ -98,6 +98,59 @@ def _add_cores[DType: np.floating](
         # stack last cores vertically
         np.concatenate((a[-1], b[-1]), axis=0),
     ]
+
+
+@implements_function("sum")
+def sum[DType: np.floating](  # noqa: A001
+    ttd: TTD[DType], axis: int | Sequence[int] | None = None
+) -> TTD[DType]:
+    """
+    Return the sum of the TTD object along the given axis.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        The TTD object to sum.
+    axis : int | Sequence[int] | None, optional
+        The axis or axes along which to sum. If None, sum all axes.
+
+    Returns
+    -------
+    TTD[DType]
+        The result of the sum.
+
+    """
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    if axis is None:
+        axes = list(reversed(range(ttd.ndim)))
+    elif isinstance(axis, int):
+        axes = [axis]
+    else:
+        axes = sorted(axis, reverse=True)
+
+    if len(axes) > ttd.ndim:
+        raise ValueError(f"Too many axes: {len(axes)} > {ttd.ndim}")
+
+    cores = ttd.data.copy()
+
+    for a in axes:
+        if not 0 <= a < ttd.ndim:
+            raise ValueError(f"Invalid axis: {a}")
+
+        if len(cores) == 1:
+            return np.sum(cores[0], axis=1).item()
+
+        summed = np.sum(cores[a], axis=1)
+
+        if a == 0:
+            cores[1] = np.tensordot(summed, cores[1], axes=(1, 0))
+        else:
+            cores[a - 1] = np.tensordot(cores[a - 1], summed, axes=(2, 0))
+
+        cores.pop(a)
+
+    return TTD(cores, dtype=ttd.dtype)
 
 
 @overload
@@ -262,10 +315,6 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     return a.dtype.type(contracted.squeeze())
 
 
-def _to_int_tuple(axes: int | Iterable[int]) -> tuple[int, ...]:
-    return tuple(map(int, axes)) if isinstance(axes, Iterable) else (int(axes),)
-
-
 @implements_function("tensordot")
 def tensordot[DType: np.floating](
     a: TTD[DType],
@@ -316,7 +365,7 @@ def tensordot[DType: np.floating](
 
     a_axes_raw, b_axes_raw = axes
 
-    a_axes, b_axes = _to_int_tuple(a_axes_raw), _to_int_tuple(b_axes_raw)
+    a_axes, b_axes = to_int_tuple(a_axes_raw), to_int_tuple(b_axes_raw)
 
     # normalize negative indices
     a_axes = _normalize_axes(a_axes, a.ndim)

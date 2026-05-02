@@ -3,6 +3,7 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
+from numpy_ttd import TTD
 from tests.common import (
     TEST_PAIR_TTD,
     TEST_SCALARS,
@@ -12,6 +13,7 @@ from tests.common import (
     TestTTD,
     TestTTDPair,
     assert_default_epsilon,
+    TEST_SHAPES,
 )
 
 
@@ -45,8 +47,51 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_sum(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test sum."""
+    assert_default_epsilon(np.sum(ttd), np.sum(tensor))
+
+    for axis in range(tensor.ndim):
+        assert_default_epsilon(ttd.sum(axis=axis), tensor.sum(axis=axis))
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_zeros(shape: tuple[int, ...]) -> None:
+    """Test zeros."""
+    ttd = TTD.zeros(shape, dtype=np.dtype(np.float64))
+    assert ttd.shape == shape
+    assert ttd.sum() == 0
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_ones(shape: tuple[int, ...]) -> None:
+    """Test ones."""
+    ttd = TTD.ones(shape, dtype=np.dtype(np.float64))
+    assert ttd.shape == shape
+    assert_default_epsilon(ttd.sum(), ttd.size)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_eye(shape: tuple[int, ...]) -> None:
+    """Test eye."""
+    ttd = TTD.eye(shape, dtype=np.dtype(np.float64))
+    assert ttd.size == np.prod(np.pow(shape, 2))
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_random(shape: tuple[int, ...]) -> None:
+    """Test randomly generated TTD."""
+    ttd = TTD.random(shape, dtype=np.dtype(np.float64))
+    assert ttd.shape == shape
+    np.testing.assert_allclose(ttd.sum() / ttd.size, 0.5, atol=0.5, rtol=0.5)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_get_element(ttd: TestTTD, tensor: TestTensor) -> None:
     """Test get value."""
+    if tensor.ndim > 8:
+        return
+
     for index in np.ndindex(tensor.shape):
         assert_default_epsilon(ttd[index], tensor[index])
 
@@ -139,30 +184,38 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_tensordot(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test that TTD tensordot works."""
-    assert_default_epsilon(
-        np.tensordot(ttd, ttd.T, axes=1),
-        np.tensordot(tensor, tensor.T, axes=1),
-    )
+    # the zero and single axis cases nearly double the dimensionality of the
+    # tensor, so should be skipped for the large inputs to prevent OOMs
+    if tensor.ndim <= 8:
+        assert_default_epsilon(
+            np.tensordot(ttd, ttd, axes=0),
+            np.tensordot(tensor, tensor, axes=0),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd, ttd.T, axes=1),
+            np.tensordot(tensor, tensor.T, axes=1),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd, ttd, axes=(0, 0)),
+            np.tensordot(tensor, tensor, axes=(0, 0)),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd, ttd, axes=(-1, -1)),
+            np.tensordot(tensor, tensor, axes=(-1, -1)),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd, ttd, axes=(1, 1)),
+            np.tensordot(tensor, tensor, axes=(1, 1)),
+        )
 
     axes = (1, 0, *range(2, ttd.ndim))
     assert_default_epsilon(
         np.tensordot(ttd, np.transpose(ttd.T, axes=axes)),
         np.tensordot(tensor, np.transpose(tensor.T, axes=axes)),
-    )
-
-    assert_default_epsilon(
-        np.tensordot(ttd, ttd, axes=(0, 0)),
-        np.tensordot(tensor, tensor, axes=(0, 0)),
-    )
-
-    assert_default_epsilon(
-        np.tensordot(ttd, ttd, axes=(-1, -1)),
-        np.tensordot(tensor, tensor, axes=(-1, -1)),
-    )
-
-    assert_default_epsilon(
-        np.tensordot(ttd, ttd, axes=(1, 1)),
-        np.tensordot(tensor, tensor, axes=(1, 1)),
     )
 
     axes_single = tuple(range(tensor.ndim - 1))

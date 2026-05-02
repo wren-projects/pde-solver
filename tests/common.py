@@ -111,6 +111,17 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 ]
 
 
+TEST_SHAPES: list[tuple[int, ...]] = [
+    (3,),
+    (2, 2),
+    (2, 3),
+    (2, 3, 4),
+    (2, 3, 4, 5),
+    (8, 7, 6, 5, 6, 7, 8),
+    (100, 100, 100),
+]
+
+
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e3)
 
 type EpsilonComparable = NDArray[np.float64] | TTD[np.float64] | np.floating | float

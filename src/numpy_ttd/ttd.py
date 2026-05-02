@@ -1,7 +1,9 @@
 from __future__ import annotations
+import math
+from itertools import pairwise
 
 import functools
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, cast, final, overload, override
 
@@ -10,7 +12,7 @@ import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
-from numpy_ttd._helpers import reverse_cores
+from numpy_ttd._helpers import reverse_cores, to_int_tuple
 from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -142,6 +144,56 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return TTD(cores)
 
+    @staticmethod
+    def ones[DT: np.floating](
+        shape: int | Sequence[int], *, dtype: np.dtype[DT]
+    ) -> TTD[DT]:
+        """Create a TTD representing a tensor of ones."""
+        cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
+        return TTD(cores, dtype=dtype)
+
+    @staticmethod
+    def zeros[DT: np.floating](
+        shape: int | Sequence[int], *, dtype: np.dtype[DT]
+    ) -> TTD[DT]:
+        """Create a TTD representing a tensor of zeros."""
+        cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
+        return TTD(cores)
+
+    @staticmethod
+    def eye[DT: np.floating](
+        shape: int | Sequence[int], *, dtype: np.dtype[DT] | None = None
+    ) -> TTD[DT]:
+        """Create an identity TT-matrix."""
+        # TODO: move to TT-matrix class
+        cores = [
+            np.eye(n, dtype=dtype).reshape((1, n**2, 1)) for n in to_int_tuple(shape)
+        ]
+        return TTD(cores)
+
+    @staticmethod
+    def random[DT: np.floating](
+        shape: int | Sequence[int],
+        ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT],
+    ) -> TTD[DT]:
+        """Create a TTD representing a random tensor."""
+        shape = to_int_tuple(shape)
+        d = len(shape)
+
+        ranks = (
+            (1, *((ranks,) * (d - 1)), 1) if isinstance(ranks, int) else tuple(ranks)
+        )
+
+        rng = np.random.default_rng()
+        cores = [
+            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
+            for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
+        ]
+
+        return TTD(cores, dtype=dtype)
+
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
@@ -161,6 +213,21 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def ndim(self) -> int:
         """Return the number of dimensions of the TTD object."""
         return len(self.data)
+
+    @property
+    def size(self) -> int:
+        """Return the size of the uncompressed tensor."""
+        return math.prod(self.shape)
+
+    @property
+    def compressed_size(self) -> int:
+        """Return the size of the compressed representation."""
+        return sum(math.prod(core.shape) for core in self.data)
+
+    @property
+    def ranks(self) -> tuple[int, ...]:
+        """Return the ranks of the TTD object."""
+        return tuple(core.shape[2] for core in self.data[:-1])
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
@@ -418,6 +485,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def T(self) -> TTD[DType]:  # noqa: N802
         """Return the transpose of the TTD object."""
         return TTD(reverse_cores(self.data), dtype=self.dtype)
+
+    def sum(self, axis: int | None = None) -> TTD[DType]:
+        """Return the sum of the TTD object."""
+        return ops.sum(self, axis)
 
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
