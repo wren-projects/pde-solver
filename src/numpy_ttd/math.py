@@ -81,6 +81,11 @@ def delta_truncated_svd[DT: np.floating](
 
     # Keep only singular values >= delta
     mask = s >= delta
+
+    # Always keep at least one singular value
+    if not np.any(mask):
+        return u[:, :1], s[:1], v_t[:1, :]
+
     return u[:, mask], s[mask], v_t[mask, :]
 
 
