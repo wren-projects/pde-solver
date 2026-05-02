@@ -1,3 +1,4 @@
+from numpy_ttd import TTD
 from copy import deepcopy
 
 import numpy as np
@@ -109,3 +110,9 @@ def test_negation(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test that TTD negation works."""
     assert_default_epsilon(-ttd, -tensor)
     assert_default_epsilon(np.negative(ttd), np.negative(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_svdopt(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD svdopt works."""
+    TTD.ttsvdopt(tensor)

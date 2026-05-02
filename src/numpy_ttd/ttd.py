@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Callable, Iterable
 from types import EllipsisType
 from typing import Any, ParamSpec, cast, final, overload, override
@@ -134,9 +135,125 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             # note: equivalent to np.diag(s) @ v_t
             residue = cast(Matrix[DT], np.einsum("i,ij->ij", s, v_t))
 
-        cores.append(residue.reshape((*residue.shape, 1)))
+        cores.append(np.expand_dims(residue, axis=2))
 
         return TTD(cores)
+
+    @staticmethod
+    def ttsvdopt[DT: np.floating](
+        array: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+    ) -> None:
+        """
+        Optimized SVD-Based TT Decomposition with greedy mode reordering.
+
+        Parameters
+        ----------
+        T : ndarray
+            Input tensor.
+        tol : float
+            Relative truncation threshold.
+
+        Returns
+        -------
+        cores : list of ndarray
+            TT cores G_k shaped (r_{k-1}, n_k, r_k).
+        order : list[int]
+            Permutation of original axes used by the algorithm.
+
+        """
+        shape = list(array.shape)
+        d = array.ndim
+        order = list(range(d))
+
+        delta = truncation_parameter(array, epsilon)
+
+        residue = array.reshape((1, *shape))
+
+        cores: list[Core[DT]] = []
+
+        r0 = 1
+
+        for i in range(d - 1):
+            u, s, v_t = delta_truncated_svd(
+                residue.reshape(r0 * shape[i], -1),
+                delta,
+            )
+            r1 = len(s)
+            v = s[-1]
+
+            new_order = order.copy()
+            new_shape = shape.copy()
+
+            for j in range(i + 1, d):
+                # within residue, mode j corresponds to axis (j - i) in the
+                # remaining block, but +1 because axis 0 is the rank axis r0
+                ax_in_residue = 1 + (j - i)
+                axes = (
+                    0,
+                    ax_in_residue,
+                    *range(1, ax_in_residue),
+                    *range(ax_in_residue + 1, residue.ndim),
+                )
+
+                j_residue = residue.transpose(axes)
+
+                j_u, j_s, j_v_t = delta_truncated_svd(
+                    j_residue.reshape(r0 * shape[j], -1),
+                    delta,
+                )
+
+                j_r1 = len(j_s)
+                j_v = j_s[-1]
+
+                if j_r1 < r1 or (j_r1 == r1 and j_v < v):
+                    u, s, v_t = j_u, j_s, j_v_t
+                    r1 = j_r1
+                    v = j_v
+
+                    new_shape = shape[:i] + shape[j:] + shape[i:j]
+                    new_order = order[:i] + order[j:] + order[i:j]
+
+            shape, order = new_shape, new_order
+
+            cores.append(u.reshape(r0, shape[i], r1))
+
+            mat = cast(Matrix[DT], np.einsum("i,ij->ij", s, v_t))  # (r1, prod(rest))
+            rest_shape = shape[i + 1 :]
+            residue = cast(Matrix[DT], mat.reshape((r1, *rest_shape)))
+
+            r0 = r1
+
+        cores.append(np.expand_dims(residue, axis=2))
+
+        ttd = TTD.from_ndarray(array)
+
+        size = sum(math.prod(core.shape) for core in cores)
+
+        print(*map(np.shape, cores))
+        print(*map(np.shape, ttd.data))
+
+        inv_ord = [order.index(i) for i in range(d)]
+        summation_indices: list[Any] = [
+            item
+            for i, core in enumerate(cores)
+            for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
+        ]
+        full = (
+            cast(
+                NDArray[DType],
+                np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+            )
+            .squeeze()
+            .transpose(inv_ord)
+        )
+        assert full.shape == array.shape
+        np.testing.assert_allclose(full, array, atol=DEFAULT_EPSILON)
+        error = np.linalg.norm(array - full)
+        ttd_error = np.linalg.norm(array - np.asarray(ttd))
+        assert error <= ttd_error, f"{error} <= {ttd_error}"
+        print(size, ttd.compressed_size)
+        assert size <= ttd.compressed_size, f"{size} <= {ttd.compressed_size}"
+        # assert False
 
     @override
     def __repr__(self) -> str:
@@ -157,6 +274,21 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     def ndim(self) -> int:
         """Return the number of dimensions of the TTD object."""
         return len(self.data)
+
+    @property
+    def size(self) -> int:
+        """Return the size of the uncompressed tensor."""
+        return math.prod(self.shape)
+
+    @property
+    def compressed_size(self) -> int:
+        """Return the size of the compressed representation."""
+        return sum(math.prod(core.shape) for core in self.data)
+
+    @property
+    def ranks(self) -> tuple[int, ...]:
+        """Return the ranks of the TTD object."""
+        return tuple(core.shape[2] for core in self.data[:-1])
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
