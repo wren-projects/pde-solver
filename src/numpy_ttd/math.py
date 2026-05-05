@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -9,9 +10,12 @@ from numpy_ttd.types import Matrix, Vector
 
 DEFAULT_EPSILON = np.float64(1e-9)
 
+if TYPE_CHECKING:
+    from numpy_ttd.ttd import TTD
+
 
 def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+    tensor: NDArray[DT] | TTD[DT], epsilon: np.floating | float = DEFAULT_EPSILON
 ) -> DT:
     """
     Compute the truncation parameter of a tensor.
