@@ -262,6 +262,39 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     return a.dtype.type(contracted.squeeze())
 
 
+def _contract_cores[DType: np.floating](
+    a_cores: Iterable[Core[DType]],
+    b_cores: Iterable[Core[DType]],
+    n: int,
+) -> Matrix[DType]:
+    # ‌The generated einsum expression is in the form ABC,GBI,CDE,IDK->AEGK. ABC
+    # is the first core of A, GBI is the first core of B, CDE is the second core
+    # of A, …. Consequently, it first sums the matching cores along the second
+    # (rank) axis (ABC,GBI->ACGI / CDE,IDK->CEIK), then sums the results along
+    # all axes except the first and the last of a and b each (ACGI,CEIK->AEGK).
+
+    # NOTE: See `TTD.__array__` for the general generated einsum index idea.
+
+    summation_indices: list[Any] = [
+        item
+        for i, (a_core, b_core) in enumerate(zip(a_cores, b_cores, strict=True))
+        for item in [
+            a_core,
+            (2 * i + 0, 2 * i + 1, 2 * i + 2),
+            b_core,
+            (2 * (n + i + 1) + 0, 2 * i + 1, 2 * (n + i + 1) + 2),
+        ]
+    ]
+
+    result = cast(
+        Matrix[DType],
+        np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+    )
+
+    # assumes, that both sequences started from the boundary core -> |A| = |G| = 1
+    return result.squeeze((0, 2))
+
+
 def _to_int_tuple(axes: int | Iterable[int]) -> tuple[int, ...]:
     return tuple(map(int, axes)) if isinstance(axes, Iterable) else (int(axes),)
 
@@ -336,12 +369,6 @@ def tensordot[DType: np.floating](
         if a.shape[axis_a] != b.shape[axis_b]:
             raise ValueError("Shape mismatch on contracted axes")
 
-    # k_prefix = tuple(range(k))
-    # k_suffix = tuple(reversed(range(k)))
-
-    # if a_axes == k_suffix and b_axes == k_prefix:
-    #     return _tensordot_suffix_prefix(a, b, k, dtype=dtype)
-
     # set returns elements in the insertion order, so this preserves the order
     a_free = tuple(set(range(a.ndim)) - dedup_axes_a)
     b_free = tuple(set(range(b.ndim)) - dedup_axes_b)
@@ -353,39 +380,6 @@ def tensordot[DType: np.floating](
     b_t = transpose(b, b_permutation)
 
     return _tensordot_transposed(a_t, b_t, k, dtype=dtype)
-
-
-def _contract_cores[DType: np.floating](
-    a_cores: Iterable[Core[DType]],
-    b_cores: Iterable[Core[DType]],
-    n: int,
-) -> Matrix[DType]:
-    # ‌The generated einsum expression is in the form ABC,GBI,CDE,IDK->AEGK. ABC
-    # is the first core of A, GBI is the first core of B, CDE is the second core
-    # of A, …. Consequently, it first sums the matching cores along the second
-    # (rank) axis (ABC,GBI->ACGI / CDE,IDK->CEIK), then sums the results along
-    # all axes except the first and the last of a and b each (ACGI,CEIK->AEGK).
-
-    # NOTE: See `TTD.__array__` for the general generated einsum index idea.
-
-    summation_indices: list[Any] = [
-        item
-        for i, (a_core, b_core) in enumerate(zip(a_cores, b_cores, strict=True))
-        for item in [
-            a_core,
-            (2 * i + 0, 2 * i + 1, 2 * i + 2),
-            b_core,
-            (2 * (n + i + 1) + 0, 2 * i + 1, 2 * (n + i + 1) + 2),
-        ]
-    ]
-
-    result = cast(
-        Matrix[DType],
-        np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
-    )
-
-    # assumes, that both sequences started from the boundary core -> |A| = |G| = 1
-    return result.squeeze((0, 2))
 
 
 def _tensordot_transposed[DType: np.floating](
