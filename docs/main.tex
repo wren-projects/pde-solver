@@ -885,7 +885,448 @@ The operation requires $\mathcal{O}(r_{k-1} n_k r_k)$ operations.
 #TODO implement
 \end{minted}
 
+%==================================================
+\subsection{Element access}
+%==================================================
 
+\begin{definition}[Element evaluation]
+
+Let $A$ be a TT tensor with matrix-valued cores
+\[
+G_k : \{1,\dots,n_k\} \to \mathbb{R}^{r_{k-1}\times r_k}.
+\]
+
+The entry
+\[
+A(i_1,\dots,i_d)
+\]
+can be computed by sequential multiplication:
+\[
+v_0 = 1,
+\quad
+v_k = v_{k-1} G_k(i_k),
+\quad
+k=1,\dots,d.
+\]
+
+Then
+\[
+A(i_1,\dots,i_d) = v_d.
+\]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+Instead of reconstructing the full tensor, we select one slice from each core
+and multiply them from left to right.
+
+Each step propagates a small matrix (or vector), and since $r_0=r_d=1$,
+the final result is a scalar.
+
+\paragraph{Complexity.}
+
+If TT-ranks are bounded by $r$, the cost is
+\[
+\mathcal{O}(d r^2).
+\]
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# TODO: element access
+\end{minted}
+
+%==================================================
+\subsection{Mode permutation (transpose)}
+%==================================================
+
+\begin{definition}[Mode permutation in TT format]
+
+Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be represented
+in TT format with cores $G_1,\dots,G_d$.
+
+Given a permutation
+\[
+\sigma : \{1,\dots,d\} \to \{1,\dots,d\},
+\]
+the permuted tensor $\widetilde{A}$ is defined by
+\[
+\widetilde{A}(i_1,\dots,i_d)
+=
+A(i_{\sigma(1)},\dots,i_{\sigma(d)}).
+\]
+
+A TT representation of $\widetilde{A}$ is obtained by
+reordering and recompressing the TT cores such that the
+tensor remains in TT format.
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+Unlike basic operations such as scaling or axis flipping,
+a general permutation cannot be performed by simply reordering
+the TT cores.
+
+This is because each core encodes dependencies between
+neighboring dimensions.
+
+Changing the order of dimensions changes these dependencies,
+so the TT decomposition must be recomputed locally.
+
+\paragraph{Construction (adjacent swap).}
+
+A general permutation is implemented as a sequence of swaps
+of neighboring dimensions.
+
+To swap dimensions $k$ and $k+1$:
+
+\begin{enumerate}
+  \item Contract the two neighboring cores:
+  \[
+  T(i_k,i_{k+1})
+  =
+  G_k(i_k) \, G_{k+1}(i_{k+1})
+  \]
+
+  \item Reshape $T$ into a matrix:
+  \[
+  T \in \mathbb{R}^{(r_{k-1} n_{k+1}) \times (n_k r_{k+1})}
+  \]
+
+  \item Compute a truncated SVD:
+  \[
+  T \approx U \Sigma V^\top
+  \]
+
+  \item Reshape $U$ and $V^\top$ into new TT cores:
+  \[
+  \widetilde{G}_k(i_{k+1}), \quad \widetilde{G}_{k+1}(i_k)
+  \]
+
+\end{enumerate}
+
+\paragraph{Remark.}
+
+Mode permutation generally increases TT-ranks before truncation.
+Therefore, rounding (\cref{alg:rounding}) is required to maintain
+a compact representation.
+
+\paragraph{Complexity.}
+
+A single adjacent swap has complexity
+\[
+\mathcal{O}(n_k n_{k+1} r^3).
+\]
+
+A general permutation requires $\mathcal{O}(d^2)$ such swaps.
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# TODO: implement adjacent swap of TT cores
+# then compose swaps to achieve general permutation
+\end{minted}
+
+%==================================================
+\subsection{Tensor contraction (tensordot)}
+%==================================================
+
+\begin{definition}[Tensor contraction in TT format]
+
+Let $A$ and $B$ be TT tensors.
+
+A tensor contraction (tensordot) along selected modes sums over
+shared indices of $A$ and $B$.
+
+In the special case where all modes are contracted, this reduces to
+the Frobenius inner product:
+\[
+\langle A,B\rangle =
+\sum_{i_1,\dots,i_d}
+A(i_1,\dots,i_d)\,B(i_1,\dots,i_d).
+\]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+The contraction is performed sequentially across dimensions.
+
+At each dimension $k$, we combine slices of $A$ and $B$,
+sum over the contracted index, and propagate a small matrix.
+
+This avoids forming the full tensors explicitly.
+
+\paragraph{Important note.}
+
+General contractions increase TT-ranks.
+Therefore, rounding (\cref{alg:rounding}) is applied afterward.
+
+\paragraph{Complexity.}
+
+If $n_k \le n$ and ranks are bounded by $r$, the cost is
+\[
+\mathcal{O}(d n r^3).
+\]
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# TODO: tensordot / contraction
+\end{minted}
+
+%==================================================
+\section{TT-Matrix Format}
+%==================================================
+
+\subsection{TT-Matrix representation}
+
+\begin{definition}[TT-matrix]
+
+A linear operator
+\[
+A \in
+\mathbb{R}^{(n_1 \cdots n_d) \times (m_1 \cdots m_d)}
+\]
+is said to be in TT-matrix format if it is represented by
+matrix-valued functions
+
+\[
+A_k :
+\{1,\dots,n_k\} \times \{1,\dots,m_k\}
+\to
+\mathbb{R}^{R_{k-1}\times R_k},
+\]
+
+such that
+
+\[
+A(i_1,\dots,i_d,\; j_1,\dots,j_d)
+=
+A_1(i_1,j_1)\cdots A_d(i_d,j_d),
+\]
+
+with $R_0 = R_d = 1$.
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+A TT-matrix represents a high-dimensional linear operator
+as a sequence of small core tensors.
+
+Each core connects input indices $j_k$ and output indices $i_k$
+at dimension $k$, while also propagating low-rank coupling
+information via auxiliary indices.
+
+This representation reduces storage from exponential
+$\mathcal{O}(n^d m^d)$ to polynomial $\mathcal{O}(d n m R^2)$.
+
+%==================================================
+
+\subsection{Differential operators in TT format}
+%==================================================
+
+\subsubsection{Gradient operator}
+
+\begin{definition}[Gradient in TT format]
+
+Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be a TT tensor.
+
+For each $k = 1,\dots,d$, define a TT-matrix operator
+\[
+D^{(k)} =
+I \otimes \cdots \otimes D_k \otimes \cdots \otimes I,
+\]
+where $D_k \in \mathbb{R}^{n_k \times n_k}$ is a 1D differentiation matrix.
+
+The partial derivative is defined by
+\[
+\frac{\partial A}{\partial x_k}
+=
+D^{(k)} A,
+\]
+where the product is computed using TT matrix-vector multiplication.
+
+The gradient is given by
+\[
+\nabla A =
+\left(
+D^{(1)}A,\dots,D^{(d)}A
+\right).
+\]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+Each derivative acts only along one dimension.
+
+The TT-matrix $D^{(k)}$ inserts the differentiation matrix $D_k$
+into the $k$-th position of a Kronecker product.
+
+Applying the operator corresponds to TT matrix-vector multiplication,
+which preserves the tensor structure.
+
+\paragraph{Important note.}
+
+Although the operator $D^{(k)}$ has low TT-rank,
+the resulting tensor $D^{(k)}A$ typically has increased TT-ranks.
+
+Therefore, rounding (\cref{alg:rounding}) is required.
+
+\subsubsection{Laplace operator}
+
+\begin{definition}[Laplace operator in TT format]
+
+The Laplace operator is defined as
+\[
+\Delta =
+\sum_{k=1}^d
+\frac{\partial^2}{\partial x_k^2}.
+\]
+
+Each term is represented as a TT-matrix
+\[
+L^{(k)} =
+I \otimes \cdots \otimes D_k^{(2)} \otimes \cdots \otimes I,
+\]
+where $D_k^{(2)}$ is a second-order differentiation matrix.
+
+Thus,
+\[
+\Delta = \sum_{k=1}^d L^{(k)}.
+\]
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+The Laplacian is a sum of independent second derivatives.
+
+Each term has a simple tensor-product structure,
+which admits a low-rank TT representation.
+
+The sum increases TT-ranks linearly in $d$,
+and rounding is applied after operator evaluation.
+
+%==================================================
+\subsection{TT-matrix applied to TT tensor}
+\label{sec:tt_matvec}
+%==================================================
+
+\begin{definition}[TT-matrix times TT tensor]
+
+Let a linear operator $A$ be given in TT-matrix format with cores
+\[
+A_k :
+\{1,\dots,n_k\}\times\{1,\dots,m_k\}
+\to
+\mathbb{R}^{R_{k-1}\times R_k},
+\]
+
+and let a tensor $X$ be given in TT format with cores
+\[
+G_k :
+\{1,\dots,m_k\}
+\to
+\mathbb{R}^{r_{k-1}\times r_k}.
+\]
+
+The product $Y = AX$ is defined componentwise by
+\[
+Y(i_1,\dots,i_d)
+=
+\sum_{j_1,\dots,j_d}
+A(i_1,j_1,\dots,i_d,j_d)\,
+X(j_1,\dots,j_d).
+\]
+
+The resulting tensor $Y$ admits a TT representation with cores
+\[
+\widetilde{G}_k(i_k)
+=
+\sum_{j_k=1}^{m_k}
+A_k(i_k,j_k)
+\otimes
+G_k(j_k),
+\]
+where $\otimes$ denotes the Kronecker product.
+
+\end{definition}
+
+\begin{algorithm}[ht]
+  \caption{TT-matrix applied to TT tensor}
+  \label{alg:tt_matvec}
+  \begin{algorithmic}[1]
+    \Require TT-matrix cores $A_1,\dots,A_d$,
+    TT cores $G_1,\dots,G_d$
+    \Ensure TT cores $\widetilde{G}_1,\dots,\widetilde{G}_d$
+
+    \For{$k = 1$ to $d$}
+
+    \For{$i_k = 1$ to $n_k$}
+
+    \State Compute
+    \[
+      \widetilde{G}_k(i_k)
+      =
+      \sum_{j_k=1}^{m_k}
+      A_k(i_k,j_k) \otimes G_k(j_k)
+    \]
+
+    \EndFor
+
+    \EndFor
+
+    \State Apply TT rounding (\cref{alg:rounding}) to $\widetilde{G}_1,\dots,\widetilde{G}_d$
+
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explanation (informal).}
+
+The operator acts independently on each dimension.
+
+At dimension $k$, we combine:
+
+\begin{itemize}
+  \item the operator slice $A_k(i_k,j_k)$,
+  \item the tensor slice $G_k(j_k)$,
+\end{itemize}
+
+and sum over the index $j_k$.
+
+The Kronecker product couples the operator rank $R_k$
+with the tensor rank $r_k$, producing new ranks
+\[
+\widetilde{r}_k \approx R_k r_k.
+\]
+
+\paragraph{Important note.}
+
+The TT-ranks grow multiplicatively during this operation.
+
+Therefore, rounding (\cref{alg:rounding}) is required
+to obtain a compact representation and control the error.
+
+\paragraph{Complexity.}
+
+If $n_k \le n$, $m_k \le n$, and all ranks are bounded by $r$ and $R$,
+then the computational cost is
+\[
+\mathcal{O}(d n R^2 r^2).
+\]
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# TODO: TT-matrix x TT-tensor
+# - loop over cores
+# - contract over j_k
+# - use kron(A_k slice, G_k slice)
+# - round result
+\end{minted}
+
+%==================================================
 \section{PDEs and Using TT format to solve them}
 %==================================================
 
@@ -973,35 +1414,6 @@ dimension has $n$ grid points, the number of unknowns is $n^d$.
 Even for moderate values, for example $n=50$ and $d=8$, the system has $50^8
 \approx 4 \times 10^{13}$ unknowns — far beyond what can be stored. This
 exponential growth is the result of the curse of dimensionality.
-
-\subsection{Tensor Structure of the Laplacian}
-\begin{definition}[Kronecker sum representation]
-  For the Poisson equation with constant coefficients, the discrete operator has
-  the form
-
-  \[
-    A
-    =
-    \sum_{k=1}^d
-    I \otimes \cdots \otimes
-    L
-    \otimes \cdots \otimes I,
-  \]
-
-  where $L \in \mathbb{R}^{n \times n}$ is the 1D discrete Laplacian, end $I$ is
-  the identity matrix.
-
-  This is called a Kronecker sum operator.
-\end{definition}
-
-\paragraph{Explanation (informal).}
-
-The $d$-dimensional Laplacian is simply the sum of independent 1D Laplacians.
-Each term acts only on one variable, while leaving others unchanged. This
-separability means the operator has a low-rank tensor structure. Instead of
-storing a matrix of size $n^d \times n^d$, we store $d$ small matrices of size
-$n \times n$. This is precisely the type of structure that the TT
-format can exploit.
 
 \subsection{PDEs with Constant Coefficients}
 \begin{definition}[Constant-coefficient PDE]
@@ -1109,6 +1521,57 @@ example
 then the discretized operator $A(a)$ can still be approximated in TT format.
 
 Thus, TT methods extend beyond constant-coefficient problems.
+
+\subsection{Structural Lattice of PDEs}
+
+\begin{definition}[Structured PDE components]
+
+A general linear PDE can be written as
+
+\[
+  \mathcal{L}u
+  =
+  -\nabla \cdot (K(x)\nabla u)
+  + b(x)\cdot \nabla u
+  + c(x)u
+  = f(x),
+\]
+
+where
+
+\begin{itemize}
+  \item $K(x) \in \mathbb{R}^{d \times d}$ is the diffusion matrix,
+  \item $b(x) \in \mathbb{R}^d$ is the advection (transport) field,
+  \item $c(x)$ is a reaction term,
+  \item $f(x)$ is the inhomogeneity.
+\end{itemize}
+
+Each component may be:
+\begin{itemize}
+  \item constant or variable,
+  \item scalar or vector/matrix-valued,
+  \item separable or non-separable.
+\end{itemize}
+
+\end{definition}
+We can organize PDEs by increasing structural complexity:
+
+\[
+\text{constant coefficients}
+\;\subset\;
+\text{separable variable coefficients}
+\;\subset\;
+\text{fully variable coefficients}.
+\]
+
+\paragraph{Explanation (informal).}
+
+A PDE is not just ``one object'' — it is composed of several building blocks:
+diffusion, transport, reaction, and forcing.
+
+Each of these components can vary in complexity. This naturally induces a
+\emph{hierarchy (lattice)} of PDE classes.
+
 %==================================================
 \section{Implicit Methods for Solving PDE}
 %==================================================
