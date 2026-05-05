@@ -123,7 +123,7 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
         np.transpose(tensor, axes),
     )
 
-    axes = (1, 0, *range(2, tensor.ndim))
+    axes = (*range(1, tensor.ndim), 0)
     assert_default_epsilon(
         np.transpose(ttd, axes),
         np.transpose(tensor, axes),
