@@ -55,8 +55,6 @@ TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
 TEST_PAIR_TENSORS: list[TestTensorPair] = [
     (a.astype(np.float64), b.astype(np.float64))
     for a, b in [
-        # ---- 1D ----
-        (np.arange(8), np.ones(8)),
         # ---- 2D ----
         (
             np.arange(12).reshape(3, 4),

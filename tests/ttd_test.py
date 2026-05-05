@@ -140,3 +140,55 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
         np.transpose(ttd, axes),
         np.transpose(tensor, axes),
     )
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD tensordot works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
+
+    assert a.shape == b.shape
+    assert ttd_a.shape == ttd_b.shape
+
+    # single axis contractions produce very large tensors (10D -> 18D), so we skip
+    # checking them as it's done elementwise
+    if a.ndim <= 8:
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b.T, axes=1),
+            np.tensordot(a, b.T, axes=1),
+        )
+
+        axes = (1, 0, *range(2, ttd_a.ndim))
+        assert_default_epsilon(
+            np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
+            np.tensordot(a, np.transpose(b.T, axes=axes)),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
+            np.tensordot(a, b, axes=(0, 0)),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
+            np.tensordot(a, b, axes=(-1, -1)),
+        )
+
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
+            np.tensordot(a, b, axes=(1, 1)),
+        )
+
+    axes_single = tuple(range(a.ndim - 1))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=axes),
+        np.tensordot(a, b, axes=axes),
+    )
+
+    axes_single = tuple(range(a.ndim))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=axes), np.tensordot(a, b, axes=axes)
+    )

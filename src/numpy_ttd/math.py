@@ -8,6 +8,9 @@ from numpy.typing import NDArray
 
 from numpy_ttd.types import Matrix, Vector
 
+if TYPE_CHECKING:
+    from numpy_ttd.ttd import TTD
+
 DEFAULT_EPSILON = np.float64(1e-9)
 
 if TYPE_CHECKING:
@@ -78,6 +81,11 @@ def delta_truncated_svd[DT: np.floating](
 
     # Keep only singular values >= delta
     mask = s >= delta
+
+    # Always keep at least one singular value
+    if not np.any(mask):
+        return u[:, :1], s[:1], v_t[:1, :]
+
     return u[:, mask], s[mask], v_t[mask, :]
 
 
