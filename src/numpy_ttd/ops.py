@@ -402,13 +402,13 @@ def transpose[DType: np.floating](
 
         assert r1 == r1b, f"Internal rank mismatch: {r1} != {r1b}"
 
-        merged = cast(NDArray[Any], np.einsum("ajk,kiz", core_0, core_1)).reshape(
+        merged = cast(NDArray[DType], np.einsum("ajk,kiz", core_0, core_1)).reshape(
             (r0 * n2, n1 * r2)
         )
         u, s, v_t = delta_truncated_svd(merged, delta)
 
         r1_new = len(s)
-        cores[k] = (u * s).reshape((r0, n2, r1_new))
+        cores[k] = np.multiply(u, s).reshape((r0, n2, r1_new))
         cores[k + 1] = v_t.reshape((r1_new, n1, r2))
 
         target[k], target[k + 1] = target[k + 1], target[k]
