@@ -1,16 +1,28 @@
 from abc import ABC, abstractmethod
+from typing import Any, get_args, get_origin
 
 from pde_solver.abc.boundary import BoundaryCondition
-from pde_solver.abc.pde import PDE
 from pde_solver.pde_types import DType, NDArray, Vector
 
+registry = {}
 
-class Solver(ABC):
+
+class Solver[T](ABC):
     """Interface for PDE evolutionary solvers."""
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:  # pyright: ignore[reportAny]
+        """Note down all subclasses created and their template type to registry."""
+        super().__init_subclass__(**kwargs)
+
+        for base in getattr(cls, "__orig_bases__", []):  # pyright: ignore[reportAny]
+            if get_origin(base) is Solver:  # pyright: ignore[reportAny]
+                args = get_args(base)
+                if args:
+                    registry[cls] = args[0]
 
     def __call__(
         self,
-        pde: PDE,
+        pde: T,
         initial_condition: NDArray,
         spacial_discretization_step: Vector,
         boundary_condition: BoundaryCondition,
@@ -44,7 +56,7 @@ class Solver(ABC):
     @abstractmethod
     def _get_time_step(
         self,
-        pde: PDE,
+        pde: T,
         state: NDArray,
         spacial_discretization_step: Vector,
         time_discretization_step: DType,
