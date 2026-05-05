@@ -129,6 +129,12 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
         np.transpose(tensor, axes),
     )
 
+    axes = (-1, *range(tensor.ndim - 1))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
     axes = tuple(reversed(range(tensor.ndim)))
     assert_default_epsilon(
         np.transpose(ttd, axes),
