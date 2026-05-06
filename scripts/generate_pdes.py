@@ -219,7 +219,7 @@ print("# ruff: noqa: ARG001, ARG002, E501")
 print(imports)
 print()
 
-for function in set(casting.values()):
+for function in sorted(set(casting.values()), key=lambda a: a.__name__):
     print(inspect.getsource(function))
 
 #######################################

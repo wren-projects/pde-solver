@@ -1,78 +1,194 @@
-from typing import Any
+from copy import deepcopy
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 
-from numpy_ttd import DEFAULT_EPSILON, TTD
-
-TEST_TENSORS: tuple[NDArray, ...] = (
-    # ---- 2D ----
-    np.arange(12).reshape(3, 4),  # (3,4)
-    np.random.default_rng(0).random((5, 2)),  # (5,2)
-    np.array([x % 2 == 0 for x in range(16)]).reshape(4, 4),  # (4,4) bool
-    # ---- 3D ----
-    np.arange(48).reshape(3, 4, 4),  # (3,4,4)
-    np.random.default_rng(1).normal(size=(2, 3, 5)),  # (2,3,5)
-    # ---- 4D ----
-    np.arange(2 * 3 * 4 * 5).reshape(2, 3, 4, 5),  # (2,3,4,5)
-    np.ones((2, 3, 2, 4)),  # (2,3,2,4) float
-    # ---- 5D ----
-    np.arange(3 * 2 * 3 * 4 * 2).reshape(3, 2, 3, 4, 2),  # (3,2,3,4,2)
-    # ---- 6D ----
-    np.arange(2 * 3 * 2 * 3 * 2 * 4).reshape(2, 3, 2, 3, 2, 4),  # (2,3,2,3,2,4)
-    # ---- 7D ----
-    np.arange(2 * 2 * 3 * 2 * 4 * 3 * 2).reshape(
-        2, 2, 3, 2, 4, 3, 2
-    ),  # (2,2,3,2,4,3,2)
-    # ---- 8D ----
-    np.arange(2 * 3 * 2 * 4 * 2 * 3 * 2 * 3).reshape(
-        2, 3, 2, 4, 2, 3, 2, 3
-    ),  # (2,3,2,4,2,3,2,3)
-    # ---- 9D ----
-    np.arange(2 * 2 * 3 * 2 * 3 * 2 * 3 * 2 * 3).reshape(2, 2, 3, 2, 3, 2, 3, 2, 3),
-    # ---- 10D ----
-    np.arange(2 * 2 * 2 * 3 * 2 * 2 * 3 * 2 * 2 * 3).reshape(
-        2, 2, 2, 3, 2, 2, 3, 2, 2, 3
-    ),
+from tests.common import (
+    TEST_PAIR_TTD,
+    TEST_SCALARS,
+    TEST_TTD,
+    TestTensor,
+    TestTensorPair,
+    TestTTD,
+    TestTTDPair,
+    assert_default_epsilon,
 )
 
 
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
-def test_roundtrip_compression(tensor: NDArray[Any]) -> None:
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test the round-trip compression/decompression of a tensor."""
-    ttd = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
-    assert np.allclose(np.asarray(ttd), tensor), (
-        "TTD round-trip does not equal original tensor"
+    # the compression is done in TEST_TTD and the decompression is done
+    # implicitly inside assert_default_epsilon
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_inner_product(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test inner product."""
+    ttd_a, ttd_b = ttds
+    tensor_a, tensor_b = tensors
+
+    assert_default_epsilon(np.vdot(ttd_a, ttd_b), np.vdot(tensor_a, tensor_b))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_frobenius_norm(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test Frobenius norm."""
+    assert_default_epsilon(np.linalg.norm(ttd), np.linalg.norm(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test rounding."""
+    assert_default_epsilon(ttd.rounded(), tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_get_element(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test get value."""
+    for index in np.ndindex(tensor.shape):
+        assert_default_epsilon(ttd[index], tensor[index])
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_add(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD addition works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
+
+    assert a.shape == b.shape
+    tensor_sum = a + b
+
+    assert_default_epsilon(ttd_a + ttd_b, tensor_sum)
+    assert_default_epsilon(ttd_b + ttd_a, tensor_sum)
+    assert_default_epsilon(np.add(ttd_a, ttd_b), tensor_sum)
+    assert_default_epsilon(np.add(ttd_b, ttd_a), tensor_sum)
+
+    ttd_copy = ttd_a.copy()
+    ttd_copy += ttd_b
+    assert_default_epsilon(ttd_copy, tensor_sum)
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD addition works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
+
+    assert a.shape == b.shape
+    tensor_diff = a - b
+
+    assert_default_epsilon(ttd_a - ttd_b, tensor_diff)
+    assert_default_epsilon(ttd_b - ttd_a, -tensor_diff)
+    assert_default_epsilon(np.subtract(ttd_a, ttd_b), tensor_diff)
+    assert_default_epsilon(np.subtract(ttd_b, ttd_a), -tensor_diff)
+
+    ttd_copy = ttd_a.copy()
+    ttd_copy -= ttd_b
+    assert_default_epsilon(ttd_copy, tensor_diff)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(("scalar"), deepcopy(TEST_SCALARS))
+def test_scalar_multiplication(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    """Test that TTD scalar multiplication works."""
+    scaled_tensor = tensor * scalar
+    assert_default_epsilon(ttd * scalar, scaled_tensor)
+    assert_default_epsilon(scalar * ttd, scaled_tensor)
+    assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor)
+    assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor)
+
+    ttd_copy = ttd.copy()
+    ttd_copy *= scalar
+    assert_default_epsilon(ttd_copy, scaled_tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_negation(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD negation works."""
+    assert_default_epsilon(-ttd, -tensor)
+    assert_default_epsilon(np.negative(ttd), np.negative(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD transpose works."""
+    assert_default_epsilon(np.transpose(ttd), np.transpose(tensor))
+    assert_default_epsilon(ttd.T, tensor.T)
+
+    axes = (1, 0, *range(2, tensor.ndim))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
+    axes = (*range(1, tensor.ndim), 0)
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
+    axes = (-1, *range(tensor.ndim - 1))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
+    )
+
+    axes = tuple(reversed(range(tensor.ndim)))
+    assert_default_epsilon(
+        np.transpose(ttd, axes),
+        np.transpose(tensor, axes),
     )
 
 
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
-def test_inner_product(tensor: NDArray[Any]) -> None:
-    """Test inner norm."""
-    tensor_float: NDArray[np.float64] = tensor.astype(np.float64)
-    ttd = TTD.from_ndarray(tensor_float, epsilon=DEFAULT_EPSILON)
-    assert np.allclose(np.vdot(ttd, ttd), np.vdot(tensor_float, tensor_float))
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD tensordot works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
 
+    assert a.shape == b.shape
+    assert ttd_a.shape == ttd_b.shape
 
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
-def test_frobenius_norm(tensor: NDArray[Any]) -> None:
-    """Test Frobenius norm."""
-    tensor_float: NDArray[np.float64] = tensor.astype(np.float64)
-    ttd = TTD.from_ndarray(tensor_float, epsilon=DEFAULT_EPSILON)
-    assert np.allclose(np.linalg.norm(ttd), np.linalg.norm(tensor_float))
+    # single axis contractions produce very large tensors (10D -> 18D), so we skip
+    # checking them as it's done elementwise
+    if a.ndim <= 8:
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b.T, axes=1),
+            np.tensordot(a, b.T, axes=1),
+        )
 
+        axes = (1, 0, *range(2, ttd_a.ndim))
+        assert_default_epsilon(
+            np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
+            np.tensordot(a, np.transpose(b.T, axes=axes)),
+        )
 
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
-def test_rounding(tensor: NDArray[Any]) -> None:
-    """Test get value."""
-    tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
-    assert np.allclose(np.asarray(tensortrain.rounded()), tensor)
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
+            np.tensordot(a, b, axes=(0, 0)),
+        )
 
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
+            np.tensordot(a, b, axes=(-1, -1)),
+        )
 
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
-def test_get_element(tensor: NDArray[Any]) -> None:
-    """Test get value."""
-    tensortrain = TTD.from_ndarray(tensor.astype(np.float64), epsilon=DEFAULT_EPSILON)
-    for index in np.ndindex(tensor.shape):
-        assert np.allclose(tensortrain[index], tensor[index])
+        assert_default_epsilon(
+            np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
+            np.tensordot(a, b, axes=(1, 1)),
+        )
+
+    axes_single = tuple(range(a.ndim - 1))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=axes),
+        np.tensordot(a, b, axes=axes),
+    )
+
+    axes_single = tuple(range(a.ndim))
+    axes = (axes_single, axes_single)
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=axes), np.tensordot(a, b, axes=axes)
+    )
