@@ -1048,18 +1048,49 @@ A(i_1,\dots,i_d)\,B(i_1,\dots,i_d).
 
 \end{definition}
 
+\paragraph{Remark (ordering of contracted modes).}
+
+Efficient contraction in TT format requires the contracted modes
+to form a contiguous block of TT cores.
+
+More precisely, the contracted cores should appear consecutively
+and include a boundary core:
+\begin{itemize}
+  \item either starting from the first core,
+  \item or ending at the last core.
+\end{itemize}
+
+If the required contraction does not satisfy this ordering,
+the TT cores must first be permuted (see mode permutation section)
+before performing the contraction.
+
 \paragraph{Explanation (informal).}
 
 The contraction is performed sequentially across dimensions.
 
 At each dimension $k$, we combine slices of $A$ and $B$,
-sum over the contracted index, and propagate a small matrix.
+sum over the contracted index, and propagate a small matrix
+that carries the accumulated interaction between all previously
+contracted dimensions.
+
+More precisely, if $M_{k-1}$ denotes the propagated matrix from
+the previous step, the next contraction has the form
+\[
+M_k
+=
+\sum_{i_k}
+G_k(i_k)^\top
+\, M_{k-1} \,
+H_k(i_k),
+\]
+which reduces the contribution of dimension $k$ into a new
+small matrix $M_k$.
 
 This avoids forming the full tensors explicitly.
 
 \paragraph{Important note.}
 
-General contractions increase TT-ranks.
+General contractions increase TT-ranks. This is mostly due to the fact that we need to permutate the cores before performing the tensordot.
 Therefore, rounding (\cref{alg:rounding}) is applied afterward.
 
 \paragraph{Complexity.}
