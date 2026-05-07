@@ -103,7 +103,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         Returns
         -------
-        TTD The TT-compressed object.
+        TTD
+            The compressed TTD.
 
         """
         d = array.ndim
@@ -300,7 +301,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         if self.ndim == 1:
             return
 
-        # Suppose that 𝐀 is in the TT-format:
+        # Suppose that 𝐀 is in the TTD format:
         # 𝐀(i₁, ..., i_d) = 𝐆₁(i₁) 𝐆₂(i₂) ... 𝐆_d(i_d)
 
         # (𝐆₁, ..., 𝐆_d)
@@ -308,9 +309,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         cores = self.data
         d = len(cores)
 
+        # do a right-to-left qr-sweep
         orthogonalize_right(cores)
 
-        # this is necessary for Python's typing
         delta = truncation_parameter(self, epsilon)
 
         for k in range(1, d):  # for k = 1 to d-1
@@ -421,12 +422,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
 
     def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
-        """
-        Transpose the TTD object.
-
-        Warning: outside of a few trivial cases this is a slow operation as it
-        involves a re-compression of parts of the TTD using TT-SVD.
-        """
+        """Transpose the TTD object."""
         return ops.transpose(self, axes)
 
     def swapaxes(self, axis1: int, axis2: int) -> TTD[DType]:
@@ -435,7 +431,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
-        """Return the transpose of the TTD object."""
+        """Transpose the TTD object."""
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
