@@ -33,11 +33,10 @@ def laplace_1d[T: np.floating](n: int, h: T | float, dtype: np.dtype[T]) -> Matr
     if h <= 0:
         raise ValueError("h must be positive")
 
-    laplacian = np.zeros((n, n), dtype=dtype)
+    laplacian = -np.eye(n, dtype=dtype)
 
     laplacian += np.eye(n, k=-1, dtype=dtype)
     laplacian += np.eye(n, k=1, dtype=dtype)
-    laplacian -= 2 * np.eye(n, dtype=dtype)
 
     return np.divide(laplacian, h * h)
 

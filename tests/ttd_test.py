@@ -202,7 +202,7 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
 def test_laplace() -> None:
     """Test."""
     laplacian = tt_laplace((3, 3), dtype=np.dtype(np.float64))
-    print(np.asarray(laplacian))
+    print(np.asarray(laplacian).round(2))
 
     A = np.arange(3 * 3, dtype=np.float64).reshape(3, 3)
 
@@ -211,13 +211,14 @@ def test_laplace() -> None:
     raise AssertionError
 
 
-def test_gradient() -> None:
-    """Test."""
-    gradient = tt_gradient((3, 2), 1, np.dtype(np.float64))
-
-    print(np.asarray(gradient))
-
-    A = np.arange(3 * 2, dtype=np.float64).reshape(3, 2)
-
-    grad = matvec(gradient, TTD.from_ndarray(A))
-    print(np.asarray(grad))
+#
+# def test_gradient() -> None:
+#     """Test."""
+#     gradient = tt_gradient((3, 2), 1, np.dtype(np.float64))
+#
+#     print(np.asarray(gradient))
+#
+#     A = np.arange(3 * 2, dtype=np.float64).reshape(3, 2)
+#
+#     grad = matvec(gradient, TTD.from_ndarray(A))
+#     print(np.asarray(grad))

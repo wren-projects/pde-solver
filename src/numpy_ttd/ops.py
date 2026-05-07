@@ -570,24 +570,40 @@ def matvec[DType: np.floating](
     """
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
-    if len(matrix.ttd.data) != len(vector.data):
+    if len(matrix.ttd.data) != 2 * len(vector.data):
         raise ValueError(
             f"Missmatched number of cores: {len(matrix.ttd.data)} != {len(vector.data)}."
         )
 
-    def multiply_cores(a: Core[DType], i: int, j: int, b: Core[DType]) -> Core[DType]:
-        r_prev, _, r_next = a.shape
-        s_prev, _, s_next = b.shape
+    cores = []
+    for (m_a, m_b), vec in zip(
+        zip(matrix.ttd.data[::2], matrix.ttd.data[1::2]), vector.data
+    ):
+        r, i, _ = m_a.shape
+        _, j, R = m_b.shape
+        s, _, S = vec.shape
 
-        print(a.shape, b.shape, i, j)
+        cores.append(
+            np.einsum("rix,xjR,sjS->rsiRS", m_a, m_b, vec, optimize="optimal").reshape(
+                r * s, i, R * S
+            )
+        )
 
-        return cast(
-            NDArray[DType],
-            np.einsum(
-                "rijR,sjS->rsiRS", a.reshape(r_prev, i, j, r_next), b, optimize=True
-            ),
-        ).reshape(r_prev * s_prev, i, r_next * s_next)
+    return TTD(cores)
 
-    return TTD(
-        map(multiply_cores, matrix.ttd.data, matrix.rows, matrix.columns, vector.data)
-    )
+    # def multiply_cores(a: Core[DType], i: int, j: int, b: Core[DType]) -> Core[DType]:
+    #     r_prev, _, r_next = a.shape
+    #     s_prev, _, s_next = b.shape
+    #
+    #     print(a.shape, b.shape, i, j)
+    #
+    #     return cast(
+    #         NDArray[DType],
+    #         np.einsum(
+    #             "rijR,sjS->rsiRS", a.reshape(r_prev, i, j, r_next), b, optimize=True
+    #         ),
+    #     ).reshape(r_prev * s_prev, i, r_next * s_next)
+    #
+    # return TTD(
+    #     map(multiply_cores, matrix.ttd.data, matrix.rows, matrix.columns, vector.data)
+    # )

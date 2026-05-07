@@ -5,11 +5,21 @@ import numpy as np
 import numpy.typing as npt
 
 from numpy_ttd import TTD
+from numpy_ttd.math import delta_truncated_svd
 from numpy_ttd.types import Core, MatrixCore, NDArray
 
 
-def _to_3d_core[DType: np.floating](core: MatrixCore[DType]) -> Core[DType]:
-    return core.reshape(core.shape[0], -1, core.shape[3])
+def _to_3d_core[DType: np.floating](
+    core: MatrixCore[DType],
+) -> tuple[Core[DType], Core[DType]]:
+    r, m, n, l = core.shape
+
+    u, s, v_t = delta_truncated_svd(core.reshape((r * m, n * l)))
+
+    G1 = np.multiply(u, s).reshape((r, m, len(s)))
+    G2 = v_t.reshape((len(s), n, l))
+
+    return G1, G2
 
 
 @final
@@ -37,7 +47,7 @@ class TTMatrix[DType: np.floating]:
         cores = list(data)
         self.rows = tuple(core.shape[1] for core in cores)
         self.columns = tuple(core.shape[2] for core in cores)
-        self.ttd = TTD(map(_to_3d_core, cores))
+        self.ttd = TTD(sum(map(_to_3d_core, cores), start=()))
 
     @overload
     def __array__(
