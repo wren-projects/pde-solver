@@ -410,7 +410,7 @@ def tensordot[DType: np.floating](
     axes: int | tuple[Sequence[int], Sequence[int]] = 2,
 ) -> TTD[DType] | DType:
     """
-    Compute a tensordot of two TT tensors.
+    Compute a tensordot of two TTDs.
 
     Supports:
       * axes = int k: contracts cores a[-k:] with b[:k]
@@ -422,15 +422,10 @@ def tensordot[DType: np.floating](
 
     See :func:`numpy.tensordot` for more details about the axes argument.
 
-    The performance of this function is heavily dependent on the target axes:
-    contraction using the integer k or using all axes for both tensors is
-    generally very fast. On the other hand, contraction using any other
-    choice of axes is relatively slow due to the need for transposition.
-
     Returns
     -------
     TTD[DType] | DType
-        TT tensor over uncontracted modes (a_free then b_free) or scalar.
+        TTD with uncontracted dimensions (first for a, than from b) or scalar.
 
     """
     from pde_ttd.core import TTD
@@ -567,26 +562,25 @@ def transpose[DType: np.floating](
     epsilon: float | DType = DEFAULT_EPSILON,
 ) -> TTD[DType]:
     """
-    Permute the modes of a TT-compressed tensor.
+    Permute the cores (dimensions) of a TTD.
 
-    This is implemented via a sequence of adjacent swaps. Each adjacent swap
-    is done by contracting two neighboring TT cores, permuting the two physical
-    dimensions, then TT-SVD splitting back with truncation. This makes the operation
-    very slow, so it should not be used often.
+    This is achieved by a sequence of adjacent swaps. Each adjacent swap is done
+    by contracting two neighboring TTD cores, swapping the two physical
+    dimensions, then splitting it back using TTD-SVD.
 
     Parameters
     ----------
     ttd : TTD
-        Input TT tensor.
+        Input TTD tensor.
     axes : sequence[int] | None
         Permutation of axes. If None, reverse axes.
     epsilon : float
-        Relative tolerance for truncation during swapping.
+        Relative tolerance for truncation during TTD-SVD.
 
     Returns
     -------
     TTD
-        Transposed TT tensor.
+        TTD with transposed axes.
 
     """
     from pde_ttd.core import TTD
