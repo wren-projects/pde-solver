@@ -414,6 +414,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         """
         return ops.transpose(self, axes)
 
+    def swapaxes(self, axis1: int, axis2: int) -> TTD[DType]:
+        """Swap the axes of the TTD object."""
+        return ops.swapaxes(self, axis1, axis2)
+
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
         """Return the transpose of the TTD object."""

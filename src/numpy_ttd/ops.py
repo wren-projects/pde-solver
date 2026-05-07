@@ -435,6 +435,17 @@ def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]:
     return tuple((i + n) % n for i in axes)
 
 
+@implements_function("swapaxes")
+def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD[DType]:
+    """Swap the axes of a TTD tensor."""
+    axis1, axis2 = sorted(_normalize_axes((axis1, axis2), ttd.ndim))
+
+    axes = list(range(ttd.ndim))
+    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+
+    return transpose(ttd, axes)
+
+
 @implements_function("transpose")
 def transpose[DType: np.floating](
     ttd: TTD[DType],

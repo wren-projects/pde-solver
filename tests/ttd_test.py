@@ -142,6 +142,14 @@ def test_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
     )
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_swapaxes(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD swapaxes works."""
+    assert_default_epsilon(np.swapaxes(ttd, 0, 1), np.swapaxes(tensor, 0, 1))
+    assert_default_epsilon(np.swapaxes(ttd, 0, -1), np.swapaxes(tensor, 0, -1))
+    assert_default_epsilon(ttd.swapaxes(-1, -2), tensor.swapaxes(-1, -2))
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test that TTD tensordot works."""
