@@ -479,6 +479,9 @@ def tensordot[DType: np.floating](
         if k < 0:
             raise ValueError("axes must be non-negative")
 
+        if k > a.ndim or k > b.ndim:
+            raise ValueError("axes exceeds tensor dimensions")
+
         axes = (tuple(range(-k, 0)), tuple(range(k)))
 
     a_axes_raw, b_axes_raw = axes

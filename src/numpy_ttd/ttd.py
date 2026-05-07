@@ -63,19 +63,19 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         super().__init__()
 
+        self.data = list(data)
+        if not self.data:
+            raise ValueError("TTD must have at least one core")
+
         if dtype is not None:
             self.dtype = dtype
-            self.data = [core.astype(self.dtype) for core in data]
+            self.data = [core.astype(self.dtype) for core in self.data]
         else:
-            self.data = list(data)
             self.dtype = self.data[0].dtype
             if not all(core.dtype == self.dtype for core in self.data):
                 raise ValueError("All cores must have the same dtype")
 
-        if not self.data:
-            raise ValueError("TTD must have at least one core")
-
-        for a, b in zip(self.data, self.data[1:], strict=False):
+        for a, b in pairwise(self.data):
             if a.shape[2] != b.shape[0]:
                 raise ValueError(
                     f"Missmatch in core shapes: {a.shape} does not match {b.shape}"
@@ -109,6 +109,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         d = array.ndim
+        if d == 0:
+            raise ValueError("TTD requires at least 1 dimension")
 
         if d == 1:
             return TTD([array.reshape((1, len(array), 1))])
@@ -187,9 +189,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         shape = to_int_tuple(shape)
         d = len(shape)
 
+        if d < 1:
+            raise ValueError("TTD requires at least 1 dimension")
+
         ranks = (
             (1, *((ranks,) * (d - 1)), 1) if isinstance(ranks, int) else tuple(ranks)
         )
+
+        if len(ranks) != d + 1:
+            raise ValueError("ranks must have length ndim + 1")
+
+        if ranks[0] != 1 or ranks[-1] != 1:
+            raise ValueError("Boundary ranks must be 1")
 
         rng = np.random.default_rng()
         cores = [
@@ -265,7 +276,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         # Empty TTD
         if not self.data:
-            return np.empty((0,), dtype=dtype)
+            raise ValueError("TTD requires at least 1 dimension")
 
         # 1D TTD
         if len(self.data) == 1:
@@ -430,8 +441,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # not a valid function
             raise ValueError(f"Invalid array function: {func}")
 
-        # Need to handle functions in submodules
-        name = ".".join([*func.__module__.split(".")[1:], func.__name__])
+        module = func.__module__
+        name = (
+            func.__name__
+            if module == "numpy"
+            else f"{module.split('.', 1)[1]}.{func.__name__}"
+        )
 
         handler = HANDLED_FUNCTIONS.get(name)
 
