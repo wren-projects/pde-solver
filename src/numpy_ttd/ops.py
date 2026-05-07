@@ -437,7 +437,26 @@ def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]:
 
 @implements_function("swapaxes")
 def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD[DType]:
-    """Swap the axes of a TTD tensor."""
+    """
+    Swap the axes of a TTD tensor.
+
+    See ::func:`transpose` for more details.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        Input TTD tensor.
+    axis1 : int
+        First axis to swap.
+    axis2 : int
+        Second axis to swap.
+
+    Returns
+    -------
+    TTD[DType]
+        TTD tensor with `axis1` and `axis2` swapped.
+
+    """
     axis1, axis2 = sorted(_normalize_axes((axis1, axis2), ttd.ndim))
 
     axes = list(range(ttd.ndim))
