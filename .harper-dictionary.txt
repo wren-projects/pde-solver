@@ -5,8 +5,10 @@ SVD
 TTD
 args
 dtype
+einsum
 func
 kwargs
 str
 tridiagonal
+tensordot
 ufunc

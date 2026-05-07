@@ -9,35 +9,13 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from numpy_ttd import ops
+from numpy_ttd._helpers import reverse_cores
+from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
 from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
 from numpy_ttd.types import Core, Matrix, NDArray
 
-type AnyCallable = Callable[..., Any]
-
-HANDLED_UFUNCS: dict[str, AnyCallable] = {}
-HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
-
-DEFAULT_EPSILON = np.float64(1e-6)
-
-
-def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_ufunc__` implementation for TTD objects."""
-
-    def decorator(func: F) -> F:
-        HANDLED_UFUNCS[name] = func
-        return func
-
-    return decorator
-
-
-def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_function__` implementation for TTD objects."""
-
-    def decorator(func: F) -> F:
-        HANDLED_FUNCTIONS[name] = func
-        return func
-
-    return decorator
+DEFAULT_EPSILON = np.float64(1e-9)
 
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
@@ -84,7 +62,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             self.dtype = dtype
             self.data = [core.astype(self.dtype) for core in data]
         else:
-            self.data = data if isinstance(data, list) else list(data)
+            self.data = list(data)
             self.dtype = self.data[0].dtype
             if not all(core.dtype == self.dtype for core in self.data):
                 raise ValueError("All cores must have the same dtype")
@@ -92,11 +70,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if not self.data:
             raise ValueError("TTD must have at least one core")
 
-        if not all(
-            a.shape[2] == b.shape[0]
-            for a, b in zip(self.data, self.data[1:], strict=False)
-        ):
-            raise ValueError("Missmatch in core shapes")
+        for a, b in zip(self.data, self.data[1:], strict=False):
+            if a.shape[2] != b.shape[0]:
+                raise ValueError(
+                    f"Missmatch in core shapes: {a.shape} does not match {b.shape}"
+                )
+
+        if not (self.data[0].shape[0] == self.data[-1].shape[2] == 1):
+            raise ValueError("The boundary ranks have to be 1")
 
     @staticmethod
     def from_ndarray[DT: np.floating](
@@ -163,12 +144,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return str(self)
 
     @override
     def __str__(self) -> str:
         """Return a string representation of the TTD object."""
-        return f"TTD({self.data})"
+        return f"TTD(shape={self.shape},\n{'\n\n'.join(map(str, self.data))})"
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -227,7 +208,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         if len(self.data) == 1:
             core = self.data[0]
             reshaped = core.reshape((core.shape[1],))
-            return np.array(reshaped, dtype=dtype, copy=copy)
+            return np.asarray(reshaped, dtype=dtype, copy=copy)
 
         if copy is False:
             raise ValueError(
@@ -235,9 +216,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
                 "single-dimensional array."
             )
 
-        # Multiply all cores together. This is equivalent to reduce(tensordot,
-        # self.data), but faster since einsum does compute order optimizations
-        # (at the cost of slightly uglier code).
+        # Multiply all cores together. This is equivalent to a repeated
+        # tensordot, but faster since einsum does compute order optimizations.
+        # The generated expression looks like ABC,CDE,EFG,…, XYZ->ABCD…YZ, where
+        # A and Z are singleton dimensions (from TTD) making the final
+        # (squeezed) result BCD…Y.
 
         summation_indices: list[Any] = [
             item
@@ -245,12 +228,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
         ]
 
+        # einsum accepts besides a string, also an alternating list of indices
+        # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
+
         result = cast(
             NDArray[DType],
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        # remove singleton dimensions
         squeezed = result.squeeze()
 
         return squeezed.astype(dtype)
@@ -298,7 +283,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             cores[k - 2] = np.einsum("ijk,kl", cores[k - 2], r)
 
         # this is necessary for Python's typing
-        delta = truncation_parameter(cast(NDArray[DType], cast(Any, self)), epsilon)
+        delta = truncation_parameter(self, epsilon)
 
         for k in range(1, d):  # for k = 1 to d-1
             # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
@@ -323,77 +308,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         ttd = self[...]
         ttd.round(epsilon)
         return ttd
-
-    @implements_function("vdot")
-    def inner_product(self, other: TTD[DType]) -> DType:
-        """
-        Compute the inner product of two TTD objects.
-
-        The inner product of two TTD objects is defined as the sum of inner
-        products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
-        and B = H₀, H₁, …, Hₙ, the inner product is defined as
-
-            ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᵀ Hₖ.
-
-        The inner product requires that the TTD objects have the same shape and the same
-        dtype.
-
-        Parameters
-        ----------
-        other : TTD[DType]
-            The other TTD object.
-
-        Returns
-        -------
-        DType
-            The inner product of the two TTD objects.
-
-        """
-        if self.shape != other.shape:
-            raise ValueError("TTD objects must have the same shape")
-
-        if self.dtype != other.dtype:
-            raise ValueError("TTD objects must have the same dtype")
-
-        n = len(self.data)
-
-        summation_indices: list[Any] = [
-            item
-            for i, (self_core, other_core) in enumerate(
-                zip(self.data, other.data, strict=True)
-            )
-            for item in (
-                self_core,
-                (2 * i + 0, 2 * i + 1, 2 * i + 2),
-                other_core,
-                (2 * (n + i) + 0, 2 * i + 1, 2 * (n + i) + 2),
-            )
-        ]
-
-        total = cast(
-            DType,
-            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
-        )
-
-        return np.squeeze(total)
-
-    @implements_function("linalg.norm")
-    def frobenius_norm(self) -> DType:
-        """
-        Return the Frobenius norm of the TTD object.
-
-        The Frobenius norm of a TTD object is defined as the square root of its
-        inner product with itself:
-
-            ‖A‖ᶠ = √(⟨A, A⟩)
-
-        Returns
-        -------
-        DType
-            The Frobenius norm of the TTD object.
-
-        """
-        return cast(DType, np.sqrt(np.vdot(self, self)))
 
     @override
     def __array_ufunc__(
@@ -427,12 +341,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             # only handle callable ufuncs
             return NotImplemented
 
+        if not hasattr(ufunc, "__name__") or not isinstance(ufunc.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            # not a valid ufunc
+            raise ValueError(f"Invalid ufunc: {ufunc}")
+
         handler = HANDLED_UFUNCS.get(ufunc.__name__)
 
-        if handler is None:
-            return NotImplemented
-
-        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+        return (
+            cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+            if handler is not None
+            else NotImplemented
+        )
 
     def __array_function__[*Args](
         self,
@@ -461,15 +380,20 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             The result of the NumPy method applied to the TTD object.
 
         """
+        if not hasattr(func, "__name__") or not isinstance(func.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            # not a valid function
+            raise ValueError(f"Invalid array function: {func}")
+
         # Need to handle functions in submodules
         name = ".".join([*func.__module__.split(".")[1:], func.__name__])
 
         handler = HANDLED_FUNCTIONS.get(name)
 
-        if handler is None:
-            return NotImplemented
-
-        return cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+        return (
+            cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
+            if handler is not None
+            else NotImplemented
+        )
 
     def _get_item(self, indexes: tuple[int, ...]) -> NDArray[DType] | DType:
         """Retrieve a single value from the TTD object."""
@@ -489,6 +413,24 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
 
         return result.squeeze()
 
+    def copy(self) -> TTD[DType]:
+        """Return a copy of the TTD object."""
+        return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
+
+    def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
+        """
+        Transpose the TTD object.
+
+        Warning: outside of a few trivial cases this is a slow operation as it
+        involves a re-compression of parts of the TTD using TT-SVD.
+        """
+        return ops.transpose(self, axes)
+
+    @property
+    def T(self) -> TTD[DType]:  # noqa: N802
+        """Return the transpose of the TTD object."""
+        return TTD(reverse_cores(self.data), dtype=self.dtype)
+
     @overload
     def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
     @overload
@@ -499,9 +441,59 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
     ) -> TTD[DType] | NDArray[DType] | DType:
         """Get a single values from the TTD object."""
         if key == Ellipsis:
-            return self.__class__(a.copy() for a in self.data)
+            return self.copy()
 
         if isinstance(key, tuple):
             return self._get_item(key)
 
         raise NotImplementedError
+
+    @override
+    def __add__(self, other: TTD[DType]) -> TTD[DType]:
+        """Add two TTD objects."""
+        return ops.add(self, other)
+
+    @override
+    def __iadd__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place add another tensor."""
+        return ops.add(self, other, out=self)
+
+    @override
+    def __radd__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse add another tensor."""
+        return ops.add(other, self)
+
+    @override
+    def __sub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Subtract two TTD objects."""
+        return ops.add(self, -other)
+
+    @override
+    def __isub__(self, other: TTD[DType]) -> TTD[DType]:
+        """In-place subtract another tensor."""
+        return ops.add(self, -other, out=self)
+
+    @override
+    def __rsub__(self, other: TTD[DType]) -> TTD[DType]:
+        """Reverse subtract another tensor."""
+        return ops.add(-other, self)
+
+    @override
+    def __mul__(self, other: np.floating | float) -> TTD[DType]:
+        """Multiply two TTD objects."""
+        return ops.multiply(self, other)
+
+    @override
+    def __imul__(self, other: np.floating | float) -> TTD[DType]:
+        """In-place multiply two TTD objects."""
+        return ops.multiply(self, other, out=self)
+
+    @override
+    def __rmul__(self, other: np.floating | float) -> TTD[DType]:
+        """Reverse multiply two TTD objects."""
+        return ops.multiply(self, other)
+
+    @override
+    def __neg__(self) -> TTD[DType]:
+        """Negate a TTD object."""
+        return ops.neg(self)

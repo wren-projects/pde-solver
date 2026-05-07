@@ -1,0 +1,11 @@
+from collections.abc import Iterable, Reversible
+
+import numpy as np
+
+from numpy_ttd.types import Core
+
+
+def reverse_cores[DType: np.floating](
+    cores: Reversible[Core[DType]],
+) -> Iterable[Core[DType]]:
+    return (core.T for core in reversed(cores))

@@ -20,5 +20,6 @@ setup:
 generate-pdes:
     {{ uv }} run scripts/generate_pdes.py > src/pde_solver/pde.py
     {{ uv }} run ruff check src/pde_solver/pde.py --fix
+    {{ uv }} run ruff format src/pde_solver/pde.py 
 
 check: lint test
