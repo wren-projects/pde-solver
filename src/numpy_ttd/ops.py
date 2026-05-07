@@ -7,12 +7,11 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from numpy_ttd._helpers import reverse_cores
+from numpy_ttd._helpers import orthogonalize_right, reverse_cores
 from numpy_ttd._numpy_api import implements_function, implements_ufunc
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
-    qr_rows,
     truncation_parameter,
 )
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -581,17 +580,7 @@ def transpose[DType: np.floating](
     # list of target positions of each core
     target = [perm.index(i) for i in range(d)]
 
-    # TODO: consider, if the QR-orthogonalisation is actually needed. It is used
-    # in some libraries (e.g. ttpy aka TT-toolbox) but non-othogonal cores still
-    # produce correct results.
-
-    # RL-orthogonalise
-    for i in reversed(range(1, d)):
-        core = cores[i]
-        r0, n1, r1 = core.shape
-        q, r = qr_rows(core.reshape((r0, n1 * r1)))
-        cores[i] = q.reshape((-1, n1, r1))
-        cores[i - 1] = np.einsum("ijk,kl", cores[i - 1], r)
+    orthogonalize_right(cores)
 
     sorted_prefix = 0
     while True:
