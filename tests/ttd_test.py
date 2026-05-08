@@ -148,6 +148,7 @@ def test_swapaxes(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(np.swapaxes(ttd, 0, 1), np.swapaxes(tensor, 0, 1))
     assert_default_epsilon(np.swapaxes(ttd, 0, -1), np.swapaxes(tensor, 0, -1))
     assert_default_epsilon(ttd.swapaxes(-1, -2), tensor.swapaxes(-1, -2))
+    assert_default_epsilon(ttd.swapaxes(0, 0), tensor.swapaxes(0, 0))
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
