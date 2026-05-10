@@ -10,6 +10,8 @@ def reverse_cores[DType: np.floating](
     cores: Reversible[Core[DType]],
 ) -> Iterable[Core[DType]]:
     return (core.T for core in reversed(cores))
+
+
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
