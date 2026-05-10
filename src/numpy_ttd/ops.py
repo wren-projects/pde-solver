@@ -709,3 +709,45 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     ]
 
     return TTD(cores, dtype=dtype)
+
+
+def get_item[DType: np.floating](
+    ttd: TTD[DType], indexes: Sequence[int | slice[int | None]]
+) -> TTD[DType] | DType:
+    """Retrieve a single value from the TTD object."""
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    if len(indexes) == 0:
+        raise IndexError("Cannot index with an empty tuple")
+
+    if len(indexes) > len(ttd.data):
+        raise IndexError("Too many indices")
+
+    message_matrix: Matrix[DType] = np.ones((1, 1), dtype=ttd.dtype)
+
+    cores: list[Core[DType]] = []
+
+    for core, i in zip(ttd.data, indexes, strict=False):
+        # preserve the whole core and reset the message matrix
+        if isinstance(i, slice):
+            cores.append(np.einsum("ij,jkl", message_matrix, core[:, i, :]))
+            message_matrix = np.eye(core.shape[2], dtype=ttd.dtype)
+            continue
+
+        message_matrix = np.matmul(message_matrix, core[:, i, :])
+
+    remaining = ttd.data[len(indexes) :].copy()
+
+    # if all cores have been consumed, the result is a single element
+    if not cores and not remaining:
+        return ttd.dtype.type(message_matrix.squeeze())
+
+    # merge the message matrix into either the first remaining core or the last
+    # preserved core
+    if remaining:
+        remaining[0] = np.einsum("ij,jkl", message_matrix, remaining[0])
+        cores.extend(remaining)
+    else:
+        cores[-1] = np.einsum("ijk,kl", cores[-1], message_matrix)
+
+    return TTD(cores, dtype=ttd.dtype)
