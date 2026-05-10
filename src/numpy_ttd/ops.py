@@ -741,7 +741,7 @@ def get_item[DType: np.floating](
 
         message_matrix = cast(Matrix[DType], message_matrix @ core[:, index, :])
 
-    remaining = ttd.data[len(indexes) :].copy()
+    remaining = ttd.data[len(indexes) :]
 
     # if all cores have been consumed, the result is a single element
     if not cores and not remaining:
