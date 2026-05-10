@@ -727,14 +727,19 @@ def get_item[DType: np.floating](
 
     cores: list[Core[DType]] = []
 
-    for core, i in zip(ttd.data, indexes, strict=False):
+    for core, index in zip(ttd.data, indexes, strict=False):
         # preserve the whole core and reset the message matrix
-        if isinstance(i, slice):
-            cores.append(np.einsum("ij,jkl", message_matrix, core[:, i, :]))
+        if isinstance(index, slice):
+            cores.append(
+                cast(
+                    Core[DType],
+                    np.einsum("ij,jkl", message_matrix, core[:, index, :]),
+                )
+            )
             message_matrix = np.eye(core.shape[2], dtype=ttd.dtype)
             continue
 
-        message_matrix = np.matmul(message_matrix, core[:, i, :])
+        message_matrix = cast(Matrix[DType], message_matrix @ core[:, index, :])
 
     remaining = ttd.data[len(indexes) :].copy()
 
