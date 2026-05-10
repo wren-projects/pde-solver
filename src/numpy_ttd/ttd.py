@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, cast, final, overload, override
 
@@ -417,6 +417,15 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return ops.get_item(self, (key,))
 
         raise NotImplementedError
+
+    def __len__(self) -> int:
+        """Return the number of cores in the TTD object."""
+        return len(self.data)
+
+    def __iter__(self) -> Iterator[TTD[DType]]:
+        """Iterate over the cores of the TTD object."""
+        first_core = self.data[0]
+        return (cast(TTD[DType], self[i]) for i in range(first_core.shape[1]))
 
     @override
     def __add__(self, other: TTD[DType]) -> TTD[DType]:
