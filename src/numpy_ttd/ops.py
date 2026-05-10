@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from itertools import pairwise
+from itertools import islice, pairwise
 from math import prod
 from typing import TYPE_CHECKING, Any, cast, overload
 
@@ -63,7 +63,7 @@ def add[DType: np.floating](
     if out is not None and out.shape != a.shape:
         raise ValueError("Output tensor has an incorrect shape.")
 
-    cores = _add_cores(a.data, b.data, a.dtype)
+    cores = _add_cores(a.data, b.data)
 
     if out is None:
         return TTD(cores, dtype=a.dtype)
@@ -72,29 +72,68 @@ def add[DType: np.floating](
     return out
 
 
+def _block_core[DType: np.floating](
+    blocks: tuple[Core[DType], ...],
+) -> Core[DType]:
+    """
+    Stack cores into a single block core.
+
+    For cores C₀, C₁, ..., Cₙ with shapes (lᵢ, n, rᵢ), the block core is
+    defined as
+
+        ⌈ C₀ 0  … 0 ⌉
+        | 0  C₁ … 0 |
+        | ⋮  ⋮  ⋱ ⋮ |
+        ⌊ 0  0  … Cₙ⌋
+
+    with shape (l₀ + ⋯ + lₙ, n, r₀ + ⋯ + rₙ).
+
+    Parameters
+    ----------
+    blocks : tuple[Core[DType], ...]
+        The cores to stack.
+
+    Returns
+    -------
+    Core[DType]
+        The block core.
+
+    """
+    n = blocks[0].shape[1]
+    dtype = blocks[0].dtype
+
+    # compute offsets of the blocks
+    l_offsets, r_offsets = (
+        cast(
+            list[int],  # not really, but it's to satisfy type checkers
+            # cumsum of left/right ranks
+            np.r_[0, np.cumsum([c.shape[axis] for c in blocks])],
+        )
+        for axis in (0, 2)
+    )
+
+    G = np.zeros((l_offsets[-1], n, r_offsets[-1]), dtype=dtype)
+
+    for core, (l0, l1), (r0, r1) in zip(
+        blocks, pairwise(l_offsets), pairwise(r_offsets), strict=True
+    ):
+        G[l0:l1, :, r0:r1] = core
+
+    return G
+
+
 def _add_cores[DType: np.floating](
-    a: list[Core[DType]], b: list[Core[DType]], dtype: np.dtype
+    a: list[Core[DType]], b: list[Core[DType]]
 ) -> list[Core[DType]]:
     # Add vectors directly
     if len(a) == len(b) == 1:
         return [np.add(a[0], b[0])]
 
-    def merge_cores(core_a: Core[DType], core_b: Core[DType]) -> Core[DType]:
-        am, rank, an = core_a.shape
-        bm, _, bn = core_b.shape
-
-        result = np.zeros((am + bm, rank, an + bn), dtype=dtype)
-        # upper left block
-        result[:am, :, :an] = core_a
-        # lower right block
-        result[am:, :, an:] = core_b
-        return result
-
     return [
         # stack first cores horizontally
         np.concatenate((a[0], b[0]), axis=2),
         # merge middle cores into blocks
-        *map(merge_cores, a[1:-1], b[1:-1]),
+        *map(_block_core, zip(a[1:-1], b[1:-1], strict=True)),
         # stack last cores vertically
         np.concatenate((a[-1], b[-1]), axis=0),
     ]
@@ -431,8 +470,23 @@ def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
     return cast(DType, np.sqrt(np.vdot(ttd, ttd)))
 
 
-def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]:
-    return tuple((i + n) % n for i in axes)
+@overload
+def _normalize_axes(axes: int, n: int) -> int: ...
+@overload
+def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]: ...
+
+
+def _normalize_axes(axes: int | Iterable[int], n: int) -> int | tuple[int, ...]:
+    def single(i: int) -> int:
+        if 0 <= i < n:
+            return i
+
+        if -n <= i < 0:
+            return i + n
+
+        raise ValueError("axis out of bounds")
+
+    return single(axes) if isinstance(axes, int) else tuple(single(i) for i in axes)
 
 
 @implements_function("swapaxes")
@@ -578,3 +632,80 @@ def transpose[DType: np.floating](
         sorted_prefix = max(k - 1, 0)
 
     return TTD(cores, dtype=ttd.dtype)
+
+
+@implements_function("stack")
+def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[DType]:
+    """
+    Stack TTDs along a new axis.
+
+    Create a new TTD with an extra dimension by stacking the given TTDs along
+    the new axis. All TTDs must have the same shape and dtype and at least
+    two dimensions.
+
+    The resulting TTD will have significantly inflated ranks, so it is
+    recommended to round it before performing further operations.
+
+    Parameters
+    ----------
+    ttds : Sequence[TTD[DType]]
+        The TTDs to stack.
+    axis : int, optional
+        The index of the new axis along which to stack the TTDs, by default 0.
+
+    Returns
+    -------
+    TTD[DType]
+        The stacked TTD.
+
+    """
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    # we can't mimic NumPy's behavior for single input TTD, as the TTD can't be
+    # simply treated as a list of tensors like NDArray can
+    if len(ttds) < 2:  # noqa: PLR2004
+        raise ValueError("At least two TTDs must be provided.")
+
+    ttd0 = ttds[0]
+    dtype = ttd0.dtype
+    shape = ttd0.shape
+    d = ttd0.ndim
+
+    if d < 2:  # noqa: PLR2004
+        raise NotImplementedError("Only implemented for two-or-more-dimensional TTDs.")
+
+    for ttd in ttds:
+        if ttd.shape != shape:
+            raise ValueError(f"Shape mismatch: {ttd.shape} != {shape}")
+
+        if ttd.dtype != dtype:
+            raise ValueError(f"Dtype mismatch: {ttd.dtype} != {dtype}")
+
+    # normalize w.r.t. the new tensor
+    axis = _normalize_axes(axis, d + 1)
+
+    # implement axis != 0 in terms of axis == 0
+    if axis == d:
+        return stack([ttd.T for ttd in ttds]).T
+    if axis != 0:
+        return stack(ttds).swapaxes(0, axis)
+
+    M = len(ttds)
+
+    # create the selector core for the new axis
+    G0 = np.eye(M, dtype=dtype).reshape(1, M, M)
+
+    # iterator of tuples of matching i-th cores from all given TTDs
+    zipped_cores: Iterable[tuple[Core[DType], ...]] = zip(
+        *(ttd.data for ttd in ttds), strict=True
+    )
+
+    cores: list[Core[DType]] = [
+        G0,
+        # stack all but the last cores into block cores
+        *map(_block_core, islice(zipped_cores, d - 1)),
+        # stack last cores vertically
+        np.vstack(next(zipped_cores)),
+    ]
+
+    return TTD(cores, dtype=dtype)

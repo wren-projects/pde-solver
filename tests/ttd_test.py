@@ -201,3 +201,37 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert_default_epsilon(
         np.tensordot(ttd_a, ttd_b, axes=axes), np.tensordot(a, b, axes=axes)
     )
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_stack(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD stack works."""
+    assert_default_epsilon(
+        np.stack(ttds),
+        np.stack(tensors),
+    )
+
+    assert_default_epsilon(
+        np.stack(ttds, axis=-1),
+        np.stack(tensors, axis=-1),
+    )
+
+    assert_default_epsilon(
+        np.stack(ttds, axis=1),
+        np.stack(tensors, axis=1),
+    )
+
+    assert_default_epsilon(
+        np.stack(ttds * 2, axis=0),
+        np.stack(tensors * 2, axis=0),
+    )
+
+    assert_default_epsilon(
+        np.stack(ttds * 2, axis=-1),
+        np.stack(tensors * 2, axis=-1),
+    )
+
+    assert_default_epsilon(
+        np.stack(ttds * 2, axis=1),
+        np.stack(tensors * 2, axis=1),
+    )
