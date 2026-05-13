@@ -714,7 +714,24 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
 def get_item[DType: np.floating](
     ttd: TTD[DType], indexes: Sequence[int | slice[int | None]]
 ) -> TTD[DType] | DType:
-    """Retrieve a single value from the TTD object."""
+    """
+    Index into a TTD.
+
+    Supports basic NumPy-style indexing, e.g. `ttd[0, 1, 2]` or `ttd[0, :, 2]`.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        The TTD to index into.
+    indexes : Sequence[int | slice[int | None]]
+        The indices to index into the TTD.
+
+    Returns
+    -------
+    TTD[DType] | DType
+        The indexed TTD or a scalar value.
+
+    """
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
     if len(indexes) == 0:

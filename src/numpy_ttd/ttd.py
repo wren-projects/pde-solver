@@ -416,7 +416,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         self,
         key: EllipsisType | Sequence[int | slice[int | None]] | int | slice[int | None],
     ) -> TTD[DType] | DType:
-        """Get a single values from the TTD object."""
+        """Index into the TTD object."""
         if key == Ellipsis:
             return self.copy()
 
