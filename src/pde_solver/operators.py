@@ -1,8 +1,9 @@
+from functools import reduce
 from typing import cast
+
 import numpy as np
 
 from pde_solver.pde_types import NDArray, Vector
-from functools import reduce
 
 
 class Gradient:
@@ -17,9 +18,11 @@ class Gradient:
         The output is one dimension bigger with the first dimension corresponding
         to the dimension along which derivative is taken.
         """
+        grads = np.gradient(tensor, *spacial_step)
         if tensor.ndim == 1:
-            return np.stack((np.gradient(tensor, spacial_step),))
-        return np.stack(cast(tuple[NDArray, ...], np.gradient(tensor, spacial_step)))
+            return np.expand_dims(grads, axis=0)
+
+        return np.stack(cast(tuple[NDArray, ...], grads))
 
 
 class Laplace:
@@ -48,9 +51,11 @@ class Divergence:
         The output is one dimension smaller than tensor.
         First dimension of tensor is contracted with the nabla.
         """
-        if tensor.ndim == 1:
-            return np.gradient(tensor, spacial_step)
-        grad = cast(tuple[NDArray, ...], np.gradient(tensor, spacial_step))
+        if tensor.ndim < 2:
+            raise ValueError(
+                "Divergence requires a vector field (at least 2 dimensions)."
+            )
+        grad = cast(tuple[NDArray, ...], np.gradient(tensor, 1, *spacial_step))[1:]
 
         return cast(
             NDArray,
