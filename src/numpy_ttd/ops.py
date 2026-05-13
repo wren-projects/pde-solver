@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
 from math import prod
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload, reveal_type
 
 import numpy as np
 
@@ -624,9 +624,7 @@ def transpose[DType: np.floating](
 
 
 @implements_function("stack")
-def stack[DType: np.floating](
-    ttds: TTD[DType] | Sequence[TTD[DType]], axis: int = 0
-) -> TTD[DType]:
+def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[DType]:
     """
     Stack TTDs along a new axis.
 
@@ -654,7 +652,11 @@ def stack[DType: np.floating](
     """
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
-    ttds = list(ttds)
+    if isinstance(ttds, TTD) and ttds.ndim == 1:
+        return cast(TTD[DType], ttds)
+
+    ttds = cast(Sequence[TTD[DType]], ttds)  # typing is dumb
+    ttds = cast(Sequence[TTD[DType]], list(ttds))
 
     ttd0 = ttds[0]
     dtype = ttd0.dtype
@@ -699,7 +701,7 @@ def stack[DType: np.floating](
 
 
 def get_item[DType: np.floating](
-    ttd: TTD[DType], indexes: Sequence[int | slice[int | None]]
+    ttd: TTD[DType], indexes: Sequence[SupportsIndex | slice[SupportsIndex | None]]
 ) -> TTD[DType] | DType:
     """
     Index into a TTD.
