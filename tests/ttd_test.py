@@ -45,10 +45,26 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_get_element(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test get value."""
+def test_indexing(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test indexing."""
     for index in np.ndindex(tensor.shape):
         assert_default_epsilon(ttd[index], tensor[index])
+
+    for i in range(tensor.shape[0]):
+        assert_default_epsilon(ttd[i], tensor[i])
+        assert_default_epsilon(ttd[:i], tensor[:i])
+        assert_default_epsilon(ttd[i:], tensor[i:])
+        assert_default_epsilon(ttd[i::2], tensor[i::2])
+
+    for j in range(tensor.shape[1]):
+        assert_default_epsilon(ttd[:, j], tensor[:, j])
+        n = tensor.shape[0] // 2
+        assert_default_epsilon(ttd[:n, j], tensor[:n, j])
+        assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
+
+    for i in range(tensor.shape[0]):
+        for j in range(tensor.shape[1]):
+            assert_default_epsilon(ttd[i, j], tensor[i, j])
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))

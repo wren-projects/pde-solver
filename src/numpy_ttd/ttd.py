@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import functools
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, cast, final, overload, override
 
@@ -224,7 +223,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
         )
 
-        squeezed = result.squeeze()
+        # remove first and last singleton dimensions
+        squeezed = result.squeeze((0, -1))
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
@@ -383,24 +383,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             else NotImplemented
         )
 
-    def _get_item(self, indexes: tuple[int, ...]) -> NDArray[DType] | DType:
-        """Retrieve a single value from the TTD object."""
-        if len(indexes) == 0:
-            raise IndexError("Cannot index with an empty tuple")
-
-        if len(indexes) != len(self.data):
-            raise IndexError(
-                f"Cannot index with indexes {indexes}, "
-                f"expected {len(self.data)} indexes"
-            )
-
-        result = functools.reduce(
-            np.matmul,
-            (core[:, j] for core, j in zip(self.data, indexes)),  # noqa: B905
-        )
-
-        return result.squeeze()
-
     def copy(self) -> TTD[DType]:
         """Return a copy of the TTD object."""
         return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
@@ -424,19 +406,25 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
-    def __getitem__(self, key: tuple[int, ...]) -> NDArray[DType] | DType: ...
-    @overload
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
+    @overload
+    def __getitem__(
+        self, key: Sequence[int | slice[int | None]] | int | slice[int | None]
+    ) -> TTD[DType] | DType: ...
 
     def __getitem__(
-        self, key: EllipsisType | tuple[int, ...]
-    ) -> TTD[DType] | NDArray[DType] | DType:
-        """Get a single values from the TTD object."""
+        self,
+        key: EllipsisType | Sequence[int | slice[int | None]] | int | slice[int | None],
+    ) -> TTD[DType] | DType:
+        """Index into the TTD object."""
         if key == Ellipsis:
             return self.copy()
 
         if isinstance(key, tuple):
-            return self._get_item(key)
+            return ops.get_item(self, key)
+
+        if isinstance(key, (int, slice)):
+            return ops.get_item(self, (key,))
 
         raise NotImplementedError
 
