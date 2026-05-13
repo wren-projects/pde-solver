@@ -10,6 +10,8 @@ jobs:
   build_docs:
     name: Build LaTeX Docs
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Compile LaTeX
@@ -22,3 +24,12 @@ jobs:
         with:
           name: compiled-documentation
           path: docs/main.pdf
+      - name: Upload PDF to Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "docs/main.pdf"
+          tag: "latest"
+          name: "Latest Documentation"
+          body: "Automatically compiled LaTeX documentation."
+          allowUpdates: true
+          makeLatest: true
