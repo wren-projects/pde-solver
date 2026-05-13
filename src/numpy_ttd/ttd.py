@@ -23,7 +23,7 @@ ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
 @final
-class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]"]):
+class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
 
@@ -418,14 +418,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]"]):
 
         raise NotImplementedError
 
+    @override
     def __len__(self) -> int:
         """Return the number of cores in the TTD object."""
-        return len(self.data)
-
-    def __iter__(self) -> Iterator[TTD[DType]]:
-        """Iterate over the cores of the TTD object."""
-        first_core = self.data[0]
-        return (cast(TTD[DType], self[i]) for i in range(first_core.shape[1]))
+        return self.data[0].shape[1]
 
     @override
     def __add__(self, other: TTD[DType]) -> TTD[DType]:
