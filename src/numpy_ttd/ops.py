@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
 from math import prod
-from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload, reveal_type
+from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload
 
 import numpy as np
 
