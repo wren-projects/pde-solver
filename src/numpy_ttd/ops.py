@@ -12,9 +12,10 @@ from numpy_ttd._numpy_api import implements_function, implements_ufunc
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
+    dot_product,
     truncation_parameter,
 )
-from numpy_ttd.types import Core, Matrix, NDArray
+from numpy_ttd.types import Core, Matrix
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
@@ -443,9 +444,9 @@ def _tensordot_transposed[DType: np.floating](
     # multiply the message_matrix into either the first free b core or the last
     # free a core
     if b_free:
-        out_cores[len(a_free)] = np.einsum("ab,bcd", message_matrix, b_free[0])
+        out_cores[len(a_free)] = dot_product(message_matrix, b_free[0])
     else:
-        out_cores[-1] = np.einsum("abc,cd", a_free[-1], message_matrix)
+        out_cores[-1] = dot_product(a_free[-1], message_matrix)
 
     return TTD(out_cores, dtype=dtype)
 
@@ -597,7 +598,7 @@ def transpose[DType: np.floating](
             r0, n1, r1 = core.shape
             q, r = np.linalg.qr(core.reshape((r0 * n1, r1)))
             cores[i] = q.reshape((r0, n1, -1))
-            cores[i + 1] = np.einsum("jkl,ji", cores[i + 1], r)
+            cores[i + 1] = dot_product(r, cores[i + 1])
 
         # Swap cores
         core_0 = cores[k]
@@ -607,9 +608,7 @@ def transpose[DType: np.floating](
 
         assert r1 == r1b, f"Internal rank mismatch: {r1} != {r1b}"
 
-        merged = cast(NDArray[DType], np.einsum("ajk,kiz", core_0, core_1)).reshape(
-            (r0 * n2, n1 * r2)
-        )
+        merged = dot_product(core_0, core_1).swapaxes(1, 2).reshape((r0 * n2, n1 * r2))
         u, s, v_t = delta_truncated_svd(merged, delta)
 
         r1_new = len(s)
@@ -739,12 +738,8 @@ def get_item[DType: np.floating](
             continue
 
         # merge the slice of the core and the message matrix
-        cores.append(
-            cast(
-                Core[DType],
-                np.einsum("ij,jkl", message_matrix, core[:, index, :]),
-            )
-        )
+        core_slice: Core[DType] = core[:, index, :]
+        cores.append(dot_product(message_matrix, core_slice))
         # continue with a clean new message matrix
         message_matrix = np.eye(core.shape[2], dtype=ttd.dtype)
 
@@ -757,9 +752,9 @@ def get_item[DType: np.floating](
     # merge the message matrix into either the first remaining core or the last
     # preserved core
     if remaining:
-        remaining[0] = np.einsum("ij,jkl", message_matrix, remaining[0])
+        remaining[0] = dot_product(message_matrix, remaining[0])
         cores.extend(remaining)
     else:
-        cores[-1] = np.einsum("ijk,kl", cores[-1], message_matrix)
+        cores[-1] = dot_product(cores[-1], message_matrix)
 
     return TTD(cores, dtype=ttd.dtype)

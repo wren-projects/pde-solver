@@ -14,6 +14,7 @@ from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
+    dot_product,
     truncation_parameter,
 )
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -271,15 +272,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             u, s, v_t = delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k), delta)
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
             cores[k - 1] = u.reshape((beta_k1, i_k, -1))
-            # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ
-            cores[k] = np.einsum(
-                "ijk,hi,h->hjk",
-                cores[k],
-                v_t,
-                s,
-                # in 99% of cases, this is the optimal path
-                optimize=("einsum_path", (0, 1), (0, 1)),
-            )
+            # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
+            cores[k] = dot_product(np.multiply(s, v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
