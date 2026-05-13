@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, cast, final, overload, override
 
