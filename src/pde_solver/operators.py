@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import cast
 
 import numpy as np
@@ -55,12 +54,9 @@ class Divergence:
             raise ValueError(
                 "Divergence requires a vector field (at least 2 dimensions)."
             )
-        grad = cast(tuple[NDArray, ...], np.gradient(tensor, 1, *spacial_step))[1:]
 
-        return cast(
-            NDArray,
-            reduce(np.add, (value[i] for i, value in enumerate(grad))),
-        )
+        grad = np.gradient(tensor, *spacial_step, axis=range(1, tensor.ndim))
+        return cast(NDArray, np.trace(grad))
 
 
 gradient = Gradient()
