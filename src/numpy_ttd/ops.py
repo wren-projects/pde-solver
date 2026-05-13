@@ -655,8 +655,8 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     if isinstance(ttds, TTD) and ttds.ndim == 1:
         return cast(TTD[DType], ttds)
 
-    ttds = cast(Sequence[TTD[DType]], ttds)  # typing is dumb
-    ttds = cast(Sequence[TTD[DType]], list(ttds))
+    # typing is dumb
+    ttds = cast(Sequence[TTD[DType]], list(cast(Sequence[TTD[DType]], ttds)))
 
     ttd0 = ttds[0]
     dtype = ttd0.dtype
