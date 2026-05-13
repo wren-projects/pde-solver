@@ -9,13 +9,14 @@ import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
-from numpy_ttd._helpers import reverse_cores
+from numpy_ttd._helpers import orthogonalize_right, reverse_cores
 from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
-from numpy_ttd.math import delta_truncated_svd, qr_rows, truncation_parameter
+from numpy_ttd.math import (
+    DEFAULT_EPSILON,
+    delta_truncated_svd,
+    truncation_parameter,
+)
 from numpy_ttd.types import Core, Matrix, NDArray
-
-DEFAULT_EPSILON = np.float64(1e-9)
-
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
@@ -257,18 +258,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         cores = self.data
         d = len(cores)
 
-        for k in range(d, 1, -1):  # for k = d to 2 step -1
-            # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
-            # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
-            core = cores[k - 1]
-            alpha_k1, i_k, beta_k = core.shape
-            # 𝐐, 𝐑 = QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ)) = QR(𝐆ₖ(αₖ₋₁; iₖβₖ)ᵀ)ᵀ
-            q, r = qr_rows(core.reshape((alpha_k1, i_k * beta_k)))
-            # 𝐆ₖ(βₖ₋₁; iₖβₖ) = 𝐐
-            cores[k - 1] = q.reshape((-1, i_k, beta_k))
-            # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
-            # NOTE: there is a typo in the TTD paper: it incorrectly says 𝐆ₖ ×₃ 𝐑
-            cores[k - 2] = np.einsum("ijk,kl", cores[k - 2], r)
+        orthogonalize_right(cores)
 
         # this is necessary for Python's typing
         delta = truncation_parameter(self, epsilon)
