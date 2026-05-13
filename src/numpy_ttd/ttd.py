@@ -23,7 +23,7 @@ ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
 @final
-class TTD[DType: np.floating](NDArrayOperatorsMixin):
+class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]"]):
     """
     Class for storing TTD encoded data.
 
