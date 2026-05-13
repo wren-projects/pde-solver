@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
 from math import prod
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload
 
 import numpy as np
 
@@ -483,7 +483,7 @@ def _normalize_axes(axes: int | Iterable[int], n: int) -> int | tuple[int, ...]:
         if -n <= i < 0:
             return i + n
 
-        raise ValueError("axis out of bounds")
+        raise ValueError(f"axis out of bounds: must be in [-{n}, {n}) but got {i}")
 
     return single(axes) if isinstance(axes, int) else tuple(single(i) for i in axes)
 
@@ -628,9 +628,11 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     """
     Stack TTDs along a new axis.
 
-    Create a new TTD with an extra dimension by stacking the given TTDs along
-    the new axis. All TTDs must have the same shape and dtype and at least
-    two dimensions.
+    Create a new TTD by stacking the given sequence of TTDs along the new axis.
+    All TTDs must have the same shape and dtype.
+
+    If only a TTD is given, treat its first axis as the sequence and stack the
+    remaining axes.
 
     The resulting TTD will have significantly inflated ranks, so it is
     recommended to round it before performing further operations.
@@ -650,18 +652,16 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     """
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
-    # we can't mimic NumPy's behavior for single input TTD, as the TTD can't be
-    # simply treated as a list of tensors like NDArray can
-    if len(ttds) < 2:  # noqa: PLR2004
-        raise ValueError("At least two TTDs must be provided.")
+    if isinstance(ttds, TTD) and ttds.ndim == 1:
+        return cast(TTD[DType], ttds)
+
+    # typing is dumb
+    ttds = cast(Sequence[TTD[DType]], list(cast(Sequence[TTD[DType]], ttds)))
 
     ttd0 = ttds[0]
     dtype = ttd0.dtype
     shape = ttd0.shape
     d = ttd0.ndim
-
-    if d < 2:  # noqa: PLR2004
-        raise NotImplementedError("Only implemented for two-or-more-dimensional TTDs.")
 
     for ttd in ttds:
         if ttd.shape != shape:
@@ -701,7 +701,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
 
 
 def get_item[DType: np.floating](
-    ttd: TTD[DType], indexes: Sequence[int | slice[int | None]]
+    ttd: TTD[DType], indexes: Sequence[SupportsIndex | slice[SupportsIndex | None]]
 ) -> TTD[DType] | DType:
     """
     Index into a TTD.

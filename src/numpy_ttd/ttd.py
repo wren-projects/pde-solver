@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
-from typing import Any, ParamSpec, cast, final, overload, override
+from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
 
 import numpy as np
 import numpy.typing as npt
@@ -23,7 +23,7 @@ ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
 @final
-class TTD[DType: np.floating](NDArrayOperatorsMixin):
+class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
 
@@ -396,15 +396,26 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
+    def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
+
+    @overload
+    def __getitem__(self, key: slice[SupportsIndex | None]) -> TTD[DType]: ...
+
+    @overload
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
+
     @overload
     def __getitem__(
-        self, key: Sequence[int | slice[int | None]] | int | slice[int | None]
+        self, key: Sequence[SupportsIndex | slice[SupportsIndex | None]]
     ) -> TTD[DType] | DType: ...
 
+    @override
     def __getitem__(
         self,
-        key: EllipsisType | Sequence[int | slice[int | None]] | int | slice[int | None],
+        key: SupportsIndex
+        | slice[SupportsIndex | None]
+        | EllipsisType
+        | Sequence[SupportsIndex | slice[SupportsIndex | None]],
     ) -> TTD[DType] | DType:
         """Index into the TTD object."""
         if key == Ellipsis:
@@ -417,6 +428,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin):
             return ops.get_item(self, (key,))
 
         raise NotImplementedError
+
+    @override
+    def __len__(self) -> int:
+        """Return the number of cores in the TTD object."""
+        return self.data[0].shape[1]
 
     @override
     def __add__(self, other: TTD[DType]) -> TTD[DType]:

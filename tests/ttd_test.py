@@ -224,6 +224,15 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     )
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_stack_single(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD stack works with single tensor."""
+    assert_default_epsilon(
+        np.stack(ttd),
+        np.stack(tensor),
+    )
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_stack(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test that TTD stack works."""
