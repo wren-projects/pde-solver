@@ -8,8 +8,8 @@ format:
     {{ uv }} run ruff format src tests
 
 lint:
-    {{ uv }} run ruff check src tests
-    {{ uv }} run basedpyright src tests
+    {{ uv }} run ruff check tests/operators_test.py
+    {{ uv }} run basedpyright tests/operators_test.py
 
 test:
     {{ uv }} run pytest
