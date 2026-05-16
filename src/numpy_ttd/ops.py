@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
 from math import prod
-from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, SupportsIndex, cast, overload
 
 import numpy as np
 
@@ -763,3 +763,58 @@ def get_item[DType: np.floating](
         cores[-1] = np.einsum("ijk,kl", cores[-1], message_matrix)
 
     return TTD(cores, dtype=ttd.dtype)
+
+
+@implements_function("gradient")
+def gradient[DType: np.floating](
+    ttd: TTD[DType],
+    *varargs: float | Sequence[float],
+    axis: int | Sequence[int] | None = None,
+    edge_order: Literal[1, 2] = 1,
+) -> TTD[DType] | tuple[TTD[DType], ...]:
+    """Compute the gradient of a TTD."""
+    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+
+    if axis is None:
+        axes = tuple(range(ttd.ndim))
+    elif isinstance(axis, int):
+        axes = (axis,)
+    else:
+        axes = tuple(axis)
+
+    axes = _normalize_axes(axes, ttd.ndim)
+
+    if len(set(axes)) != len(axes):
+        raise ValueError("axes entries must be unique")
+
+    if len(varargs) == len(axes):
+        dx = [(v,) for v in varargs]
+    elif len(varargs) == 1:
+        dx = [(varargs[0],)] * len(axes)
+    elif not varargs:
+        dx = [()] * len(axes)
+    else:
+        raise ValueError("invalid number of arguments")
+
+    results: list[TTD[DType]] = []
+    for i, d in zip(axes, dx, strict=True):
+        cores = ttd.data.copy()
+
+        # If the variance along the axis is below the relative floating point
+        # accuracy, treat the axis as constant to prevent large numerical errors
+        diffs = np.diff(cores[i], axis=1)
+        if np.max(np.abs(diffs)) < 1e-12 * np.max(np.abs(cores[i])):
+            cores[i] = np.zeros_like(cores[i])
+        else:
+            # gradient of single axis returns an NDArray despite what typing suggests
+            cores[i] = cast(
+                Core[DType],
+                cast(object, np.gradient(cores[i], *d, axis=1, edge_order=edge_order)),
+            )
+
+        results.append(TTD(cores, dtype=ttd.dtype))
+
+    if len(results) == 1:
+        return results[0]
+
+    return tuple(results)
