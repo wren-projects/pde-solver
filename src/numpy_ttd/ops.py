@@ -335,10 +335,6 @@ def _contract_cores[DType: np.floating](
     return result.squeeze((0, 2))
 
 
-def _to_int_tuple(axes: int | Iterable[int]) -> tuple[int, ...]:
-    return tuple(map(int, axes)) if isinstance(axes, Iterable) else (int(axes),)
-
-
 @implements_function("tensordot")
 def tensordot[DType: np.floating](
     a: TTD[DType],
