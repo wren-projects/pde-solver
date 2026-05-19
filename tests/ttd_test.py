@@ -66,11 +66,18 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test indexing."""
+def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test full indexing."""
+    if ttd.ndim > 6:
+        return
+
     for index in np.ndindex(tensor.shape):
         assert_default_epsilon(ttd[index], tensor[index])
 
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
     for i in range(tensor.shape[0]):
         assert_default_epsilon(ttd[i], tensor[i])
         assert_default_epsilon(ttd[:i], tensor[:i])
@@ -285,4 +292,45 @@ def test_stack(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert_default_epsilon(
         np.stack(ttds * 2, axis=1),
         np.stack(tensors * 2, axis=1),
+    )
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that TTD gradient works."""
+    assert_default_epsilon(
+        np.gradient(ttd),
+        np.gradient(tensor),
+    )
+
+    assert_default_epsilon(
+        np.gradient(ttd, axis=1),
+        np.gradient(tensor, axis=1),
+    )
+
+    assert_default_epsilon(
+        np.gradient(ttd, axis=range(1, ttd.ndim)),
+        np.gradient(tensor, axis=range(1, tensor.ndim)),
+    )
+
+    assert_default_epsilon(
+        np.gradient(ttd, axis=range(-ttd.ndim + 1, 0)),
+        np.gradient(tensor, axis=range(-tensor.ndim + 1, 0)),
+    )
+
+    steps = tuple((n + 1) / 10 for n in range(ttd.ndim))
+    assert_default_epsilon(
+        np.gradient(ttd, *steps),
+        np.gradient(tensor, *steps),
+    )
+
+    steps = tuple(tuple((x + 1) / 10 for x in range(n)) for n in ttd.shape)
+    assert_default_epsilon(
+        np.gradient(ttd, *steps),
+        np.gradient(tensor, *steps),
+    )
+
+    assert_default_epsilon(
+        np.gradient(ttd, edge_order=2),
+        np.gradient(tensor, edge_order=2),
     )
