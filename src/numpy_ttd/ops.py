@@ -785,7 +785,7 @@ def gradient[DType: np.floating](
         default 1.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if axis is None:
         axes = tuple(range(ttd.ndim))
