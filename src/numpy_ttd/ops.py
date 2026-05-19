@@ -1,3 +1,4 @@
+# ruff: noqa: PLC0415
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
@@ -55,7 +56,7 @@ def add[DType: np.floating](
 
     """
     # the import has to be here to avoid circular imports
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if a.shape != b.shape:
         raise ValueError("Tensors with different shapes cannot be added.")
@@ -183,7 +184,7 @@ def multiply[DType: np.floating](
         The result of the multiplication.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     def impl(
         ttd: TTD[DType], scalar: np.floating | float, out: TTD[DType] | None = None
@@ -368,7 +369,7 @@ def tensordot[DType: np.floating](
         TT tensor over uncontracted modes (a_free then b_free) or scalar.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if a.dtype != b.dtype:
         raise ValueError("TTD objects must have the same dtype")
@@ -424,7 +425,7 @@ def tensordot[DType: np.floating](
 def _tensordot_transposed[DType: np.floating](
     a: TTD[DType], b: TTD[DType], k: int, dtype: np.dtype[DType]
 ) -> TTD[DType] | DType:
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     assert a.ndim >= k, "k must be <= a.ndim"
     assert b.ndim >= k, "k must be <= b.ndim"
@@ -551,7 +552,7 @@ def transpose[DType: np.floating](
         Transposed TT tensor.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     d = ttd.ndim
 
@@ -649,7 +650,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
         The stacked TTD.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if isinstance(ttds, TTD) and ttds.ndim == 1:
         return cast(TTD[DType], ttds)
@@ -720,7 +721,7 @@ def get_item[DType: np.floating](
         The indexed TTD or a scalar value.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if len(indexes) == 0:
         raise IndexError("Cannot index with an empty tuple")
@@ -784,7 +785,7 @@ def gradient[DType: np.floating](
         default 1.
 
     """
-    from numpy_ttd.ttd import TTD  # noqa: PLC0415
+    from numpy_ttd.ttd import TTD
 
     if axis is None:
         axes = tuple(range(ttd.ndim))
