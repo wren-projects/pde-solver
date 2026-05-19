@@ -412,14 +412,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         | Sequence[SupportsIndex | slice[SupportsIndex | None]],
     ) -> TTD[DType] | DType:
         """Index into the TTD object."""
-        if key == Ellipsis:
+        if key is Ellipsis:
             return self.copy()
 
-        if isinstance(key, tuple):
-            return ops.get_item(self, key)
-
-        if isinstance(key, (int, slice)):
+        if isinstance(key, (SupportsIndex, slice)):
             return ops.get_item(self, (key,))
+
+        if isinstance(key, Sequence):
+            return ops.get_item(self, key)
 
         raise NotImplementedError
 
