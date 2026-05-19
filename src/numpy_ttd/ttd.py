@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
@@ -10,10 +11,11 @@ from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
 from numpy_ttd._helpers import orthogonalize_right, reverse_cores
-from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
+from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
+    dot_product,
     truncation_parameter,
 )
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -153,14 +155,22 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return f"TTD(shape={self.shape},\n{'\n\n'.join(map(str, self.data))})"
 
     @property
+    @implements_function("shape")
     def shape(self) -> tuple[int, ...]:
         """Return the shape of the TTD object."""
         return tuple(core.shape[1] for core in self.data)
 
     @property
+    @implements_function("ndim")
     def ndim(self) -> int:
         """Return the number of dimensions of the TTD object."""
         return len(self.data)
+
+    @property
+    @implements_function("size")
+    def size(self) -> int:
+        """Return the size of the uncompressed tensor."""
+        return math.prod(self.shape)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
@@ -271,15 +281,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             u, s, v_t = delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k), delta)
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
             cores[k - 1] = u.reshape((beta_k1, i_k, -1))
-            # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ
-            cores[k] = np.einsum(
-                "ijk,hi,h->hjk",
-                cores[k],
-                v_t,
-                s,
-                # in 99% of cases, this is the optimal path
-                optimize=("einsum_path", (0, 1), (0, 1)),
-            )
+            # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
+            cores[k] = dot_product(np.multiply(s, v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
@@ -418,14 +421,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         | Sequence[SupportsIndex | slice[SupportsIndex | None]],
     ) -> TTD[DType] | DType:
         """Index into the TTD object."""
-        if key == Ellipsis:
+        if key is Ellipsis:
             return self.copy()
 
-        if isinstance(key, tuple):
-            return ops.get_item(self, key)
-
-        if isinstance(key, (int, slice)):
+        if isinstance(key, (SupportsIndex, slice)):
             return ops.get_item(self, (key,))
+
+        if isinstance(key, Sequence):
+            return ops.get_item(self, key)
 
         raise NotImplementedError
 

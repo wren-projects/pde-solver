@@ -23,6 +23,27 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(ttd, tensor)
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_shape(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test shape."""
+    assert ttd.shape == tensor.shape
+    assert np.shape(ttd) == np.shape(tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_ndim(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test ndim."""
+    assert ttd.ndim == tensor.ndim
+    assert np.ndim(ttd) == np.ndim(tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_size(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test size."""
+    assert ttd.size == tensor.size
+    assert np.size(ttd) == np.size(tensor)
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_inner_product(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test inner product."""

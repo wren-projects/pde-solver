@@ -13,6 +13,8 @@ def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
     """Register an `__array_ufunc__` implementation for TTD objects."""
 
     def decorator(func: F) -> F:
+        if name in HANDLED_UFUNCS:
+            raise ValueError(f"Ufunc {name} is already registered")
         HANDLED_UFUNCS[name] = func
         return func
 
@@ -23,6 +25,9 @@ def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
     """Register an `__array_function__` implementation for TTD objects."""
 
     def decorator(func: F) -> F:
+        if name in HANDLED_FUNCTIONS:
+            raise ValueError(f"Function {name} is already registered")
+
         HANDLED_FUNCTIONS[name] = func
         return func
 
