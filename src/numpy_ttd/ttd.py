@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
@@ -10,7 +11,7 @@ from numpy.lib.mixins import NDArrayOperatorsMixin
 
 from numpy_ttd import ops
 from numpy_ttd._helpers import orthogonalize_right, reverse_cores
-from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS
+from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
@@ -154,14 +155,22 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return f"TTD(shape={self.shape},\n{'\n\n'.join(map(str, self.data))})"
 
     @property
+    @implements_function("shape")
     def shape(self) -> tuple[int, ...]:
         """Return the shape of the TTD object."""
         return tuple(core.shape[1] for core in self.data)
 
     @property
+    @implements_function("ndim")
     def ndim(self) -> int:
         """Return the number of dimensions of the TTD object."""
         return len(self.data)
+
+    @property
+    @implements_function("size")
+    def size(self) -> int:
+        """Return the size of the uncompressed tensor."""
+        return math.prod(self.shape)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
