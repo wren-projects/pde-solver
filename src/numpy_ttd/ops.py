@@ -772,7 +772,23 @@ def gradient[DType: np.floating](
     axis: int | Sequence[int] | None = None,
     edge_order: Literal[1, 2] = 1,
 ) -> TTD[DType] | tuple[TTD[DType], ...]:
-    """Compute the gradient of a TTD."""
+    """
+    Compute the gradient of a TTD.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        The TTD to compute the gradient of.
+    varargs : float | Sequence[float]
+        The step sizes to use for the gradient.
+    axis : int | Sequence[int] | None, optional
+        The axis or axes along which to compute the gradient, by default None,
+        which is equivalent to all axes.
+    edge_order : Literal[1, 2], optional
+        The order of the finite differences used to compute the gradient, by
+        default 1.
+
+    """
     from numpy_ttd.ttd import TTD  # noqa: PLC0415
 
     if axis is None:
