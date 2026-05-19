@@ -2,7 +2,7 @@ from collections.abc import Iterable, Reversible
 
 import numpy as np
 
-from numpy_ttd.math import qr_rows
+from numpy_ttd.math import dot_product, qr_rows
 from numpy_ttd.types import Core
 
 
@@ -24,4 +24,4 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
         cores[k - 1] = q.reshape((-1, i_k, beta_k))
         # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
         # NOTE: there is a typo in the TTD paper: it incorrectly says 𝐆ₖ ×₃ 𝐑
-        cores[k - 2] = np.einsum("ijk,kl", cores[k - 2], r)
+        cores[k - 2] = dot_product(cores[k - 2], r)
