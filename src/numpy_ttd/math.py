@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -107,3 +107,38 @@ def qr_rows[DT: np.floating](matrix: Matrix[DT]) -> tuple[Matrix[DT], Matrix[DT]
     q, r = np.linalg.qr(matrix.T)
 
     return q.T, r.T
+
+
+@overload
+def dot_product[DT: np.dtype, A: int, B: int, C: int](
+    a: np.ndarray[tuple[A, B], DT],
+    b: np.ndarray[tuple[B, C], DT],
+) -> np.ndarray[tuple[A, C], DT]: ...
+
+
+@overload
+def dot_product[DT: np.dtype, A: int, B: int, C: int, D: int](
+    a: np.ndarray[tuple[A, B, C], DT],
+    b: np.ndarray[tuple[C, D], DT],
+) -> np.ndarray[tuple[A, B, D], DT]: ...
+
+
+@overload
+def dot_product[DT: np.dtype, A: int, B: int, C: int, D: int](
+    a: np.ndarray[tuple[A, B], DT],
+    b: np.ndarray[tuple[B, C, D], DT],
+) -> np.ndarray[tuple[A, C, D], DT]: ...
+
+
+@overload
+def dot_product[DT: np.dtype, A: int, B: int, C: int, D: int, E: int](
+    a: np.ndarray[tuple[A, B, C], DT],
+    b: np.ndarray[tuple[C, D, E], DT],
+) -> np.ndarray[tuple[A, B, D, E], DT]: ...
+
+
+def dot_product[DT: np.dtype](
+    a: np.ndarray[tuple[int, ...], DT], b: np.ndarray[tuple[int, ...], DT]
+) -> np.ndarray[tuple[int, ...], DT]:
+    """Compute the tensor dot product."""
+    return cast(np.ndarray[tuple[int, ...], DT], np.tensordot(a, b, axes=1))
