@@ -13,36 +13,40 @@ type TestTensorPair = tuple[TestTensor, TestTensor]
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
 
+
+def arange_tensor(*shape: int) -> TestTensor:
+    """Create a tensor of given shape using np.arange."""
+    return np.arange(1, math.prod(shape) + 1, dtype=np.float64).reshape(shape)
+
+
 TEST_TENSORS: list[TestTensor] = [
     # add a small epsilon to all tensors to remove zero values as they break
     # relative errors
     tensor.astype(np.float64) + 1e-5
     for tensor in [
         # ---- 2D ----
-        np.arange(12).reshape(3, 4),
+        arange_tensor(2, 2),
         rng.random((5, 2)),
         np.array([x % 2 == 0 for x in range(16)]).reshape(4, 4),
         # ---- 3D ----
-        np.arange(48).reshape(3, 4, 4),
+        arange_tensor(3, 4, 4),
         rng.normal(size=(2, 3, 5)),
         # ---- 4D ----
-        np.arange(2 * 3 * 4 * 5).reshape(2, 3, 4, 5),
+        arange_tensor(2, 3, 4, 5),
         10e50 * np.ones((2, 3, 2, 4)),
         # ---- 5D ----
-        np.arange(3 * 2 * 3 * 4 * 2).reshape(3, 2, 3, 4, 2),
-        -10e-5 * np.arange(3 * 2 * 3 * 4 * 2).reshape(3, 2, 3, 4, 2),
+        arange_tensor(3, 2, 3, 4, 2),
+        -10e-5 * arange_tensor(3, 2, 3, 4, 2),
         # ---- 6D ----
-        np.arange(2 * 3 * 2 * 3 * 2 * 4).reshape(2, 3, 2, 3, 2, 4),
+        arange_tensor(3, 4, 3, 4, 3, 5),
         # ---- 7D ----
-        np.arange(2 * 2 * 3 * 2 * 4 * 3 * 2).reshape(2, 2, 3, 2, 4, 3, 2),
+        arange_tensor(2, 2, 3, 2, 4, 3, 2),
         # ---- 8D ----
-        np.arange(2 * 3 * 2 * 4 * 2 * 3 * 2 * 3).reshape(2, 3, 2, 4, 2, 3, 2, 3),
+        arange_tensor(2, 3, 2, 4, 2, 3, 2, 3),
         # ---- 9D ----
-        np.arange(2 * 2 * 3 * 2 * 3 * 2 * 3 * 2 * 3).reshape(2, 2, 3, 2, 3, 2, 3, 2, 3),
+        arange_tensor(2, 2, 3, 2, 3, 2, 3, 2, 3),
         # ---- 10D ----
-        np.arange(2 * 2 * 2 * 3 * 2 * 2 * 3 * 2 * 2 * 3).reshape(
-            2, 2, 2, 3, 2, 2, 3, 2, 2, 3
-        ),
+        arange_tensor(2, 2, 2, 3, 2, 2, 3, 2, 2, 3),
     ]
 ]
 
@@ -57,48 +61,44 @@ TEST_PAIR_TENSORS: list[TestTensorPair] = [
     for a, b in [
         # ---- 2D ----
         (
-            np.arange(12).reshape(3, 4),
+            arange_tensor(3, 4),
             rng.integers(0, 10, size=(3, 4)),
         ),
         # ---- 3D ----
-        (np.arange(24).reshape(2, 3, 4), np.ones((2, 3, 4))),
+        (arange_tensor(2, 3, 4), np.ones((2, 3, 4))),
         # ---- 4D ----
         (
-            np.arange(2 * 3 * 4 * 5).reshape(2, 3, 4, 5),
+            arange_tensor(2, 3, 4, 5),
             rng.normal(size=(2, 3, 4, 5)),
         ),
         # ---- 5D ----
         (
             np.zeros((2, 2, 3, 4, 3)),
-            np.arange(2 * 2 * 3 * 4 * 3).reshape(2, 2, 3, 4, 3),
+            arange_tensor(2, 2, 3, 4, 3),
         ),
         # ---- 6D ----
         (
-            np.arange(2 * 3 * 2 * 3 * 2 * 4).reshape(2, 3, 2, 3, 2, 4),
+            arange_tensor(2, 3, 2, 3, 2, 4),
             rng.integers(0, 5, size=(2, 3, 2, 3, 2, 4)),
         ),
         # ---- 7D ----
         (
-            np.arange(2 * 2 * 3 * 2 * 4 * 3 * 2).reshape(2, 2, 3, 2, 4, 3, 2),
+            arange_tensor(2, 2, 3, 2, 4, 3, 2),
             np.ones((2, 2, 3, 2, 4, 3, 2)),
         ),
         # ---- 8D ----
         (
-            np.arange(2 * 3 * 2 * 4 * 2 * 3 * 2 * 3).reshape(2, 3, 2, 4, 2, 3, 2, 3),
+            arange_tensor(2, 3, 2, 4, 2, 3, 2, 3),
             rng.random((2, 3, 2, 4, 2, 3, 2, 3)),
         ),
         # ---- 9D ----
         (
-            np.arange(2 * 2 * 3 * 2 * 3 * 2 * 3 * 2 * 3).reshape(
-                2, 2, 3, 2, 3, 2, 3, 2, 3
-            ),
+            arange_tensor(2, 2, 3, 2, 3, 2, 3, 2, 3),
             np.ones((2, 2, 3, 2, 3, 2, 3, 2, 3)),
         ),
         # ---- 10D ----
         (
-            np.arange(2 * 2 * 2 * 3 * 2 * 2 * 3 * 2 * 2 * 3).reshape(
-                2, 2, 2, 3, 2, 2, 3, 2, 2, 3
-            ),
+            arange_tensor(2, 2, 2, 3, 2, 2, 3, 2, 2, 3),
             rng.integers(0, 10, size=(2, 2, 2, 3, 2, 2, 3, 2, 2, 3)),
         ),
     ]
