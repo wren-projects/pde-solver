@@ -799,29 +799,29 @@ def gradient[DType: np.floating](
         raise ValueError("axes entries must be unique")
 
     if len(varargs) == len(axes):
-        dx = [(v,) for v in varargs]
+        step_args = [(v,) for v in varargs]
     elif len(varargs) == 1:
-        dx = [(varargs[0],)] * len(axes)
+        step_args = [(varargs[0],)] * len(axes)
     elif not varargs:
-        dx = [()] * len(axes)
+        step_args = [()] * len(axes)
     else:
         raise ValueError("invalid number of arguments")
 
     results: list[TTD[DType]] = []
-    for i, d in zip(axes, dx, strict=True):
-        cores = ttd.data.copy()
+    for axis_idx, spacing in zip(axes, step_args, strict=True):
+        # differentiate along only a single axis at a time and copy the rest unchanged
+        cores = list(ttd.data)
 
-        # If the variance along the axis is below the relative floating point
-        # accuracy, treat the axis as constant to prevent large numerical errors
-        diffs = np.diff(cores[i], axis=1)
-        if np.max(np.abs(diffs)) < 1e-12 * np.max(np.abs(cores[i])):
-            cores[i] = np.zeros_like(cores[i])
+        core = cores[axis_idx]
+
+        # If the relative variation along the axis is less than epsilon,
+        # treat the axis as constant to prevent numerical errors.
+        if np.ptp(core) < DEFAULT_EPSILON * np.max(np.abs(core)):
+            cores[axis_idx] = np.zeros_like(core)
         else:
             # gradient of single axis returns an NDArray despite what typing suggests
-            cores[i] = cast(
-                Core[DType],
-                cast(object, np.gradient(cores[i], *d, axis=1, edge_order=edge_order)),
-            )
+            grad = np.gradient(core, *spacing, axis=1, edge_order=edge_order)
+            cores[axis_idx] = cast(Core[DType], cast(object, grad))
 
         results.append(TTD(cores, dtype=ttd.dtype))
 
