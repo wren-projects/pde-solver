@@ -308,3 +308,8 @@ def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
         np.gradient(ttd, *steps),
         np.gradient(tensor, *steps),
     )
+
+    assert_default_epsilon(
+        np.gradient(ttd, edge_order=2),
+        np.gradient(tensor, edge_order=2),
+    )
