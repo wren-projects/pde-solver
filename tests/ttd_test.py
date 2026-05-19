@@ -276,6 +276,11 @@ def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
     )
 
     assert_default_epsilon(
+        np.gradient(ttd, axis=1),
+        np.gradient(tensor, axis=1),
+    )
+
+    assert_default_epsilon(
         np.gradient(ttd, axis=range(1, ttd.ndim)),
         np.gradient(tensor, axis=range(1, tensor.ndim)),
     )
