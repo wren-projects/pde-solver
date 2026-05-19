@@ -25,28 +25,28 @@ TEST_TENSORS: list[TestTensor] = [
     tensor.astype(np.float64) + 1e-5
     for tensor in [
         # ---- 2D ----
-        arange_tensor(2, 2),
-        rng.random((5, 2)),
+        arange_tensor(3, 3),
+        rng.random((5, 3)),
         np.array([x % 2 == 0 for x in range(16)]).reshape(4, 4),
         # ---- 3D ----
-        arange_tensor(3, 4, 4),
-        rng.normal(size=(2, 3, 5)),
+        arange_tensor(4, 5, 5),
+        rng.normal(size=(3, 4, 6)),
         # ---- 4D ----
-        arange_tensor(2, 3, 4, 5),
-        10e50 * np.ones((2, 3, 2, 4)),
+        arange_tensor(6, 5, 4, 3),
+        10e50 * np.ones((3, 4, 3, 5)),
         # ---- 5D ----
-        arange_tensor(3, 2, 3, 4, 2),
-        -10e-5 * arange_tensor(3, 2, 3, 4, 2),
+        arange_tensor(4, 3, 4, 5, 3),
+        -10e-5 * arange_tensor(4, 3, 4, 5, 3),
         # ---- 6D ----
-        arange_tensor(3, 4, 3, 4, 3, 5),
+        arange_tensor(4, 3, 4, 3, 3, 6),
         # ---- 7D ----
-        arange_tensor(2, 2, 3, 2, 4, 3, 2),
+        arange_tensor(3, 3, 4, 3, 5, 4, 3),
         # ---- 8D ----
-        arange_tensor(2, 3, 2, 4, 2, 3, 2, 3),
+        arange_tensor(3, 4, 3, 4, 3, 4, 3, 4),
         # ---- 9D ----
-        arange_tensor(2, 2, 3, 2, 3, 2, 3, 2, 3),
+        arange_tensor(3, 3, 4, 3, 4, 3, 4, 3, 4),
         # ---- 10D ----
-        arange_tensor(2, 2, 2, 3, 2, 2, 3, 2, 2, 3),
+        arange_tensor(3, 3, 3, 4, 3, 3, 4, 3, 3, 4),
     ]
 ]
 

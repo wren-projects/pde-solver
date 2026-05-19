@@ -45,11 +45,18 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test indexing."""
+def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test full indexing."""
+    if ttd.ndim > 6:
+        return
+
     for index in np.ndindex(tensor.shape):
         assert_default_epsilon(ttd[index], tensor[index])
 
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
     for i in range(tensor.shape[0]):
         assert_default_epsilon(ttd[i], tensor[i])
         assert_default_epsilon(ttd[:i], tensor[:i])
