@@ -8,6 +8,7 @@ from numpy.testing import assert_allclose
 
 from pde_solver.operators import divergence, gradient, laplace
 
+# TODO: Move this into a new file
 MIN_VAL = 0.5 - 1e-6
 MAX_VAL = 0.5 + 1e-6
 STEPS = 10
