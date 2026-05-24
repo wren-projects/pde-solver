@@ -51,7 +51,7 @@ class Divergence:
         The output is one dimension smaller than tensor.
         First dimension of tensor is contracted with the nabla.
         """
-        if tensor.ndim < 2:
+        if tensor.ndim <= 1:
             raise ValueError(
                 "Divergence requires a vector field (at least 2 dimensions)."
             )
