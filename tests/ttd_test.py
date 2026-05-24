@@ -64,6 +64,10 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test rounding."""
     assert_default_epsilon(ttd.rounded(), tensor)
 
+    added = ttd + ttd
+    rounded = added.rounded()
+    assert_default_epsilon(rounded, 2 * tensor)
+
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
