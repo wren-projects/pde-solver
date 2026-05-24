@@ -1,10 +1,17 @@
+import itertools
 from typing import cast
+
 import numpy as np
-from numpy.testing import assert_allclose
 import pytest
 import sympy as sp  # pyright: ignore[reportMissingTypeStubs]
+from numpy.testing import assert_allclose
 
-from pde_solver.operators import gradient
+from pde_solver.operators import divergence, gradient
+
+MIN_VAL = 0.5 - 1e-6
+MAX_VAL = 0.5 + 1e-6
+STEPS = 4
+SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)
 
 a: sp.Symbol = sp.Symbol("a")
 b: sp.Symbol = sp.Symbol("b")
@@ -67,7 +74,10 @@ def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
 
 
 def _sample_vector_function(
-    function: list[sp.Expr], min_val: float = -1, max_val: float = 1, steps: int = 20
+    function: list[sp.Expr],
+    min_val: float = MIN_VAL,
+    max_val: float = MAX_VAL,
+    steps: int = STEPS,
 ) -> np.ndarray:
     return np.array(
         [
@@ -79,37 +89,28 @@ def _sample_vector_function(
 
 def _sample_function(
     function: sp.Expr,
-    min_val: float = -1,
-    max_val: float = 1,
-    steps: int = 20,
+    min_val: float = MIN_VAL,
+    max_val: float = MAX_VAL,
+    steps: int = STEPS,
     arg_num: int | None = None,
 ) -> np.ndarray:
-    args = _get_args(function) if arg_num is None else variables[:arg_num]
-    if not args:
-        return np.array([float(function.evalf())])
-    a = np.array(
-        [
-            _sample_function(
-                function.subs(
-                    args[-1], i * (max_val - min_val) / (steps - 1) + min_val
-                ),
-                min_val,
-                max_val,
-                steps,
-                arg_num=len(args) - 1,
+    def eval_function(
+        function: sp.Expr, args: list[sp.Symbol], i: tuple[int, ...]
+    ) -> float:
+        for arg_name, value in zip(args, i, strict=True):
+            function = function.subs(
+                arg_name, value * (max_val - min_val) / (steps - 1) + min_val
             )
-            for i in range(steps)
-        ]
-    )
-    print(np.squeeze(a).shape)
-    return np.squeeze(a)
+        return float(function.evalf())
+
+    args = _get_args(function) if arg_num is None else variables[:arg_num]
+    a = np.zeros([steps] * len(args))
+    for i in itertools.product(range(steps), repeat=len(args)):
+        a[i] = eval_function(function, args, i)
+    return a
 
 
-SPACIAL_STEP = 0.1
-
-_test_functions = [
-    a**2 + b,
-]  # a**3, c - 3 + b * a, d * b**2 + a * c]
+_test_functions = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
 _test_vector_functions = [
     [a**2 + b, a**3 + b],
     # [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
@@ -122,8 +123,15 @@ TEST_GRADIENTS = [
 ]
 TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in _test_vector_functions]
 TEST_DIVERGENCES = [
-    _sample_vector_function(_autocompute_gradient(fce)) for fce in _test_functions
+    _sample_function(_autocompute_divergence(fce)) for fce in _test_vector_functions
 ]
+
+
+def get_interior(tensor: np.ndarray) -> np.ndarray:
+    """Return the interior of the tensor by removing the boundary."""
+    slices = (slice(None), *tuple(slice(1, -1) for _ in range(tensor.ndim - 1)))
+
+    return tensor[slices]
 
 
 @pytest.mark.parametrize(
@@ -133,10 +141,14 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
     """Test numerical gradient is close to the analytical one."""
     got = gradient(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
 
-    def get_interior(A: np.ndarray) -> np.ndarray:
-        slices = (slice(None), *tuple(slice(1, -1) for _ in range(A.ndim - 1)))
+    assert_allclose(get_interior(got), get_interior(grad))
 
-        return A[slices]
 
-    print(tensor.dtype)
-    assert np.allclose(get_interior(got), get_interior(grad), rtol=1e-3)
+@pytest.mark.parametrize(
+    ("tensor", "div"), zip(TEST_VECTOR_TENSORS, TEST_DIVERGENCES, strict=True)
+)
+def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
+    """Test numerical gradient is close to the analytical one."""
+    got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
+
+    assert_allclose(get_interior(got), get_interior(div))
