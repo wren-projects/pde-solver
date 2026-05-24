@@ -1,4 +1,3 @@
-import itertools
 from typing import cast
 
 import numpy as np
@@ -109,10 +108,12 @@ def _sample_function(
         return float(function.evalf())
 
     args = _get_args(function) if arg_num is None else variables[:arg_num]
-    a = np.zeros([steps] * len(args))
-    for i in itertools.product(range(steps), repeat=len(args)):
-        a[i] = eval_function(function, args, i)
-    return a
+    shape = (steps,) * len(args)
+
+    # just a wrapper for a cleaner syntax
+    vec_func = np.vectorize(lambda *idx: eval_function(function, args, idx))
+
+    return cast(np.ndarray, np.fromfunction(vec_func, shape, dtype=int))
 
 
 _test_functions = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
