@@ -7,6 +7,6 @@ class BoundaryCondition(ABC):
     """Interface for boundary conditions."""
 
     @abstractmethod
-    def __call__(self, state: NDArray, position: Index, time: float) -> DType:
-        """Return the boundary values in given point at given time."""
+    def __call__(self, state: NDArray, time: float) -> NDArray:
+        """Set the boundary condition for the given state at a given time."""
         raise NotImplementedError
