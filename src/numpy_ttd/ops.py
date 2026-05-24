@@ -398,7 +398,6 @@ def tensordot[DType: np.floating](
         if a.shape[axis_a] != b.shape[axis_b]:
             raise ValueError("Shape mismatch on contracted axes")
 
-    # set returns elements in the insertion order, so this preserves the order
     a_free = tuple(i for i in range(a.ndim) if i not in a_axes)
     b_free = tuple(i for i in range(b.ndim) if i not in b_axes)
 
