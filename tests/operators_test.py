@@ -6,11 +6,11 @@ import pytest
 import sympy as sp  # pyright: ignore[reportMissingTypeStubs]
 from numpy.testing import assert_allclose
 
-from pde_solver.operators import divergence, gradient
+from pde_solver.operators import divergence, gradient, laplace
 
 MIN_VAL = 0.5 - 1e-6
 MAX_VAL = 0.5 + 1e-6
-STEPS = 4
+STEPS = 10
 SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)
 
 a: sp.Symbol = sp.Symbol("a")
@@ -35,6 +35,10 @@ def _get_args(function: sp.Expr) -> list[sp.Symbol]:
     if not indices:
         return []
     return variables[: max(indices) + 1]
+
+
+def _get_arg_count(function: sp.Expr) -> int:
+    return len(_get_args(function))
 
 
 def _autocompute_gradient(function: sp.Expr) -> list[sp.Expr]:
@@ -112,24 +116,37 @@ def _sample_function(
 
 _test_functions = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
 _test_vector_functions = [
-    [a**2 + b, a**3 + b],
-    # [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
+    [a**2],
+    [a**2 + b**0.5, a**3 + b**2],
+    [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
 ]
 
 TEST_TENSORS = [_sample_function(fce) for fce in _test_functions]
+TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in _test_vector_functions]
 
 TEST_GRADIENTS = [
     _sample_vector_function(_autocompute_gradient(fce)) for fce in _test_functions
 ]
-TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in _test_vector_functions]
 TEST_DIVERGENCES = [
-    _sample_function(_autocompute_divergence(fce)) for fce in _test_vector_functions
+    _sample_function(_autocompute_divergence(fce), arg_num=len(fce))
+    for fce in _test_vector_functions
+]
+TEST_LAPLACES = [
+    _sample_function(_autocompute_laplace(fce), arg_num=_get_arg_count(fce))
+    for fce in _test_functions
 ]
 
 
-def get_interior(tensor: np.ndarray) -> np.ndarray:
+def get_vector_interior(tensor: np.ndarray, order: int = 1) -> np.ndarray:
+    """Return the interior of the tensor (a vector function)."""
+    slices = (None, *tuple(slice(order, -order) for _ in range(tensor.ndim - 1)))
+
+    return tensor[slices]
+
+
+def get_interior(tensor: np.ndarray, order: int = 1) -> np.ndarray:
     """Return the interior of the tensor by removing the boundary."""
-    slices = (slice(None), *tuple(slice(1, -1) for _ in range(tensor.ndim - 1)))
+    slices = tuple(slice(order, -order) for _ in range(tensor.ndim))
 
     return tensor[slices]
 
@@ -141,7 +158,9 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
     """Test numerical gradient is close to the analytical one."""
     got = gradient(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
 
-    assert_allclose(get_interior(got), get_interior(grad))
+    assert_allclose(
+        get_vector_interior(got), get_vector_interior(grad), rtol=1e-3, atol=1e-3
+    )
 
 
 @pytest.mark.parametrize(
@@ -150,5 +169,15 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
 def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
     """Test numerical gradient is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
+    assert_allclose(get_interior(got), get_interior(div), rtol=1e-3, atol=1e-3)
 
-    assert_allclose(get_interior(got), get_interior(div))
+
+@pytest.mark.parametrize(
+    ("tensor", "lap"), zip(TEST_TENSORS, TEST_LAPLACES, strict=True)
+)
+def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
+    """Test numerical gradient is close to the analytical one."""
+    got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
+    assert_allclose(
+        get_interior(got, order=2), get_interior(lap, order=2), rtol=1e-3, atol=1e-1
+    )

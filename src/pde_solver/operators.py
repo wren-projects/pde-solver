@@ -9,7 +9,9 @@ from pde_solver.pde_types import NDArray, Vector
 class Gradient:
     """Gradient operator for NDArray."""
 
-    def __call__(self, tensor: NDArray, spacial_step: Vector) -> NDArray:
+    def __call__(
+        self, tensor: NDArray, spacial_step: Vector, axis: tuple[int, ...] | None = None
+    ) -> NDArray:
         """
         Compute the gradient of the tensor with given spacial_steps.
 
@@ -18,9 +20,11 @@ class Gradient:
         The output is one dimension bigger with the first dimension corresponding
         to the dimension along which derivative is taken.
         """
-        grads = np.gradient(tensor, *spacial_step)
+        grads = np.gradient(tensor, *spacial_step, axis=axis)
         if tensor.ndim == 1:
             return np.expand_dims(grads, axis=0)
+        if axis is not None and len(axis) == 1:
+            return np.expand_dims(grads, axis=axis[0])
 
         return np.stack(cast(tuple[NDArray, ...], grads))
 
@@ -55,11 +59,11 @@ class Divergence:
             raise ValueError(
                 "Divergence requires a vector field (at least 2 dimensions)."
             )
-        grad = cast(tuple[NDArray, ...], np.gradient(tensor, 1, *spacial_step))[1:]
+        grad = gradient(tensor, spacial_step, axis=tuple(range(1, tensor.ndim)))
 
         return cast(
             NDArray,
-            reduce(np.add, (value[i] for i, value in enumerate(grad))),
+            reduce(np.add, (value[i] for i, value in enumerate(grad))),  # pyright: ignore[reportAny]
         )
 
 
