@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from functools import reduce
 from typing import cast
 
@@ -10,20 +11,37 @@ class Gradient:
     """Gradient operator for NDArray."""
 
     def __call__(
-        self, tensor: NDArray, spacial_step: Vector, axis: tuple[int, ...] | None = None
+        self,
+        tensor: NDArray,
+        spacial_step: Vector,
+        axis: Sequence[int] | None = None,
     ) -> NDArray:
         """
         Compute the gradient of the tensor with given spacial_steps.
 
-        Spacial_step length must match the number of dimensions of tensor.
-
         The output is one dimension bigger with the first dimension corresponding
         to the dimension along which derivative is taken.
+
+        Parameters
+        ----------
+        tensor : NDArray
+            The tensor of which gradient is computed
+        spacial_step : Vector
+            The spacial step in each direction. Must have length tensor.ndim.
+        axis : tuple[int, …], optional
+            The axis along which gradient is computed, by default computes along all
+            axis.
+
+        Returns
+        -------
+        NDArray
+            The gradient
+
         """
         grads = np.gradient(tensor, *spacial_step, axis=axis)
         if tensor.ndim == 1:
             return np.expand_dims(grads, axis=0)
-        if axis is not None and len(axis) == 1:
+        if isinstance(axis, Sequence) and len(axis) == 1:
             return np.expand_dims(grads, axis=axis[0])
 
         return np.stack(cast(tuple[NDArray, ...], grads))
@@ -34,11 +52,25 @@ class Laplace:
 
     def __call__(self, tensor: NDArray, spacial_step: Vector) -> NDArray:
         """
-        Compute the Laplace transform of the tensor with given spacial_steps.
-
-        Spacial_step length must match the number of dimensions of tensor.
+        Compute the Laplace of the tensor with given spacial_steps.
 
         The output is the same dimension as tensor.
+
+        Parameters
+        ----------
+        tensor : NDArray
+            The tensor of which Laplace is computed
+        spacial_step : Vector
+            The spacial step in each direction. Must have length tensor.ndim.
+        axis : tuple[int, …], optional
+            The axis along which gradient is computed, by default computes along all
+            axis.
+
+        Returns
+        -------
+        NDArray
+            The Laplace
+
         """
         return divergence(gradient(tensor, spacial_step), spacial_step)
 
@@ -50,10 +82,24 @@ class Divergence:
         """
         Compute the divergence of the tensor with given spacial_steps.
 
-        Spacial_step length must be one smaller than the number of dimensions of tensor.
+        The output is one dimension smaller than the tensor.
 
-        The output is one dimension smaller than tensor.
-        First dimension of tensor is contracted with the nabla.
+        Parameters
+        ----------
+        tensor : NDArray
+            The tensor of which divergence is computed
+        spacial_step : Vector
+            The spacial step in each direction. Must have length one smaller than
+            tensor.ndim.
+        axis : tuple[int, …], optional
+            The axis along which gradient is computed, by default computes along all
+            axis.
+
+        Returns
+        -------
+        NDArray
+            The divergence
+
         """
         if tensor.ndim <= 1:
             raise ValueError(

@@ -6,6 +6,7 @@ import sympy as sp  # pyright: ignore[reportMissingTypeStubs]
 from numpy.testing import assert_allclose
 
 from pde_solver.operators import divergence, gradient, laplace
+from pde_solver.pde_types import DType, NDArray
 
 # TODO: Move this into a new file
 MIN_VAL = 0.5 - 1e-6
@@ -43,99 +44,85 @@ def _get_arg_count(function: sp.Expr) -> int:
 
 def _autocompute_gradient(function: sp.Expr) -> list[sp.Expr]:
     """Auto-compute gradient for the given function."""
-    return cast(
-        list[sp.Expr],
-        [
-            sp.diff(function, var)  # pyright: ignore[reportUnknownMemberType]
-            for var in _get_args(function)
-        ],
-    )
+    return [
+        cast(sp.Expr, sp.diff(function, var))  # pyright: ignore[reportUnknownMemberType]
+        for var in _get_args(function)
+    ]
 
 
 def _autocompute_divergence(function: list[sp.Expr]) -> sp.Expr:
     """Auto-compute divergence for the given function."""
     args = variables[: len(function)]
-    x = cast(
-        list[sp.Expr],
-        [
-            sp.diff(func, arg)  # pyright: ignore[reportUnknownMemberType]
+    return cast(
+        sp.Expr,
+        sum(
+            cast(sp.Expr, sp.diff(func, arg))  # pyright: ignore[reportUnknownMemberType]
             for arg, func in zip(args, function, strict=True)
-        ],
+        ),
     )
-    return cast(sp.Expr, sum(x))
 
 
 def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
     """Auto-compute Laplace for the given function."""
-    laplace = cast(
-        list[sp.Expr],
-        [
-            sp.diff(function, var, 2)  # pyright: ignore[reportUnknownMemberType]
+    return cast(
+        sp.Expr,
+        sum(
+            cast(sp.Expr, sp.diff(function, var, 2))  # pyright: ignore[reportUnknownMemberType]
             for var in _get_args(function)
-        ],
+        ),
     )
-    return cast(sp.Expr, sum(laplace))
 
 
 def _sample_vector_function(
     function: list[sp.Expr],
-    min_val: float = MIN_VAL,
-    max_val: float = MAX_VAL,
-    steps: int = STEPS,
 ) -> np.ndarray:
-    return np.array(
-        [
-            _sample_function(fce, min_val, max_val, steps, arg_num=len(function))
-            for fce in function
-        ]
-    )
+    return np.array([_sample_function(fce, arg_num=len(function)) for fce in function])
 
 
 def _sample_function(
     function: sp.Expr,
-    min_val: float = MIN_VAL,
-    max_val: float = MAX_VAL,
-    steps: int = STEPS,
     arg_num: int | None = None,
 ) -> np.ndarray:
-    def eval_function(
-        function: sp.Expr, args: list[sp.Symbol], i: tuple[int, ...]
-    ) -> float:
-        for arg_name, value in zip(args, i, strict=True):
-            function = function.subs(
-                arg_name, value * (max_val - min_val) / (steps - 1) + min_val
-            )
-        return float(function.evalf())
-
     args = _get_args(function) if arg_num is None else variables[:arg_num]
-    shape = (steps,) * len(args)
 
-    # just a wrapper for a cleaner syntax
-    vec_func = np.vectorize(lambda *idx: eval_function(function, args, idx))
+    grid_1d = np.linspace(MIN_VAL, MAX_VAL, STEPS, dtype=float)
+    grids = np.meshgrid(*([grid_1d] * len(args)), indexing="ij")
 
-    return cast(np.ndarray, np.fromfunction(vec_func, shape, dtype=int))
+    f = cast(
+        sp.FunctionClass,
+        sp.lambdify(args, function, modules="numpy"),  # pyright: ignore[reportUnknownMemberType]
+    )
+    out = cast(NDArray, f(*grids))
+
+    # lambdify may return scalar for constant expressions; broadcast to grid shape
+    if np.isscalar(out):
+        out = np.full([STEPS] * len(args), out, dtype=DType)
+    else:
+        out = np.asarray(out, dtype=DType)
+
+    return out
 
 
-_test_functions = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
-_test_vector_functions = [
+TEST_FUNCTIONS = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
+TEST_VECTOR_FUNCTIONS = [
     [a**2],
     [a**2 + b**0.5, a**3 + b**2],
     [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
 ]
 
-TEST_TENSORS = [_sample_function(fce) for fce in _test_functions]
-TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in _test_vector_functions]
+TEST_TENSORS = [_sample_function(fce) for fce in TEST_FUNCTIONS]
+TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in TEST_VECTOR_FUNCTIONS]
 
 TEST_GRADIENTS = [
-    _sample_vector_function(_autocompute_gradient(fce)) for fce in _test_functions
+    _sample_vector_function(_autocompute_gradient(fce)) for fce in TEST_FUNCTIONS
 ]
 TEST_DIVERGENCES = [
     _sample_function(_autocompute_divergence(fce), arg_num=len(fce))
-    for fce in _test_vector_functions
+    for fce in TEST_VECTOR_FUNCTIONS
 ]
 TEST_LAPLACES = [
     _sample_function(_autocompute_laplace(fce), arg_num=_get_arg_count(fce))
-    for fce in _test_functions
+    for fce in TEST_FUNCTIONS
 ]
 
 
