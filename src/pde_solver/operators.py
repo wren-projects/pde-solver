@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from functools import reduce
 from typing import cast
 
 import numpy as np
