@@ -142,3 +142,25 @@ def dot_product[DT: np.dtype](
 ) -> np.ndarray[tuple[int, ...], DT]:
     """Compute the tensor dot product."""
     return cast(np.ndarray[tuple[int, ...], DT], np.tensordot(a, b, axes=1))
+
+
+def scale_matrix[DT: np.floating](a: Vector[DT], b: Matrix[DT]) -> Matrix[DT]:
+    """
+    Scale a matrix by a vector.
+
+    Equivalent to `np.diag(a) @ b`.
+
+    Parameters
+    ----------
+    a : Vector[DT]
+        The vector to scale the matrix by.
+    b : Matrix[DT]
+        The matrix to scale.
+
+    Returns
+    -------
+    Matrix[DT]
+        The scaled matrix.
+
+    """
+    return np.multiply(a[:, None], b)
