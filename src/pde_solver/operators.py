@@ -61,10 +61,7 @@ class Divergence:
             )
         grad = gradient(tensor, spacial_step, axis=tuple(range(1, tensor.ndim)))
 
-        return cast(
-            NDArray,
-            reduce(np.add, (value[i] for i, value in enumerate(grad))),  # pyright: ignore[reportAny]
-        )
+        return cast(NDArray, np.trace(grad))
 
 
 gradient = Gradient()
