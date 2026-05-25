@@ -9,8 +9,8 @@ from pde_solver.operators import divergence, gradient, laplace
 from pde_solver.pde_types import DType, NDArray
 
 # TODO: Move this into a new file
-MIN_VAL = 0.5 - 1e-6
-MAX_VAL = 0.5 + 1e-6
+MIN_VAL = 0
+MAX_VAL = 1
 STEPS = 10
 SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)
 
@@ -23,7 +23,7 @@ f: sp.Symbol = sp.Symbol("f")
 variables = [a, b, c, d, e, f]
 
 
-def _get_args(function: sp.Expr) -> list[sp.Symbol]:
+def _infer_args(function: sp.Expr) -> list[sp.Symbol]:
     """
     Find which arguments the function takes.
 
@@ -38,15 +38,15 @@ def _get_args(function: sp.Expr) -> list[sp.Symbol]:
     return variables[: max(indices) + 1]
 
 
-def _get_arg_count(function: sp.Expr) -> int:
-    return len(_get_args(function))
+def _infer_arg_count(function: sp.Expr) -> int:
+    return len(_infer_args(function))
 
 
 def _autocompute_gradient(function: sp.Expr) -> list[sp.Expr]:
     """Auto-compute gradient for the given function."""
     return [
         cast(sp.Expr, sp.diff(function, var))  # pyright: ignore[reportUnknownMemberType]
-        for var in _get_args(function)
+        for var in _infer_args(function)
     ]
 
 
@@ -68,7 +68,7 @@ def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
         sp.Expr,
         sum(
             cast(sp.Expr, sp.diff(function, var, 2))  # pyright: ignore[reportUnknownMemberType]
-            for var in _get_args(function)
+            for var in _infer_args(function)
         ),
     )
 
@@ -83,7 +83,7 @@ def _sample_function(
     function: sp.Expr,
     arg_num: int | None = None,
 ) -> np.ndarray:
-    args = _get_args(function) if arg_num is None else variables[:arg_num]
+    args = _infer_args(function) if arg_num is None else variables[:arg_num]
 
     grid_1d = np.linspace(MIN_VAL, MAX_VAL, STEPS, dtype=float)
     grids = np.meshgrid(*([grid_1d] * len(args)), indexing="ij")
@@ -121,7 +121,7 @@ TEST_DIVERGENCES = [
     for fce in TEST_VECTOR_FUNCTIONS
 ]
 TEST_LAPLACES = [
-    _sample_function(_autocompute_laplace(fce), arg_num=_get_arg_count(fce))
+    _sample_function(_autocompute_laplace(fce), arg_num=_infer_arg_count(fce))
     for fce in TEST_FUNCTIONS
 ]
 
@@ -156,7 +156,7 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
     ("tensor", "div"), zip(TEST_VECTOR_TENSORS, TEST_DIVERGENCES, strict=True)
 )
 def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
-    """Test numerical gradient is close to the analytical one."""
+    """Test numerical divergence is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
     assert_allclose(get_interior(got), get_interior(div), rtol=1e-3, atol=1e-3)
 
@@ -165,8 +165,9 @@ def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
     ("tensor", "lap"), zip(TEST_TENSORS, TEST_LAPLACES, strict=True)
 )
 def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
-    """Test numerical gradient is close to the analytical one."""
+    """Test numerical Laplace is close to the analytical one."""
     got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
+    # tolerance needs to be different due to high discretization error
     assert_allclose(
-        get_interior(got, order=2), get_interior(lap, order=2), rtol=1e-3, atol=1e-1
+        get_interior(got, order=2), get_interior(lap, order=2), rtol=1e-3, atol=1e-3
     )
