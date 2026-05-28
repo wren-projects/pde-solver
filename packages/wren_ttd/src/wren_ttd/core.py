@@ -435,6 +435,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """Transpose the TTD object."""
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
+    def sum(self, axis: int | Sequence[int] | None = None) -> DType | TTD[DType]:
+        """Return the sum of the TTD object."""
+        return ops.sum(self, axis)
+
     @overload
     def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
 

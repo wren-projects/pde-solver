@@ -8,6 +8,7 @@ from .neg import neg
 from .pad import pad
 from .stack import stack
 from .subtract import subtract
+from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
 from .tensordot import tensordot
 from .transpose import transpose
@@ -23,6 +24,7 @@ __all__ = [
     "pad",
     "stack",
     "subtract",
+    "sum",
     "swapaxes",
     "tensordot",
     "transpose",
