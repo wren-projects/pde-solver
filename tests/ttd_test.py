@@ -154,6 +154,16 @@ def test_add(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert_default_epsilon(ttd_copy, tensor_sum)
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(("scalar"), TEST_SCALARS)
+def test_scalar_addition(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    """Test that TTD scalar addition works."""
+    assert_default_epsilon(ttd + scalar, tensor + scalar)
+    assert_default_epsilon(scalar + ttd, tensor + scalar)
+    assert_default_epsilon(np.add(ttd, scalar), tensor + scalar)
+    assert_default_epsilon(np.add(scalar, ttd), tensor + scalar)
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test that TTD addition works."""
@@ -171,6 +181,16 @@ def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     ttd_copy = ttd_a.copy()
     ttd_copy -= ttd_b
     assert_default_epsilon(ttd_copy, tensor_diff)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(("scalar"), TEST_SCALARS)
+def test_scalar_subtraction(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    """Test that TTD scalar subtraction works."""
+    assert_default_epsilon(ttd - scalar, tensor - scalar)
+    assert_default_epsilon(scalar - ttd, scalar - tensor)
+    assert_default_epsilon(np.subtract(ttd, scalar), tensor - scalar)
+    assert_default_epsilon(np.subtract(scalar, ttd), scalar - tensor)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))

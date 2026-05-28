@@ -17,7 +17,7 @@ from numpy_ttd.math import (
     dot_product,
     truncation_parameter,
 )
-from numpy_ttd.types import Core, Index1D, Matrix
+from numpy_ttd.types import Core, Index1D, Matrix, Scalar, ScalarTypes
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 
 @implements_ufunc("add")
 def add[DType: np.floating](
-    a: TTD[DType],
-    b: TTD[DType],
+    a: TTD[DType] | Scalar,
+    b: TTD[DType] | Scalar,
     *,
     out: TTD[DType] | None = None,
 ) -> TTD[DType]:
@@ -39,7 +39,9 @@ def add[DType: np.floating](
         A + B = (G₀ H₀) ⊗ (G₁ 0 ; 0 H₁) ⊗ (G₂ 0 ; 0 H₂) ⊗ … ⊗ (Gₙ ; Hₙ).
 
     The addition requires that the TTD objects have the same shape and the same
-    dtype.
+    dtype. If one of the operands is a scalar, it is broadcasted to the shape of
+    the other operand and then added. That is equivalent to adding the scalar to
+    each element of the other operand.
 
     Parameters
     ----------
@@ -58,6 +60,23 @@ def add[DType: np.floating](
     """
     # the import has to be here to avoid circular imports
     from numpy_ttd.ttd import TTD
+
+    def normalize_operands(
+        a: TTD[DType] | Scalar, b: TTD[DType] | Scalar
+    ) -> tuple[TTD[DType], TTD[DType]]:
+
+        if isinstance(a, TTD) and isinstance(b, TTD):
+            return a, b
+
+        if isinstance(a, TTD) and isinstance(b, ScalarTypes):
+            return a, TTD.full(a.shape, b, dtype=a.dtype)
+
+        if isinstance(b, TTD) and isinstance(a, ScalarTypes):
+            return TTD.full(b.shape, a, dtype=b.dtype), b
+
+        raise TypeError("a and b must be either TTDs or a TTD and a scalar")
+
+    a, b = normalize_operands(a, b)
 
     if a.shape != b.shape:
         raise ValueError("Tensors with different shapes cannot be added.")
@@ -143,21 +162,19 @@ def _add_cores[DType: np.floating](
 
 @overload
 def multiply[DType: np.floating](
-    a: TTD[DType], b: np.floating | float, out: TTD[DType] | None = None
+    a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @overload
 def multiply[DType: np.floating](
-    a: np.floating | float, b: TTD[DType], out: TTD[DType] | None = None
+    a: Scalar, b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @implements_ufunc("multiply")
 def multiply[DType: np.floating](
-    a: TTD[DType] | np.floating | float,
-    b: TTD[DType] | np.floating | float,
-    out: TTD[DType] | None = None,
+    a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
     Multiply a TTD object by a scalar.
@@ -174,7 +191,7 @@ def multiply[DType: np.floating](
     ----------
     a : TTD[DType]
         The TTD object to multiply.
-    b : np.floating | float
+    b : Scalar
         The scalar to multiply the TTD object by.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
@@ -203,10 +220,10 @@ def multiply[DType: np.floating](
 
         return TTD(cores, dtype=ttd.dtype)
 
-    if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
+    if isinstance(a, TTD) and isinstance(b, ScalarTypes):
         return impl(a, b, out=out)
 
-    if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
+    if isinstance(b, TTD) and isinstance(a, ScalarTypes):
         return impl(b, a, out=out)
 
     return NotImplemented
@@ -235,7 +252,7 @@ def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
 
 @implements_ufunc("subtract")
 def subtract[DType: np.floating](
-    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+    a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
     Subtract two TTD objects.
@@ -258,7 +275,8 @@ def subtract[DType: np.floating](
         The result of the subtraction.
 
     """
-    return add(a, neg(b), out=out)
+    negative = cast("TTD[DType] | Scalar", cast(object, np.negative(b)))
+    return add(a, negative, out=out)
 
 
 @implements_function("vdot")
@@ -626,7 +644,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
         return cast(TTD[DType], ttds)
 
     # typing is dumb
-    ttds = cast(Sequence[TTD[DType]], list(cast(Sequence[TTD[DType]], ttds)))
+    ttds = list(cast(Sequence[TTD[DType]], ttds))
 
     ttd0 = ttds[0]
     dtype = ttd0.dtype

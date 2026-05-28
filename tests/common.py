@@ -3,6 +3,7 @@ import math
 import numpy as np
 
 from numpy_ttd import DEFAULT_EPSILON, TTD
+from numpy_ttd.types import Scalar
 from pde_solver.pde_types import NDArray
 
 rng = np.random.default_rng(0)
@@ -105,7 +106,7 @@ TEST_SHAPES: list[tuple[int, ...]] = [
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
 
-type EpsilonComparable = NDArray | TTD[np.float64] | np.floating | float
+type EpsilonComparable = NDArray | TTD[np.float64] | Scalar
 
 
 def assert_default_epsilon(
