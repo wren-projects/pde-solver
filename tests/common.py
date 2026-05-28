@@ -131,7 +131,7 @@ def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
     np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=DEFAULT_EPSILON)
 
 
-def get_interior_of_a_tensor(tensor: NDArray, order: int = 1) -> NDArray:
+def tensor_interior(tensor: NDArray, order: int = 1) -> NDArray:
     """
     Return the interior of a given tensor as a 1D array.
 
@@ -155,7 +155,7 @@ def get_interior_of_a_tensor(tensor: NDArray, order: int = 1) -> NDArray:
     return tensor[mask]
 
 
-def get_boundary_of_a_tensor(tensor: NDArray, order: int = 1) -> NDArray:
+def tensor_boundary(tensor: NDArray, order: int = 1) -> NDArray:
     """
     Return the boundary of a given tensor as a 1D array.
 

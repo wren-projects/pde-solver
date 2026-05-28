@@ -6,7 +6,7 @@ import sympy as sp  # pyright: ignore[reportMissingTypeStubs]
 
 from pde_solver.operators import divergence, gradient, laplace
 from pde_solver.pde_types import DType, NDArray
-from tests.common import assert_default_epsilon, get_interior_of_a_tensor
+from tests.common import assert_default_epsilon, tensor_interior
 
 # TODO: Move
 MIN_VAL = 0.5  # we need to not hit any roots of the functions later
@@ -158,7 +158,7 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
 def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
     """Test numerical divergence is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
-    assert_default_epsilon(get_interior_of_a_tensor(got), get_interior_of_a_tensor(div))
+    assert_default_epsilon(tensor_interior(got), tensor_interior(div))
 
 
 @pytest.mark.parametrize(
@@ -168,6 +168,4 @@ def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
     """Test numerical Laplace is close to the analytical one."""
     got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
     # tolerance needs to be different due to high discretization error
-    assert_default_epsilon(
-        get_interior_of_a_tensor(got, order=2), get_interior_of_a_tensor(lap, order=2)
-    )
+    assert_default_epsilon(tensor_interior(got, order=2), tensor_interior(lap, order=2))
