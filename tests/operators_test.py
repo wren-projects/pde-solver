@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose
 
 from pde_solver.operators import divergence, gradient, laplace
 from pde_solver.pde_types import DType, NDArray
+from tests.common import get_interior_of_a_tensor
 
 # TODO: Move
 MIN_VAL = 0.5  # we need to not hit any roots of the functions later
@@ -133,16 +134,11 @@ TEST_LAPLACES = [
 ]
 
 
+# we define this function here as it is highly specific and unlikely to be useful
+# elsewhere
 def get_vector_interior(tensor: np.ndarray, order: int = 1) -> np.ndarray:
     """Return the interior of the tensor (a vector function)."""
     slices = (None, *tuple(slice(order, -order) for _ in range(tensor.ndim - 1)))
-
-    return tensor[slices]
-
-
-def get_interior(tensor: np.ndarray, order: int = 1) -> np.ndarray:
-    """Return the interior of the tensor by removing the boundary."""
-    slices = tuple(slice(order, -order) for _ in range(tensor.ndim))
 
     return tensor[slices]
 
@@ -163,7 +159,7 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
 def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
     """Test numerical divergence is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
-    assert_allclose(get_interior(got), get_interior(div))
+    assert_allclose(get_interior_of_a_tensor(got), get_interior_of_a_tensor(div))
 
 
 @pytest.mark.parametrize(
@@ -173,4 +169,6 @@ def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
     """Test numerical Laplace is close to the analytical one."""
     got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
     # tolerance needs to be different due to high discretization error
-    assert_allclose(get_interior(got, order=2), get_interior(lap, order=2))
+    assert_allclose(
+        get_interior_of_a_tensor(got, order=2), get_interior_of_a_tensor(lap, order=2)
+    )

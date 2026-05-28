@@ -1,14 +1,14 @@
 import math
 
 import numpy as np
-from numpy.typing import NDArray
 
 from numpy_ttd import DEFAULT_EPSILON, TTD
+from pde_solver.pde_types import NDArray
 
 rng = np.random.default_rng(0)
 
 
-type TestTensor = NDArray[np.float64]
+type TestTensor = NDArray
 type TestTensorPair = tuple[TestTensor, TestTensor]
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
@@ -111,7 +111,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e3)
 
-type EpsilonComparable = NDArray[np.float64] | TTD[np.float64] | np.floating | float
+type EpsilonComparable = NDArray | TTD[np.float64] | np.floating | float
 
 
 def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
@@ -129,3 +129,51 @@ def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
 
     """
     np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=DEFAULT_EPSILON)
+
+
+def get_interior_of_a_tensor(tensor: NDArray, order: int = 1) -> NDArray:
+    """
+    Return the interior of a given tensor as a 1D array.
+
+    Parameters
+    ----------
+    tensor : NDArray
+        The tensor of which the interior is to be taken.
+    order : int, optional
+        The number of elements to be removed from each direction in each dimension.
+
+    Returns
+    -------
+    NDArray
+        The one dimensional array containing all the elements of the interior in the
+        input tensor.
+
+    """
+    mask = np.zeros_like(tensor, dtype=bool)
+    interior_slices = tuple(slice(order, -order) for _ in range(tensor.ndim))
+    mask[interior_slices] = True
+    return tensor[mask]
+
+
+def get_boundary_of_a_tensor(tensor: NDArray, order: int = 1) -> NDArray:
+    """
+    Return the boundary of a given tensor as a 1D array.
+
+    Parameters
+    ----------
+    tensor : NDArray
+        The tensor of which the boundary is to be taken.
+    order : int, optional
+        The number of elements to be kept from each direction in each dimension.
+
+    Returns
+    -------
+    NDArray
+        The one dimensional array containing all the elements of boundary in the
+        input tensor.
+
+    """
+    mask = np.ones_like(tensor, dtype=bool)
+    interior_slices = tuple(slice(order, -order) for _ in range(tensor.ndim))
+    mask[interior_slices] = False
+    return tensor[mask]

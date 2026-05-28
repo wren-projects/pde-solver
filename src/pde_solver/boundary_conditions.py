@@ -18,15 +18,7 @@ class ConstantDirichletBoundaryCondition(BoundaryCondition):
 
     @override
     def apply_to_initial_condition(self, state: NDArray) -> NDArray:
-        padded = np.pad(state, pad_width=1)
-        slices: list[slice | int] = [slice(None)] * padded.ndim
-        for dim in range(padded.ndim):
-            slices[dim] = 0
-            padded[*slices] = self.value
-            slices[dim] = padded.shape[dim] - 1
-            padded[*slices] = self.value
-            slices[dim] = slice(None)
-        return padded
+        return np.pad(state, pad_width=1, constant_values=self.value)
 
     @override
     def __call__(self, state_diff: NDArray, time: float, delta_time: float) -> NDArray:
