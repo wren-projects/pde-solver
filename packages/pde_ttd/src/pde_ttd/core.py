@@ -504,17 +504,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.add(-self, other)
 
     @override
-    def __mul__(self, other: Scalar) -> TTD[DType]:
+    def __mul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Multiply two TTD objects."""
         return ops.multiply(self, other)
 
     @override
-    def __imul__(self, other: Scalar) -> TTD[DType]:
+    def __imul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """In-place multiply two TTD objects."""
         return ops.multiply(self, other, out=self)
 
     @override
-    def __rmul__(self, other: Scalar) -> TTD[DType]:
+    def __rmul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Reverse multiply two TTD objects."""
         return ops.multiply(self, other)
 
