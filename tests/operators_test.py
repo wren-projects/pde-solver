@@ -1,4 +1,3 @@
-import itertools
 from typing import cast
 
 import numpy as np
@@ -7,134 +6,130 @@ import sympy as sp  # pyright: ignore[reportMissingTypeStubs]
 from numpy.testing import assert_allclose
 
 from pde_solver.operators import divergence, gradient, laplace
+from pde_solver.pde_types import DType, NDArray
 
-# TODO: Move this into a new file
-MIN_VAL = 0.5 - 1e-6
-MAX_VAL = 0.5 + 1e-6
-STEPS = 10
+# TODO: Move
+MIN_VAL = 0.5  # we need to not hit any roots of the functions later
+MAX_VAL = 10
+STEPS = 20
 SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)
+GRID_1D = np.linspace(MIN_VAL, MAX_VAL, STEPS, dtype=float)
 
-a: sp.Symbol = sp.Symbol("a")
-b: sp.Symbol = sp.Symbol("b")
-c: sp.Symbol = sp.Symbol("c")
-d: sp.Symbol = sp.Symbol("d")
-e: sp.Symbol = sp.Symbol("e")
-f: sp.Symbol = sp.Symbol("f")
-variables = [a, b, c, d, e, f]
+VARIABLE_NAMES = ["a", "b", "c", "d", "e", "f"]
+A, B, C, D, E, F = VARIABLES = [sp.Symbol(name) for name in VARIABLE_NAMES]
 
 
-def _get_args(function: sp.Expr) -> list[sp.Symbol]:
+def _infer_args(function: sp.Expr) -> list[sp.Symbol]:
     """
     Find which arguments the function takes.
 
     To work correctly with functions constant in some arguments, we assume that if a
     function takes f, it takes e, d,… too.
     """
-    var_sequence = [v.name for v in variables]
     used_vars = function.free_symbols
-    indices = [var_sequence.index(str(v)) for v in used_vars if str(v) in var_sequence]
+    indices = [
+        VARIABLE_NAMES.index(str(v)) for v in used_vars if str(v) in VARIABLE_NAMES
+    ]
     if not indices:
         return []
-    return variables[: max(indices) + 1]
+    return VARIABLES[: max(indices) + 1]
 
 
-def _get_arg_count(function: sp.Expr) -> int:
-    return len(_get_args(function))
+def _infer_arg_count(function: sp.Expr) -> int:
+    return len(_infer_args(function))
 
 
 def _autocompute_gradient(function: sp.Expr) -> list[sp.Expr]:
     """Auto-compute gradient for the given function."""
-    return cast(
-        list[sp.Expr],
-        [
-            sp.diff(function, var)  # pyright: ignore[reportUnknownMemberType]
-            for var in _get_args(function)
-        ],
-    )
+    return [
+        cast(
+            sp.Expr,
+            sp.diff(function, var),  # pyright: ignore[reportUnknownMemberType]
+        )
+        for var in _infer_args(function)
+    ]
 
 
 def _autocompute_divergence(function: list[sp.Expr]) -> sp.Expr:
     """Auto-compute divergence for the given function."""
-    args = variables[: len(function)]
-    x = cast(
-        list[sp.Expr],
-        [
-            sp.diff(func, arg)  # pyright: ignore[reportUnknownMemberType]
+    args = VARIABLES[: len(function)]
+    return cast(
+        sp.Expr,
+        sum(
+            cast(
+                sp.Expr,
+                sp.diff(func, arg),  # pyright: ignore[reportUnknownMemberType]
+            )
             for arg, func in zip(args, function, strict=True)
-        ],
+        ),
     )
-    return cast(sp.Expr, sum(x))
 
 
 def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
     """Auto-compute Laplace for the given function."""
-    laplace = cast(
-        list[sp.Expr],
-        [
-            sp.diff(function, var, 2)  # pyright: ignore[reportUnknownMemberType]
-            for var in _get_args(function)
-        ],
+    return cast(
+        sp.Expr,
+        sum(
+            cast(
+                sp.Expr,
+                sp.diff(function, var, 2),  # pyright: ignore[reportUnknownMemberType]
+            )
+            for var in _infer_args(function)
+        ),
     )
-    return cast(sp.Expr, sum(laplace))
 
 
 def _sample_vector_function(
     function: list[sp.Expr],
-    min_val: float = MIN_VAL,
-    max_val: float = MAX_VAL,
-    steps: int = STEPS,
 ) -> np.ndarray:
-    return np.array(
-        [
-            _sample_function(fce, min_val, max_val, steps, arg_num=len(function))
-            for fce in function
-        ]
-    )
+    return np.array([_sample_function(fce, arg_num=len(function)) for fce in function])
 
 
 def _sample_function(
     function: sp.Expr,
-    min_val: float = MIN_VAL,
-    max_val: float = MAX_VAL,
-    steps: int = STEPS,
     arg_num: int | None = None,
 ) -> np.ndarray:
-    def eval_function(
-        function: sp.Expr, args: list[sp.Symbol], i: tuple[int, ...]
-    ) -> float:
-        for arg_name, value in zip(args, i, strict=True):
-            function = function.subs(
-                arg_name, value * (max_val - min_val) / (steps - 1) + min_val
-            )
-        return float(function.evalf())
+    args = _infer_args(function) if arg_num is None else VARIABLES[:arg_num]
 
-    args = _get_args(function) if arg_num is None else variables[:arg_num]
-    a = np.zeros([steps] * len(args))
-    for i in itertools.product(range(steps), repeat=len(args)):
-        a[i] = eval_function(function, args, i)
-    return a
+    grids = np.meshgrid(*([GRID_1D] * len(args)), indexing="ij")
+
+    f = cast(
+        sp.FunctionClass,
+        sp.lambdify(  # pyright: ignore[reportUnknownMemberType]
+            args, function, modules="numpy"
+        ),
+    )
+    out = cast(NDArray, f(*grids))
+
+    # lambdify may return scalar for constant expressions; broadcast to grid shape
+    if np.isscalar(out):
+        out = np.full([STEPS] * len(args), out, dtype=DType)
+    else:
+        out = np.asarray(out, dtype=DType)
+
+    return out
 
 
-_test_functions = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
-_test_vector_functions = [
-    [a**2],
-    [a**2 + b**0.5, a**3 + b**2],
-    [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
+TEST_FUNCTIONS = [A**2, (1 + A) * (1 - B), A**3, C - 3 + B * A, D * B**2 + A * C]
+TEST_VECTOR_FUNCTIONS = [
+    [A**2],
+    [A**2 + B**0.5, A**3 + B**2],
+    [C - 3 + B * A + D, D * B**2 + A * C, A * B + B + B + D, 2 + A - D],
 ]
 
-TEST_TENSORS = [_sample_function(fce) for fce in _test_functions]
-TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in _test_vector_functions]
+TEST_TENSORS = [_sample_function(fce) for fce in TEST_FUNCTIONS]
+TEST_VECTOR_TENSORS = [_sample_vector_function(fce) for fce in TEST_VECTOR_FUNCTIONS]
 
 TEST_GRADIENTS = [
-    _sample_vector_function(_autocompute_gradient(fce)) for fce in _test_functions
+    _sample_vector_function(_autocompute_gradient(fce)) for fce in TEST_FUNCTIONS
 ]
 TEST_DIVERGENCES = [
     _sample_function(_autocompute_divergence(fce), arg_num=len(fce))
-    for fce in _test_vector_functions
+    for fce in TEST_VECTOR_FUNCTIONS
 ]
 TEST_LAPLACES = [
-    _sample_function(_autocompute_laplace(fce), arg_num=_get_arg_count(fce))
-    for fce in _test_functions
+    _sample_function(_autocompute_laplace(fce), arg_num=_infer_arg_count(fce))
+    for fce in TEST_FUNCTIONS
 ]
 
 
@@ -159,26 +154,23 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
     """Test numerical gradient is close to the analytical one."""
     got = gradient(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
 
-    assert_allclose(
-        get_vector_interior(got), get_vector_interior(grad), rtol=1e-3, atol=1e-3
-    )
+    assert_allclose(get_vector_interior(got), get_vector_interior(grad))
 
 
 @pytest.mark.parametrize(
     ("tensor", "div"), zip(TEST_VECTOR_TENSORS, TEST_DIVERGENCES, strict=True)
 )
 def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
-    """Test numerical gradient is close to the analytical one."""
+    """Test numerical divergence is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
-    assert_allclose(get_interior(got), get_interior(div), rtol=1e-3, atol=1e-3)
+    assert_allclose(get_interior(got), get_interior(div))
 
 
 @pytest.mark.parametrize(
     ("tensor", "lap"), zip(TEST_TENSORS, TEST_LAPLACES, strict=True)
 )
 def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
-    """Test numerical gradient is close to the analytical one."""
+    """Test numerical Laplace is close to the analytical one."""
     got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
-    assert_allclose(
-        get_interior(got, order=2), get_interior(lap, order=2), rtol=1e-3, atol=1e-1
-    )
+    # tolerance needs to be different due to high discretization error
+    assert_allclose(get_interior(got, order=2), get_interior(lap, order=2))
