@@ -26,9 +26,10 @@ def _infer_args(function: sp.Expr) -> list[sp.Symbol]:
     To work correctly with functions constant in some arguments, we assume that if a
     function takes f, it takes e, d,… too.
     """
-    var_sequence = [v.name for v in VARIABLES]
     used_vars = function.free_symbols
-    indices = [var_sequence.index(str(v)) for v in used_vars if str(v) in var_sequence]
+    indices = [
+        VARIABLE_NAMES.index(str(v)) for v in used_vars if str(v) in VARIABLE_NAMES
+    ]
     if not indices:
         return []
     return VARIABLES[: max(indices) + 1]
