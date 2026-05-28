@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import cast
 
 import numpy as np
 import pytest
@@ -42,6 +43,17 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
     added = ttd + ttd
     rounded = added.rounded()
     assert_default_epsilon(rounded, 2 * tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_sum(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test sum."""
+    assert_default_epsilon(np.sum(ttd), np.sum(tensor))
+
+    for axis in range(tensor.ndim):
+        assert_default_epsilon(ttd.sum(axis), cast(TestTensor, tensor.sum(axis)))
+
+    assert_default_epsilon(ttd.sum((0, 1)), cast(TestTensor, tensor.sum((0, 1))))
 
 
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
