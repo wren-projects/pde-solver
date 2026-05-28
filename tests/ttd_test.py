@@ -193,6 +193,25 @@ def test_scalar_subtraction(tensor: TestTensor, ttd: TestTTD, scalar: float) -> 
     assert_default_epsilon(np.subtract(scalar, ttd), scalar - tensor)
 
 
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_multiplication(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD addition works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
+
+    assert a.shape == b.shape
+    tensor_product = a * b
+
+    assert_default_epsilon(ttd_a * ttd_b, tensor_product)
+    assert_default_epsilon(ttd_b * ttd_a, tensor_product)
+    assert_default_epsilon(np.multiply(ttd_a, ttd_b), tensor_product)
+    assert_default_epsilon(np.multiply(ttd_b, ttd_a), tensor_product)
+
+    ttd_copy = ttd_a.copy()
+    ttd_copy *= ttd_b
+    assert_default_epsilon(ttd_copy, tensor_product)
+
+
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 @pytest.mark.parametrize(("scalar"), deepcopy(TEST_SCALARS))
 def test_scalar_multiplication(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
