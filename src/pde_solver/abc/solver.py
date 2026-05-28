@@ -88,4 +88,5 @@ class Solver[T](ABC):
         spacial_discretization_step: Vector,
         time_discretization_step: DType,
     ) -> NDArray:
+        """Compute the change to the state in one timestep."""
         raise NotImplementedError
