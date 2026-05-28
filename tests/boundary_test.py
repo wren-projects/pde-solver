@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import pytest
 
@@ -11,7 +13,7 @@ from tests.common import (
 
 
 @pytest.mark.parametrize("value", [-2, 0, 124567, 2.4567654345])
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
 def test_dirichlet_boundary_setup_initial_condition(
     value: float, tensor: NDArray
 ) -> None:
@@ -32,7 +34,7 @@ def test_dirichlet_boundary_setup_initial_condition(
 @pytest.mark.parametrize("value", [-2, 0, 124567, 2.4567654345])
 @pytest.mark.parametrize("time", [-2, 0, 124567, 2.4567654345])
 @pytest.mark.parametrize("delta_time", [-2, 0, 124567, 2.4567654345])
-@pytest.mark.parametrize("tensor", TEST_TENSORS)
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
 def test_dirichlet_boundary_call(
     value: float, time: float, delta_time: float, tensor: NDArray
 ) -> None:
