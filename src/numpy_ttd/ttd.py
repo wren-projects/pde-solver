@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Sequence
+from itertools import pairwise
 from types import EllipsisType
 from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
 
@@ -174,6 +175,29 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     ) -> TTD[DT]:
         """Create a TTD representing a tensor of a constant value."""
         return TTD.ones(shape, dtype=dtype) * fill_value
+
+    @staticmethod
+    def random[DT: np.floating](
+        shape: int | Sequence[int],
+        ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT],
+    ) -> TTD[DT]:
+        """Create a TTD representing a random tensor."""
+        shape = to_int_tuple(shape)
+        d = len(shape)
+
+        ranks = (
+            (1, *((ranks,) * (d - 1)), 1) if isinstance(ranks, int) else tuple(ranks)
+        )
+
+        rng = np.random.default_rng()
+        cores = [
+            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
+            for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
+        ]
+
+        return TTD(cores, dtype=dtype)
 
     @override
     def __repr__(self) -> str:
@@ -433,6 +457,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def T(self) -> TTD[DType]:  # noqa: N802
         """Transpose the TTD object."""
         return TTD(reverse_cores(self.data), dtype=self.dtype)
+
+    def sum(self, axis: int | Sequence[int] | None = None) -> DType | TTD[DType]:
+        """Return the sum of the TTD object."""
+        return ops.sum(self, axis)
 
     @overload
     def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
