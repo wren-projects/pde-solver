@@ -160,6 +160,51 @@ def _add_cores[DType: np.floating](
     ]
 
 
+@implements_function("sum")
+def sum[DType: np.floating](  # noqa: A001
+    ttd: TTD[DType], axis: int | Sequence[int] | None = None
+) -> DType | TTD[DType]:
+    """
+    Return the sum of the TTD object along the given axis.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        The TTD object to sum.
+    axis : int | Sequence[int] | None, optional
+        The axis or axes along which to sum. If None, sum all axes.
+
+    Returns
+    -------
+    TTD[DType]
+        The result of the sum.
+
+    """
+    from .core import TTD
+
+    if axis is None:
+        axis = tuple(range(ttd.ndim))
+
+    axes = normalize_axis_tuple(axis, ttd.ndim)
+
+    cores = ttd.data.copy()
+
+    for a in sorted(axes, reverse=True):
+        if len(cores) == 1:
+            return ttd.dtype.type(cast(np.floating, np.sum(cores[0], axis=1)))
+
+        summed = cast(Matrix[DType], np.sum(cores[a], axis=1))
+
+        if a == 0:
+            cores[1] = dot_product(summed, cores[1])
+        else:
+            cores[a - 1] = dot_product(cores[a - 1], summed)
+
+        _ = cores.pop(a)
+
+    return TTD(cores, dtype=ttd.dtype)
+
+
 @overload
 def multiply[DType: np.floating](
     a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
