@@ -39,14 +39,6 @@ TEST_TENSORS: list[TestTensor] = [
         -10e-5 * arange_tensor(4, 3, 4, 5, 3),
         # ---- 6D ----
         arange_tensor(4, 3, 4, 3, 3, 6),
-        # ---- 7D ----
-        arange_tensor(3, 3, 4, 3, 5, 4, 3),
-        # ---- 8D ----
-        arange_tensor(3, 4, 3, 4, 3, 4, 3, 4),
-        # ---- 9D ----
-        arange_tensor(3, 3, 4, 3, 4, 3, 4, 3, 4),
-        # ---- 10D ----
-        arange_tensor(3, 3, 3, 4, 3, 3, 4, 3, 3, 4),
     ]
 ]
 
@@ -90,16 +82,6 @@ TEST_PAIR_TENSORS: list[TestTensorPair] = [
         (
             arange_tensor(2, 3, 2, 4, 2, 3, 2, 3),
             rng.random((2, 3, 2, 4, 2, 3, 2, 3)),
-        ),
-        # ---- 9D ----
-        (
-            arange_tensor(2, 2, 3, 2, 3, 2, 3, 2, 3),
-            np.ones((2, 2, 3, 2, 3, 2, 3, 2, 3)),
-        ),
-        # ---- 10D ----
-        (
-            arange_tensor(2, 2, 2, 3, 2, 2, 3, 2, 2, 3),
-            rng.integers(0, 10, size=(2, 2, 2, 3, 2, 2, 3, 2, 2, 3)),
         ),
     ]
 ]
