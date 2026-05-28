@@ -4,9 +4,11 @@ import numpy as np
 import pytest
 from pde_common.tests import (
     TEST_SCALARS,
+    TEST_SHAPES,
     TestTensor,
     TestTensorPair,
 )
+from pde_ttd import TTD
 
 from .common import (
     TEST_PAIR_TTD,
@@ -30,6 +32,80 @@ def test_inner_product(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
 def test_frobenius_norm(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test Frobenius norm."""
     assert_default_epsilon(np.linalg.norm(ttd), np.linalg.norm(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test rounding."""
+    assert_default_epsilon(ttd.rounded(), tensor)
+
+    added = ttd + ttd
+    rounded = added.rounded()
+    assert_default_epsilon(rounded, 2 * tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_zeros(shape: tuple[int, ...]) -> None:
+    """Test zeros."""
+    ttd = TTD.zeros(shape, dtype=np.dtype(np.float64))
+    tensor = np.zeros(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_ones(shape: tuple[int, ...]) -> None:
+    """Test ones."""
+    ttd = TTD.ones(shape, dtype=np.dtype(np.float64))
+    tensor = np.ones(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+def test_full(shape: tuple[int, ...], fill_value: float) -> None:
+    """Test full."""
+    ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
+    tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+def test_ranks() -> None:
+    """Test ranks."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.ranks == (2, 2)
+
+
+def test_compressed_size() -> None:
+    """Test ranks."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.compressed_size == 2 * 2 + 2 * 3 * 2 + 2 * 2
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test full indexing."""
+    for index, value in np.ndenumerate(tensor):
+        assert_default_epsilon(ttd[index], value)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
+    for i in range(tensor.shape[0]):
+        assert_default_epsilon(ttd[i], tensor[i])
+        assert_default_epsilon(ttd[:i], tensor[:i])
+        assert_default_epsilon(ttd[i:], tensor[i:])
+        assert_default_epsilon(ttd[i::2], tensor[i::2])
+
+    for j in range(tensor.shape[1]):
+        assert_default_epsilon(ttd[:, j], tensor[:, j])
+        n = tensor.shape[0] // 2
+        assert_default_epsilon(ttd[:n, j], tensor[:n, j])
+        assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
+
+    for i in range(tensor.shape[0]):
+        for j in range(tensor.shape[1]):
+            assert_default_epsilon(ttd[i, j], tensor[i, j])
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
