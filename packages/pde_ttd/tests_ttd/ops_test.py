@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import cast
 
 import numpy as np
 import pytest
@@ -44,6 +45,17 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(rounded, 2 * tensor)
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_sum(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test sum."""
+    assert_default_epsilon(np.sum(ttd), np.sum(tensor))
+
+    for axis in range(tensor.ndim):
+        assert_default_epsilon(ttd.sum(axis), cast(TestTensor, tensor.sum(axis)))
+
+    assert_default_epsilon(ttd.sum((0, 1)), cast(TestTensor, tensor.sum((0, 1))))
+
+
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
 def test_zeros(shape: tuple[int, ...]) -> None:
     """Test zeros."""
@@ -67,6 +79,14 @@ def test_full(shape: tuple[int, ...], fill_value: float) -> None:
     ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
     tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_random(shape: tuple[int, ...]) -> None:
+    """Test randomly generated TTD."""
+    ttd = TTD.random(shape, dtype=np.dtype(np.float64))
+    assert ttd.shape == shape
+    np.testing.assert_allclose(ttd.sum() / ttd.size, 0.5, atol=0.5, rtol=0.5)
 
 
 def test_ranks() -> None:
