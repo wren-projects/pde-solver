@@ -29,7 +29,34 @@ class Solver[T](ABC):
         time_discretization_step: DType,
         time: DType,
     ) -> NDArray:
-        """Compute the state at the given time given the PDE and it's conditions."""
+        """
+        Compute the state at the given time given the PDE and it's conditions.
+
+        Here, a PDE is a triple of the partial differential equation itself, the initial
+        condition and the boundary condition.
+
+        Parameters
+        ----------
+        pde : T
+            The PDE to be solved.
+        initial_condition : NDArray
+            The initial condition of the PDE, already discretized.
+        spacial_discretization_step : Vector
+            Describes how was the initial condition discretized. Needs to have the same
+            length as initial_condition has dimensions.
+        boundary_condition : BoundaryCondition
+            The boundary condition for the PDE
+        time_discretization_step : DType
+            In how big time increaments should the solver emulate the PDE.
+        time : DType
+            The time at which we want to find the PDE's solution.
+
+        Returns
+        -------
+        NDArray
+            The state of the PDE at t=time.
+
+        """
         state = boundary_condition.apply_to_initial_condition(initial_condition)
         prev_state = state
 
