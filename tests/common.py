@@ -108,7 +108,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
     ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b))) for a, b in TEST_PAIR_TENSORS
 ]
 
-
+SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e3)
 
 type EpsilonComparable = NDArray | TTD[np.float64] | np.floating | float

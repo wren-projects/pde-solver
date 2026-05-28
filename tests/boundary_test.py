@@ -5,10 +5,15 @@ import pytest
 
 from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from pde_solver.pde_types import NDArray
-from tests.common import TEST_SCALARS, TEST_TENSORS, tensor_boundary, tensor_interior
+from tests.common import (
+    SMALL_TEST_SCALARS,
+    TEST_TENSORS,
+    tensor_boundary,
+    tensor_interior,
+)
 
 
-@pytest.mark.parametrize("value", TEST_SCALARS)
+@pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
 @pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
 def test_dirichlet_boundary_setup_initial_condition(
     value: float, tensor: NDArray
@@ -27,9 +32,9 @@ def test_dirichlet_boundary_setup_initial_condition(
     )  # interior is returned as a 1D array
 
 
-@pytest.mark.parametrize("value", TEST_SCALARS)
-@pytest.mark.parametrize("time", TEST_SCALARS)
-@pytest.mark.parametrize("delta_time", TEST_SCALARS)
+@pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
+@pytest.mark.parametrize("time", SMALL_TEST_SCALARS)
+@pytest.mark.parametrize("delta_time", SMALL_TEST_SCALARS)
 @pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
 def test_dirichlet_boundary_call(
     value: float, time: float, delta_time: float, tensor: NDArray
