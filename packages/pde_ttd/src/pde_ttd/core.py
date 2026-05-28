@@ -8,7 +8,7 @@ from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, overrid
 import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
-from pde_common.types import Index1D, Matrix, NDArray
+from pde_common.types import Index1D, Matrix, NDArray, Scalar
 
 from pde_ttd import ops
 from pde_ttd._helpers import orthogonalize_right, reverse_cores, to_int_tuple
@@ -86,7 +86,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @staticmethod
     def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+        array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
     ) -> TTD[DT]:
         """
         Compress an NDArray into a TTD object.
@@ -168,7 +168,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     @staticmethod
     def full[DT: np.floating](
         shape: int | Sequence[int],
-        fill_value: DT | float,
+        fill_value: Scalar,
         *,
         dtype: np.dtype[DT] | None = None,
     ) -> TTD[DT]:
@@ -474,47 +474,47 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return self.data[0].shape[1]
 
     @override
-    def __add__(self, other: TTD[DType]) -> TTD[DType]:
+    def __add__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Add two TTD objects."""
         return ops.add(self, other)
 
     @override
-    def __iadd__(self, other: TTD[DType]) -> TTD[DType]:
+    def __iadd__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """In-place add another tensor."""
         return ops.add(self, other, out=self)
 
     @override
-    def __radd__(self, other: TTD[DType]) -> TTD[DType]:
+    def __radd__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Reverse add another tensor."""
         return ops.add(other, self)
 
     @override
-    def __sub__(self, other: TTD[DType]) -> TTD[DType]:
+    def __sub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Subtract two TTD objects."""
         return ops.add(self, -other)
 
     @override
-    def __isub__(self, other: TTD[DType]) -> TTD[DType]:
+    def __isub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """In-place subtract another tensor."""
         return ops.add(self, -other, out=self)
 
     @override
-    def __rsub__(self, other: TTD[DType]) -> TTD[DType]:
+    def __rsub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """Reverse subtract another tensor."""
-        return ops.add(-other, self)
+        return ops.add(-self, other)
 
     @override
-    def __mul__(self, other: np.floating | float) -> TTD[DType]:
+    def __mul__(self, other: Scalar) -> TTD[DType]:
         """Multiply two TTD objects."""
         return ops.multiply(self, other)
 
     @override
-    def __imul__(self, other: np.floating | float) -> TTD[DType]:
+    def __imul__(self, other: Scalar) -> TTD[DType]:
         """In-place multiply two TTD objects."""
         return ops.multiply(self, other, out=self)
 
     @override
-    def __rmul__(self, other: np.floating | float) -> TTD[DType]:
+    def __rmul__(self, other: Scalar) -> TTD[DType]:
         """Reverse multiply two TTD objects."""
         return ops.multiply(self, other)
 

@@ -5,7 +5,7 @@ from pde_common.tests import (
     TestTensor,
     TestTensorPair,
 )
-from pde_common.types import NDArray
+from pde_common.types import NDArray, Scalar
 from pde_ttd import DEFAULT_EPSILON, TTD
 
 type TestTTD = TTD[np.float64]
@@ -20,7 +20,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 ]
 
 
-type EpsilonComparable = NDArray[np.floating] | TTD[np.floating] | np.floating | float
+type EpsilonComparable = NDArray | TTD | Scalar
 
 
 def assert_default_epsilon(
