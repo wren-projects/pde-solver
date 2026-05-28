@@ -13,7 +13,16 @@ class ConstantDirichletBoundaryCondition(BoundaryCondition):
     """Boundary condition with constant value in all directions."""
 
     def __init__(self, value: float) -> None:
-        """One single value is present at all points outside the grid."""
+        """
+        Create a boundary condition where one single value is present everywhere.
+
+        Parameters
+        ----------
+        value : float
+            The value that is present at every point of the boundary
+            and outside the grid.
+
+        """
         self.value = value
 
     @override
