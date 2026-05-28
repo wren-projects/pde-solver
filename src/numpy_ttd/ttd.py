@@ -16,6 +16,7 @@ from numpy_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
     dot_product,
+    scale_matrix,
     truncation_parameter,
 )
 from numpy_ttd.types import Core, Matrix, NDArray
@@ -137,8 +138,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             r = new_core.shape[2]
 
             # 𝐂 = 𝐒𝐕ᵀ
-            # note: equivalent to np.diag(s) @ v_t
-            residue = cast(Matrix[DT], np.einsum("i,ij->ij", s, v_t))
+            residue = scale_matrix(s, v_t)
 
         cores.append(residue.reshape((*residue.shape, 1)))
 
@@ -282,7 +282,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
             cores[k - 1] = u.reshape((beta_k1, i_k, -1))
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
-            cores[k] = dot_product(np.multiply(s, v_t), cores[k])
+            cores[k] = dot_product(scale_matrix(s, v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""

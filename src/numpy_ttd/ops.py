@@ -7,6 +7,7 @@ from math import prod
 from typing import TYPE_CHECKING, Any, Literal, SupportsIndex, cast, overload
 
 import numpy as np
+from numpy.lib.array_utils import normalize_axis_index, normalize_axis_tuple
 
 from numpy_ttd._helpers import orthogonalize_right, reverse_cores
 from numpy_ttd._numpy_api import implements_function, implements_ufunc
@@ -335,10 +336,6 @@ def _contract_cores[DType: np.floating](
     return result.squeeze((0, 2))
 
 
-def _to_int_tuple(axes: int | Iterable[int]) -> tuple[int, ...]:
-    return tuple(map(int, axes)) if isinstance(axes, Iterable) else (int(axes),)
-
-
 @implements_function("tensordot")
 def tensordot[DType: np.floating](
     a: TTD[DType],
@@ -389,19 +386,11 @@ def tensordot[DType: np.floating](
 
     a_axes_raw, b_axes_raw = axes
 
-    a_axes, b_axes = _to_int_tuple(a_axes_raw), _to_int_tuple(b_axes_raw)
-
-    # normalize negative indices
-    a_axes = _normalize_axes(a_axes, a.ndim)
-    b_axes = _normalize_axes(b_axes, b.ndim)
+    a_axes = normalize_axis_tuple(a_axes_raw, a.ndim, "a_axes")
+    b_axes = normalize_axis_tuple(b_axes_raw, b.ndim, "b_axes")
 
     if len(a_axes) != len(b_axes):
         raise ValueError("a_axes and b_axes must have the same length")
-
-    dedup_axes_a, dedup_axes_b = set(a_axes), set(b_axes)
-
-    if len(dedup_axes_a) != len(a_axes) or len(dedup_axes_b) != len(b_axes):
-        raise ValueError("axes entries must be unique")
 
     k = len(a_axes)
 
@@ -409,9 +398,8 @@ def tensordot[DType: np.floating](
         if a.shape[axis_a] != b.shape[axis_b]:
             raise ValueError("Shape mismatch on contracted axes")
 
-    # set returns elements in the insertion order, so this preserves the order
-    a_free = tuple(set(range(a.ndim)) - dedup_axes_a)
-    b_free = tuple(set(range(b.ndim)) - dedup_axes_b)
+    a_free = tuple(i for i in range(a.ndim) if i not in a_axes)
+    b_free = tuple(i for i in range(b.ndim) if i not in b_axes)
 
     a_permutation = a_free + a_axes
     b_permutation = b_axes[::-1] + b_free
@@ -471,25 +459,6 @@ def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
     return cast(DType, np.sqrt(np.vdot(ttd, ttd)))
 
 
-@overload
-def _normalize_axes(axes: int, n: int) -> int: ...
-@overload
-def _normalize_axes(axes: Iterable[int], n: int) -> tuple[int, ...]: ...
-
-
-def _normalize_axes(axes: int | Iterable[int], n: int) -> int | tuple[int, ...]:
-    def single(i: int) -> int:
-        if 0 <= i < n:
-            return i
-
-        if -n <= i < 0:
-            return i + n
-
-        raise ValueError(f"axis out of bounds: must be in [-{n}, {n}) but got {i}")
-
-    return single(axes) if isinstance(axes, int) else tuple(single(i) for i in axes)
-
-
 @implements_function("swapaxes")
 def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD[DType]:
     """
@@ -512,7 +481,8 @@ def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD
         TTD tensor with `axis1` and `axis2` swapped.
 
     """
-    axis1, axis2 = _normalize_axes((axis1, axis2), ttd.ndim)
+    axis1 = normalize_axis_index(axis1, ttd.ndim)
+    axis2 = normalize_axis_index(axis2, ttd.ndim)
 
     if axis1 == axis2:
         return ttd
@@ -560,7 +530,7 @@ def transpose[DType: np.floating](
     if axes is None:
         return ttd.T
 
-    perm = _normalize_axes(map(int, axes), d)
+    perm = normalize_axis_tuple(axes, d)
 
     if len(perm) != d:
         raise ValueError("axes must have length equal to a.ndim")
@@ -671,7 +641,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
             raise ValueError(f"Dtype mismatch: {ttd.dtype} != {dtype}")
 
     # normalize w.r.t. the new tensor
-    axis = _normalize_axes(axis, d + 1)
+    axis = normalize_axis_index(axis, d + 1)
 
     # implement axis != 0 in terms of axis == 0
     if axis == d:
@@ -794,7 +764,7 @@ def gradient[DType: np.floating](
     else:
         axes = tuple(axis)
 
-    axes = _normalize_axes(axes, ttd.ndim)
+    axes = normalize_axis_tuple(axes, ttd.ndim)
 
     if len(set(axes)) != len(axes):
         raise ValueError("axes entries must be unique")
