@@ -82,6 +82,16 @@ for a, b in TEST_PAIR_TENSORS:
     assert a.dtype == b.dtype
 
 
+TEST_SHAPES: list[tuple[int, ...]] = [
+    (3,),
+    (2, 2),
+    (2, 3),
+    (2, 3, 4),
+    (2, 3, 4, 5),
+    (8, 7, 6, 5, 6, 7, 8),
+    (10, 10, 10),
+]
+
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
 
