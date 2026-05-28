@@ -30,6 +30,8 @@ class BoundaryCondition(ABC):
         """
         Apply the boundary condition for a specific state_diff.
 
+        Note this operation modifies the input state_diff!
+
         Parameters
         ----------
         state_diff : NDArray
