@@ -13,14 +13,10 @@ MIN_VAL = 0.5  # we need to not hit any roots of the functions later
 MAX_VAL = 10
 STEPS = 20
 SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)
+GRID_1D = np.linspace(MIN_VAL, MAX_VAL, STEPS, dtype=float)
 
-a: sp.Symbol = sp.Symbol("a")
-b: sp.Symbol = sp.Symbol("b")
-c: sp.Symbol = sp.Symbol("c")
-d: sp.Symbol = sp.Symbol("d")
-e: sp.Symbol = sp.Symbol("e")
-f: sp.Symbol = sp.Symbol("f")
-variables = [a, b, c, d, e, f]
+VARIABLE_NAMES = ["a", "b", "c", "d", "e", "f"]
+A, B, C, D, E, F = VARIABLES = [sp.Symbol(name) for name in VARIABLE_NAMES]
 
 
 def _infer_args(function: sp.Expr) -> list[sp.Symbol]:
@@ -30,12 +26,12 @@ def _infer_args(function: sp.Expr) -> list[sp.Symbol]:
     To work correctly with functions constant in some arguments, we assume that if a
     function takes f, it takes e, d,… too.
     """
-    var_sequence = [v.name for v in variables]
+    var_sequence = [v.name for v in VARIABLES]
     used_vars = function.free_symbols
     indices = [var_sequence.index(str(v)) for v in used_vars if str(v) in var_sequence]
     if not indices:
         return []
-    return variables[: max(indices) + 1]
+    return VARIABLES[: max(indices) + 1]
 
 
 def _infer_arg_count(function: sp.Expr) -> int:
@@ -45,18 +41,24 @@ def _infer_arg_count(function: sp.Expr) -> int:
 def _autocompute_gradient(function: sp.Expr) -> list[sp.Expr]:
     """Auto-compute gradient for the given function."""
     return [
-        cast(sp.Expr, sp.diff(function, var))  # pyright: ignore[reportUnknownMemberType]
+        cast(
+            sp.Expr,
+            sp.diff(function, var),  # pyright: ignore[reportUnknownMemberType]
+        )
         for var in _infer_args(function)
     ]
 
 
 def _autocompute_divergence(function: list[sp.Expr]) -> sp.Expr:
     """Auto-compute divergence for the given function."""
-    args = variables[: len(function)]
+    args = VARIABLES[: len(function)]
     return cast(
         sp.Expr,
         sum(
-            cast(sp.Expr, sp.diff(func, arg))  # pyright: ignore[reportUnknownMemberType]
+            cast(
+                sp.Expr,
+                sp.diff(func, arg),  # pyright: ignore[reportUnknownMemberType]
+            )
             for arg, func in zip(args, function, strict=True)
         ),
     )
@@ -67,7 +69,10 @@ def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
     return cast(
         sp.Expr,
         sum(
-            cast(sp.Expr, sp.diff(function, var, 2))  # pyright: ignore[reportUnknownMemberType]
+            cast(
+                sp.Expr,
+                sp.diff(function, var, 2),  # pyright: ignore[reportUnknownMemberType]
+            )
             for var in _infer_args(function)
         ),
     )
@@ -83,14 +88,15 @@ def _sample_function(
     function: sp.Expr,
     arg_num: int | None = None,
 ) -> np.ndarray:
-    args = _infer_args(function) if arg_num is None else variables[:arg_num]
+    args = _infer_args(function) if arg_num is None else VARIABLES[:arg_num]
 
-    grid_1d = np.linspace(MIN_VAL, MAX_VAL, STEPS, dtype=float)
-    grids = np.meshgrid(*([grid_1d] * len(args)), indexing="ij")
+    grids = np.meshgrid(*([GRID_1D] * len(args)), indexing="ij")
 
     f = cast(
         sp.FunctionClass,
-        sp.lambdify(args, function, modules="numpy"),  # pyright: ignore[reportUnknownMemberType]
+        sp.lambdify(  # pyright: ignore[reportUnknownMemberType]
+            args, function, modules="numpy"
+        ),
     )
     out = cast(NDArray, f(*grids))
 
@@ -103,11 +109,11 @@ def _sample_function(
     return out
 
 
-TEST_FUNCTIONS = [a**2, (1 + a) * (1 - b), a**3, c - 3 + b * a, d * b**2 + a * c]
+TEST_FUNCTIONS = [A**2, (1 + A) * (1 - B), A**3, C - 3 + B * A, D * B**2 + A * C]
 TEST_VECTOR_FUNCTIONS = [
-    [a**2],
-    [a**2 + b**0.5, a**3 + b**2],
-    [c - 3 + b * a + d, d * b**2 + a * c, a * b + b + b + d, 2 + a - d],
+    [A**2],
+    [A**2 + B**0.5, A**3 + B**2],
+    [C - 3 + B * A + D, D * B**2 + A * C, A * B + B + B + D, 2 + A - D],
 ]
 
 TEST_TENSORS = [_sample_function(fce) for fce in TEST_FUNCTIONS]

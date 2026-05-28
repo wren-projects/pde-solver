@@ -104,7 +104,7 @@ class Divergence:
             raise ValueError(
                 "Divergence requires a vector field (at least 2 dimensions)."
             )
-        grad = gradient(tensor, spacial_step, axis=tuple(range(1, tensor.ndim)))
+        grad = gradient(tensor, spacial_step, axis=range(1, tensor.ndim))
 
         return cast(NDArray, np.trace(grad))
 
