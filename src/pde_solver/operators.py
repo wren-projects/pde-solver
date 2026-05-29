@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import cast
+from typing import SupportsIndex, cast
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class Gradient:
         self,
         tensor: NDArray,
         spacial_step: Vector,
-        axis: Sequence[int] | None = None,
+        axis: Sequence[SupportsIndex] | None = None,
     ) -> NDArray:
         """
         Compute the gradient of the tensor with given spacial_steps.
