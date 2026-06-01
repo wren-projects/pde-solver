@@ -19,7 +19,7 @@ from numpy_ttd.math import (
     scale_matrix,
     truncation_parameter,
 )
-from numpy_ttd.types import Core, Matrix, NDArray
+from numpy_ttd.types import Core, Index1D, Matrix, NDArray
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
@@ -408,17 +408,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     @overload
-    def __getitem__(
-        self, key: Sequence[SupportsIndex | slice[SupportsIndex | None]]
-    ) -> TTD[DType] | DType: ...
+    def __getitem__(self, key: Sequence[Index1D]) -> TTD[DType] | DType: ...
 
     @override
     def __getitem__(
         self,
-        key: SupportsIndex
-        | slice[SupportsIndex | None]
-        | EllipsisType
-        | Sequence[SupportsIndex | slice[SupportsIndex | None]],
+        key: Index1D | Sequence[Index1D] | EllipsisType,
     ) -> TTD[DType] | DType:
         """Index into the TTD object."""
         if key is Ellipsis:
