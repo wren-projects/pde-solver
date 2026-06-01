@@ -12,31 +12,28 @@ from pde_solver.pde_types import DType, NDArray, Vector
 class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
     """Solver using the Finite Differences method."""
 
-    STABILITY_TRESHOLD = 0.5
-
     @override
-    def _get_time_step(
+    def _compute_time_step(
         self,
         pde: HomogeneousVectorAdvectionMatrixDiffusionPDE,
         state: NDArray,
         spacial_discretization_step: Vector,
         time_discretization_step: DType,
     ) -> NDArray:
-        # equation format is
-        # 󰌵uₜ + ∇⋅(𝐚⋅u) + ∇⋅(𝐁⋅∇u) = f = 0
-        u_time = -(
-            divergence(
-                np.tensordot(state, pde.vector_advection, axes=0),
-                spacial_discretization_step,
-            )
-            + divergence(
-                np.tensordot(
-                    pde.matrix_diffusion,
-                    gradient(state, spacial_discretization_step),
-                    axes=(-1, 1),
-                ),
-                spacial_discretization_step,
-            )
-        )
 
-        return u_time * time_discretization_step
+        # the PDE is in the format:
+        #   uₜ + ∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u) = f = 0
+        # which means that
+        #   uₜ = -(∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u))
+
+        # α = ∇⋅(𝐚 ⋅ u)
+        advection_flux = np.tensordot(pde.vector_advection, state, axes=0)
+        advection_term = divergence(advection_flux, spacial_discretization_step)
+
+        # β = ∇⋅(𝐁 ⋅ ∇u)
+        state_gradient = gradient(state, spacial_discretization_step)
+        diffusion_flux = np.tensordot(pde.matrix_diffusion, state_gradient, axes=1)
+        diffusion_term = divergence(diffusion_flux, spacial_discretization_step)
+
+        # uₜ = -(α + β) * Δt
+        return -(advection_term + diffusion_term) * time_discretization_step

@@ -82,6 +82,5 @@ ignore = [
 ]
 
 "src/pde_solver/abc/solver.py" = [
-  "PLR0913"
-
+  "PLR0913" # too-many-arguments
 ]
