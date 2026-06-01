@@ -78,7 +78,9 @@ class Solver[T: PDE](ABC):
         # we have probably calculated too high of a time, so we
         # need to interpolate with previous_state
         overshot_by = (current_time - time) / time_step
-        return prev_state * overshot_by + state * (1 - overshot_by)
+        return boundary_condition.remove_boundary(
+            prev_state * overshot_by + state * (1 - overshot_by)
+        )
 
     @abstractmethod
     def _compute_time_step(
