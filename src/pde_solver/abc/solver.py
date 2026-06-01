@@ -75,8 +75,8 @@ class Solver[T: PDE](ABC):
             prev_state = state
             state = prev_state + step
 
-        # we have probably calculated too high of a time, so we
-        # need to interpolate with previous_state
+    		# We probably overshot the target time due to the discretization, so
+    		# we fix it using a linear interpolation between current and previous state.
         overshot_by = (current_time - time) / time_step
         return boundary_condition.remove_boundary(
             prev_state * overshot_by + state * (1 - overshot_by)
