@@ -30,7 +30,7 @@ class Solver[T](ABC):
         time: DType,
     ) -> NDArray:
         """
-        Compute the state at the given time given the PDE and it's conditions.
+        Compute the state at the given time given the PDE and its conditions.
 
         Here, a PDE is a triple of the partial differential equation itself, the initial
         condition and the boundary condition.
