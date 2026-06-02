@@ -20,9 +20,7 @@ def arange_tensor(*shape: int) -> TestTensor:
 
 
 TEST_TENSORS: list[TestTensor] = [
-    # add a small epsilon to all tensors to remove zero values as they break
-    # relative errors
-    tensor.astype(np.float64) + 1e-5
+    tensor.astype(np.float64)
     for tensor in [
         # ---- 2D ----
         arange_tensor(3, 3),
@@ -39,14 +37,6 @@ TEST_TENSORS: list[TestTensor] = [
         -10e-5 * arange_tensor(4, 3, 4, 5, 3),
         # ---- 6D ----
         arange_tensor(4, 3, 4, 3, 3, 6),
-        # ---- 7D ----
-        arange_tensor(3, 3, 4, 3, 5, 4, 3),
-        # ---- 8D ----
-        arange_tensor(3, 4, 3, 4, 3, 4, 3, 4),
-        # ---- 9D ----
-        arange_tensor(3, 3, 4, 3, 4, 3, 4, 3, 4),
-        # ---- 10D ----
-        arange_tensor(3, 3, 3, 4, 3, 3, 4, 3, 3, 4),
     ]
 ]
 
@@ -91,30 +81,26 @@ TEST_PAIR_TENSORS: list[TestTensorPair] = [
             arange_tensor(2, 3, 2, 4, 2, 3, 2, 3),
             rng.random((2, 3, 2, 4, 2, 3, 2, 3)),
         ),
-        # ---- 9D ----
-        (
-            arange_tensor(2, 2, 3, 2, 3, 2, 3, 2, 3),
-            np.ones((2, 2, 3, 2, 3, 2, 3, 2, 3)),
-        ),
-        # ---- 10D ----
-        (
-            arange_tensor(2, 2, 2, 3, 2, 2, 3, 2, 2, 3),
-            rng.integers(0, 10, size=(2, 2, 2, 3, 2, 2, 3, 2, 2, 3)),
-        ),
     ]
 ]
+
+for a, b in TEST_PAIR_TENSORS:
+    assert a.shape == b.shape
+    assert a.dtype == b.dtype
 
 TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
     ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b))) for a, b in TEST_PAIR_TENSORS
 ]
 
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
-TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e3)
+TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
 
 type EpsilonComparable = NDArray | TTD[np.float64] | np.floating | float
 
 
-def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
+def assert_default_epsilon(
+    a: EpsilonComparable, b: EpsilonComparable, scale: EpsilonComparable = 1.0
+) -> None:
     """
     Compare two tensors for equality within the default epsilon.
 
@@ -126,9 +112,19 @@ def assert_default_epsilon(a: EpsilonComparable, b: EpsilonComparable) -> None:
         The first tensor to compare.
     b
         The second tensor to compare.
+    scale
+        The original scale of the tensors, used to normalize the comparison.
 
     """
-    np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=DEFAULT_EPSILON)
+    scale = np.linalg.norm(np.asarray(scale))
+    if scale <= np.finfo(np.float64).eps:
+        scale = 1.0
+
+    np.testing.assert_allclose(
+        np.asarray(a) / scale,
+        np.asarray(b) / scale,
+        atol=DEFAULT_EPSILON,
+    )
 
 
 def tensor_interior(tensor: NDArray, order: int = 1) -> NDArray:

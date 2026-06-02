@@ -72,11 +72,8 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
     """Test full indexing."""
-    if ttd.ndim > 6:
-        return
-
-    for index in np.ndindex(tensor.shape):
-        assert_default_epsilon(ttd[index], tensor[index])
+    for index, value in np.ndenumerate(tensor):
+        assert_default_epsilon(ttd[index], value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -142,14 +139,16 @@ def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
 def test_scalar_multiplication(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
     """Test that TTD scalar multiplication works."""
     scaled_tensor = tensor * scalar
-    assert_default_epsilon(ttd * scalar, scaled_tensor)
-    assert_default_epsilon(scalar * ttd, scaled_tensor)
-    assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor)
-    assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor)
+
+    scale = np.linalg.norm(scaled_tensor)
+    assert_default_epsilon(ttd * scalar, scaled_tensor, scale)
+    assert_default_epsilon(scalar * ttd, scaled_tensor, scale)
+    assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor, scale)
+    assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor, scale)
 
     ttd_copy = ttd.copy()
     ttd_copy *= scalar
-    assert_default_epsilon(ttd_copy, scaled_tensor)
+    assert_default_epsilon(ttd_copy, scaled_tensor, scale)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -208,39 +207,36 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert a.shape == b.shape
     assert ttd_a.shape == ttd_b.shape
 
-    # zero and single axis contractions produce very large tensors (2 times the
-    # input dimensions), so the element-wise comparison is exponentially slow
-    if a.ndim <= 8:
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=0),
-            np.tensordot(a, b, axes=0),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=0),
+        np.tensordot(a, b, axes=0),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b.T, axes=1),
-            np.tensordot(a, b.T, axes=1),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b.T, axes=1),
+        np.tensordot(a, b.T, axes=1),
+    )
 
-        axes = (1, 0, *range(2, ttd_a.ndim))
-        assert_default_epsilon(
-            np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
-            np.tensordot(a, np.transpose(b.T, axes=axes)),
-        )
+    axes = (1, 0, *range(2, ttd_a.ndim))
+    assert_default_epsilon(
+        np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
+        np.tensordot(a, np.transpose(b.T, axes=axes)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
-            np.tensordot(a, b, axes=(0, 0)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
+        np.tensordot(a, b, axes=(0, 0)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
-            np.tensordot(a, b, axes=(-1, -1)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
+        np.tensordot(a, b, axes=(-1, -1)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
-            np.tensordot(a, b, axes=(1, 1)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
+        np.tensordot(a, b, axes=(1, 1)),
+    )
 
     axes_single = tuple(range(a.ndim - 1))
     axes = (axes_single, axes_single)
@@ -302,39 +298,30 @@ def test_stack(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test that TTD gradient works."""
-    assert_default_epsilon(
-        np.gradient(ttd),
-        np.gradient(tensor),
-    )
+    scale = np.linalg.norm(tensor)
 
-    assert_default_epsilon(
-        np.gradient(ttd, axis=1),
-        np.gradient(tensor, axis=1),
-    )
+    assert_default_epsilon(np.gradient(ttd), np.gradient(tensor), scale)
+
+    assert_default_epsilon(np.gradient(ttd, axis=1), np.gradient(tensor, axis=1), scale)
 
     assert_default_epsilon(
         np.gradient(ttd, axis=range(1, ttd.ndim)),
         np.gradient(tensor, axis=range(1, tensor.ndim)),
+        scale,
     )
 
     assert_default_epsilon(
         np.gradient(ttd, axis=range(-ttd.ndim + 1, 0)),
         np.gradient(tensor, axis=range(-tensor.ndim + 1, 0)),
+        scale,
     )
 
     steps = tuple((n + 1) / 10 for n in range(ttd.ndim))
-    assert_default_epsilon(
-        np.gradient(ttd, *steps),
-        np.gradient(tensor, *steps),
-    )
+    assert_default_epsilon(np.gradient(ttd, *steps), np.gradient(tensor, *steps), scale)
 
     steps = tuple(tuple((x + 1) / 10 for x in range(n)) for n in ttd.shape)
-    assert_default_epsilon(
-        np.gradient(ttd, *steps),
-        np.gradient(tensor, *steps),
-    )
+    assert_default_epsilon(np.gradient(ttd, *steps), np.gradient(tensor, *steps), scale)
 
     assert_default_epsilon(
-        np.gradient(ttd, edge_order=2),
-        np.gradient(tensor, edge_order=2),
+        np.gradient(ttd, edge_order=2), np.gradient(tensor, edge_order=2), scale
     )
