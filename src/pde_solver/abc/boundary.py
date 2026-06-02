@@ -25,7 +25,8 @@ class BoundaryCondition(ABC):
 
         """
 
-    def remove_boundary(self, state: NDArray) -> NDArray:
+    @staticmethod
+    def remove_boundary(state: NDArray) -> NDArray:
         """
         Remove boundary that was added to the state via apply_to_initial_condition.
 
