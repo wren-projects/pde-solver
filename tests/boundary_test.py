@@ -15,6 +15,15 @@ from tests.common import (
 
 @pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
 @pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+def test_circular_add_and_remove_boundary(value: float, tensor: NDArray) -> None:
+    """Test adding and removing boundary to a tensor doesn't change anything."""
+    boundary = ConstantDirichletBoundaryCondition(value=value)
+    new_tensor = boundary.remove_boundary(boundary.apply_to_initial_condition(tensor))
+    np.testing.assert_array_equal(new_tensor, tensor)
+
+
+@pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
 def test_dirichlet_boundary_setup_initial_condition(
     value: float, tensor: NDArray
 ) -> None:
