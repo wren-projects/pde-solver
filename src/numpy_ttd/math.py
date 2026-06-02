@@ -11,7 +11,7 @@ from numpy_ttd.types import Matrix, Vector
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
 
-DEFAULT_EPSILON = np.float64(1e-9)
+DEFAULT_EPSILON = np.float64(1e-10)
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
