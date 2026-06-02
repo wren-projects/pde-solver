@@ -13,7 +13,7 @@ class PDE(ABC):
 
     @abstractmethod
     def __init__(self) -> None:
-        """Create a dummy PDE -- this is just a dummy constructor."""
+        """Create a dummy PDE — this is just a dummy constructor."""
         ...
 
     @override

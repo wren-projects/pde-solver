@@ -25,6 +25,28 @@ class BoundaryCondition(ABC):
 
         """
 
+    @staticmethod
+    def remove_boundary(state: NDArray) -> NDArray:
+        """
+        Remove boundary that was added to the state via apply_to_initial_condition.
+
+        Should be a an inverse to apply_to_initial_condition.
+
+        Parameters
+        ----------
+        state : NDArray
+            The state from which boundary is to be removed.
+
+        Returns
+        -------
+        NDArray
+            The state with the boundary removed.
+
+        """
+        slices = tuple(slice(1, -1) for _ in range(state.ndim))
+
+        return state[slices]
+
     @abstractmethod
     def __call__(self, state_diff: NDArray, time: float, delta_time: float) -> NDArray:
         """
