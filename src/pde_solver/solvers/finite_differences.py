@@ -20,7 +20,6 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
         spacial_discretization_step: Vector,
         time_discretization_step: DType,
     ) -> NDArray:
-
         # the PDE is in the format:
         #   uₜ + ∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u) = f = 0
         # which means that
