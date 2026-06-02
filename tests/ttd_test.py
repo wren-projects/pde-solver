@@ -72,11 +72,8 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
     """Test full indexing."""
-    if ttd.ndim > 6:
-        return
-
-    for index in np.ndindex(tensor.shape):
-        assert_default_epsilon(ttd[index], tensor[index])
+    for index, value in np.ndenumerate(tensor):
+        assert_default_epsilon(ttd[index], value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -210,39 +207,36 @@ def test_tensordot(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert a.shape == b.shape
     assert ttd_a.shape == ttd_b.shape
 
-    # zero and single axis contractions produce very large tensors (2 times the
-    # input dimensions), so the element-wise comparison is exponentially slow
-    if a.ndim <= 8:
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=0),
-            np.tensordot(a, b, axes=0),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=0),
+        np.tensordot(a, b, axes=0),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b.T, axes=1),
-            np.tensordot(a, b.T, axes=1),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b.T, axes=1),
+        np.tensordot(a, b.T, axes=1),
+    )
 
-        axes = (1, 0, *range(2, ttd_a.ndim))
-        assert_default_epsilon(
-            np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
-            np.tensordot(a, np.transpose(b.T, axes=axes)),
-        )
+    axes = (1, 0, *range(2, ttd_a.ndim))
+    assert_default_epsilon(
+        np.tensordot(ttd_a, np.transpose(ttd_b.T, axes=axes)),
+        np.tensordot(a, np.transpose(b.T, axes=axes)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
-            np.tensordot(a, b, axes=(0, 0)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(0, 0)),
+        np.tensordot(a, b, axes=(0, 0)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
-            np.tensordot(a, b, axes=(-1, -1)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(-1, -1)),
+        np.tensordot(a, b, axes=(-1, -1)),
+    )
 
-        assert_default_epsilon(
-            np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
-            np.tensordot(a, b, axes=(1, 1)),
-        )
+    assert_default_epsilon(
+        np.tensordot(ttd_a, ttd_b, axes=(1, 1)),
+        np.tensordot(a, b, axes=(1, 1)),
+    )
 
     axes_single = tuple(range(a.ndim - 1))
     axes = (axes_single, axes_single)
