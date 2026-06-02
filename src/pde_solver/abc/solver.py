@@ -29,7 +29,7 @@ class Solver[T: PDE](ABC):
         spacial_step: Vector,
         boundary_condition: BoundaryCondition,
         time_step: DType,
-        time: DType,
+        target_time: DType,
     ) -> NDArray:
         """
         Compute the state at the given time of the given partial differential equation.
@@ -50,7 +50,7 @@ class Solver[T: PDE](ABC):
             The boundary condition for the PDE
         time_step : DType
             In how big time increaments should the solver emulate the PDE.
-        time : DType
+        target_time : DType
             The time at which we want to find the PDE's solution.
 
         Returns
@@ -63,21 +63,23 @@ class Solver[T: PDE](ABC):
         prev_state = state
 
         current_time = 0
-        while current_time < time:
+        while current_time < target_time:
             current_time += time_step
             step = self._compute_time_step(
-                pde,
-                state,
-                spacial_discretization_step=spacial_step,
-                time_discretization_step=time_step,
+                pde=pde,
+                state=state,
+                spacial_step=spacial_step,
+                time_step=time_step,
             )
-            step = boundary_condition(state_diff=step, time=time, delta_time=time_step)
+            step = boundary_condition(
+                state_diff=step, time=target_time, delta_time=time_step
+            )
             prev_state = state
             state = prev_state + step
 
-    		# We probably overshot the target time due to the discretization, so
-    		# we fix it using a linear interpolation between current and previous state.
-        overshot_by = (current_time - time) / time_step
+        # We probably overshot the target time due to the discretization, so
+        # we fix it using a linear interpolation between current and previous state.
+        overshot_by = (current_time - target_time) / time_step
         return boundary_condition.remove_boundary(
             prev_state * overshot_by + state * (1 - overshot_by)
         )
@@ -87,8 +89,8 @@ class Solver[T: PDE](ABC):
         self,
         pde: T,
         state: NDArray,
-        spacial_discretization_step: Vector,
-        time_discretization_step: DType,
+        spacial_step: Vector,
+        time_step: DType,
     ) -> NDArray:
         """Compute the change to the state in one timestep."""
         raise NotImplementedError

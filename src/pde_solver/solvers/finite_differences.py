@@ -17,8 +17,8 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
         self,
         pde: HomogeneousVectorAdvectionMatrixDiffusionPDE,
         state: NDArray,
-        spacial_discretization_step: Vector,
-        time_discretization_step: DType,
+        spacial_step: Vector,
+        time_step: DType,
     ) -> NDArray:
         # the PDE is in the format:
         #   uₜ + ∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u) = f = 0
@@ -27,12 +27,12 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
 
         # α = ∇⋅(𝐚 ⋅ u)
         advection_flux = np.tensordot(pde.vector_advection, state, axes=0)
-        advection_term = divergence(advection_flux, spacial_discretization_step)
+        advection_term = divergence(advection_flux, spacial_step)
 
         # β = ∇⋅(𝐁 ⋅ ∇u)
-        state_gradient = gradient(state, spacial_discretization_step)
+        state_gradient = gradient(state, spacial_step)
         diffusion_flux = np.tensordot(pde.matrix_diffusion, state_gradient, axes=1)
-        diffusion_term = divergence(diffusion_flux, spacial_discretization_step)
+        diffusion_term = divergence(diffusion_flux, spacial_step)
 
         # uₜ = -(α + β) * Δt
-        return -(advection_term + diffusion_term) * time_discretization_step
+        return -(advection_term + diffusion_term) * time_step

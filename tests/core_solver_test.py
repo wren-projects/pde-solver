@@ -16,7 +16,7 @@ def test_empty_state_3_dims() -> None:
         initial_condition=initial_condition,
         spacial_step=np.ones(3) * 0.01,
         time_step=np.float64(0.01),
-        time=np.float64(1),
+        target_time=np.float64(1),
         boundary_condition=ConstantDirichletBoundaryCondition(0),
     )
     assert_default_epsilon(solved, initial_condition)
