@@ -5,16 +5,15 @@ from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
-
-from numpy_ttd.types import Matrix, Vector
+from pde_common.types import Matrix, Vector
 
 if TYPE_CHECKING:
-    from numpy_ttd.ttd import TTD
+    from pde_ttd.core import TTD
 
 DEFAULT_EPSILON = np.float64(1e-10)
 
 if TYPE_CHECKING:
-    from numpy_ttd.ttd import TTD
+    from pde_ttd.core import TTD
 
 
 def truncation_parameter[DT: np.floating](

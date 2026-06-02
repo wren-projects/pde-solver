@@ -54,10 +54,10 @@ jobs:
         uses: extractions/setup-just@v4
 
       - name: Backup original
-        run: cp -a src/ backup/
+        run: cp -a packages/pde_solver backup/
 
       - name: Run just
         run: just generate-pdes
 
       - name: Check diff
-        run: diff -ruN -X .gitignore src/ backup/
+        run: diff -ruN -X .gitignore packages/pde_solver backup/

@@ -1,9 +1,7 @@
 import numpy as np
-
 from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from pde_solver.pde import HomogeneousNoAdvectionNoDiffusionPDE
 from pde_solver.solvers.finite_differences import FiniteDifferences
-from tests.common import assert_default_epsilon
 
 
 def test_empty_state_3_dims() -> None:
@@ -19,4 +17,4 @@ def test_empty_state_3_dims() -> None:
         target_time=np.float64(1),
         boundary_condition=ConstantDirichletBoundaryCondition(0),
     )
-    assert_default_epsilon(solved, initial_condition)
+    np.testing.assert_allclose(solved, initial_condition)

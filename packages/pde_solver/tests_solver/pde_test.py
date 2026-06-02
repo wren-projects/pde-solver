@@ -3,7 +3,6 @@ import types
 from typing import Any, TypeAliasType
 
 import numpy as np
-
 from pde_solver import pde
 from pde_solver.pde_types import (
     Matrix,
