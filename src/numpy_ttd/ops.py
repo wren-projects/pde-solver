@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
 from math import prod
-from typing import TYPE_CHECKING, Any, Literal, SupportsIndex, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_index, normalize_axis_tuple
@@ -17,7 +17,7 @@ from numpy_ttd.math import (
     dot_product,
     truncation_parameter,
 )
-from numpy_ttd.types import Core, Matrix
+from numpy_ttd.types import Core, Index1D, Matrix
 
 if TYPE_CHECKING:
     from numpy_ttd.ttd import TTD
@@ -671,7 +671,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
 
 
 def get_item[DType: np.floating](
-    ttd: TTD[DType], indexes: Sequence[SupportsIndex | slice[SupportsIndex | None]]
+    ttd: TTD[DType], indexes: Sequence[Index1D]
 ) -> TTD[DType] | DType:
     """
     Index into a TTD.
@@ -682,7 +682,7 @@ def get_item[DType: np.floating](
     ----------
     ttd : TTD[DType]
         The TTD to index into.
-    indexes : Sequence[int | slice[int | None]]
+    indexes : Sequence[Index1D]
         The indices to index into the TTD.
 
     Returns
@@ -747,7 +747,7 @@ def gradient[DType: np.floating](
         The TTD to compute the gradient of.
     varargs : float | Sequence[float]
         The step sizes to use for the gradient.
-    axis : int | Sequence[int] | None, optional
+    axis : int | Sequence[SupportsIndex] | None, optional
         The axis or axes along which to compute the gradient, by default None,
         which is equivalent to all axes.
     edge_order : Literal[1, 2], optional
