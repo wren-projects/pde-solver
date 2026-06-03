@@ -40,7 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Pytest with Coverage
-        run: uv run pytest --cov=src/ --cov-fail-under=${{ vars.MINIMAL_TEST_COVERAGE }}
+        run: |
+          uv run pytest --cov=src --cov=packages \
+              --cov-fail-under=${{ vars.MINIMAL_TEST_COVERAGE }}
 
   check_pdes_is_build:
     name: Ensure pde.py were not manually altered
@@ -54,10 +56,10 @@ jobs:
         uses: extractions/setup-just@v4
 
       - name: Backup original
-        run: cp -a src/ backup/
+        run: cp -a packages/pde_solver backup/
 
       - name: Run just
         run: just generate-pdes
 
       - name: Check diff
-        run: diff -ruN -X .gitignore src/ backup/
+        run: diff -ruN -X .gitignore packages/pde_solver backup/

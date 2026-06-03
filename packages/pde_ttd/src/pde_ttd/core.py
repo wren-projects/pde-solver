@@ -8,18 +8,19 @@ from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, overrid
 import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
+from pde_common.types import Index1D, Matrix, NDArray
 
-from numpy_ttd import ops
-from numpy_ttd._helpers import orthogonalize_right, reverse_cores
-from numpy_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
-from numpy_ttd.math import (
+from pde_ttd import ops
+from pde_ttd._helpers import orthogonalize_right, reverse_cores
+from pde_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
+from pde_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
     dot_product,
     scale_matrix,
     truncation_parameter,
 )
-from numpy_ttd.types import Core, Index1D, Matrix, NDArray
+from pde_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")

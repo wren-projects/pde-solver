@@ -2,15 +2,14 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-
-from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
-from pde_solver.pde_types import NDArray
-from tests.common import (
+from pde_common.tests import (
     SMALL_TEST_SCALARS,
     TEST_TENSORS,
     tensor_boundary,
     tensor_interior,
 )
+from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
+from pde_solver.pde_types import NDArray
 
 
 @pytest.mark.parametrize("value", SMALL_TEST_SCALARS)

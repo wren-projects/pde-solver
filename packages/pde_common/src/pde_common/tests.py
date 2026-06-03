@@ -2,16 +2,13 @@ import math
 
 import numpy as np
 
-from numpy_ttd import DEFAULT_EPSILON, TTD
-from pde_solver.pde_types import NDArray
+from pde_common.types import NDArray
 
 rng = np.random.default_rng(0)
 
 
-type TestTensor = NDArray
+type TestTensor = NDArray[np.float64]
 type TestTensorPair = tuple[TestTensor, TestTensor]
-type TestTTD = TTD[np.float64]
-type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
 
 
 def arange_tensor(*shape: int) -> TestTensor:
@@ -38,10 +35,6 @@ TEST_TENSORS: list[TestTensor] = [
         # ---- 6D ----
         arange_tensor(4, 3, 4, 3, 3, 6),
     ]
-]
-
-TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
-    (tensor, TTD.from_ndarray(tensor)) for tensor in TEST_TENSORS
 ]
 
 
@@ -88,46 +81,14 @@ for a, b in TEST_PAIR_TENSORS:
     assert a.shape == b.shape
     assert a.dtype == b.dtype
 
-TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
-    ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b))) for a, b in TEST_PAIR_TENSORS
-]
 
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
 
-type EpsilonComparable = NDArray | TTD[np.float64] | np.floating | float
 
-
-def assert_default_epsilon(
-    a: EpsilonComparable, b: EpsilonComparable, scale: EpsilonComparable = 1.0
-) -> None:
-    """
-    Compare two tensors for equality within the default epsilon.
-
-    Implicitly expands TTDs to ndarrays for comparison.
-
-    Parameters
-    ----------
-    a
-        The first tensor to compare.
-    b
-        The second tensor to compare.
-    scale
-        The original scale of the tensors, used to normalize the comparison.
-
-    """
-    scale = np.linalg.norm(np.asarray(scale))
-    if scale <= np.finfo(np.float64).eps:
-        scale = 1.0
-
-    np.testing.assert_allclose(
-        np.asarray(a) / scale,
-        np.asarray(b) / scale,
-        atol=DEFAULT_EPSILON,
-    )
-
-
-def tensor_interior(tensor: NDArray, order: int = 1) -> NDArray:
+def tensor_interior[DType: np.number](
+    tensor: NDArray[DType], order: int = 1
+) -> NDArray[DType]:
     """
     Return the interior of a given tensor as a 1D array.
 
@@ -151,7 +112,9 @@ def tensor_interior(tensor: NDArray, order: int = 1) -> NDArray:
     return tensor[mask]
 
 
-def tensor_boundary(tensor: NDArray, order: int = 1) -> NDArray:
+def tensor_boundary[DType: np.number](
+    tensor: NDArray[DType], order: int = 1
+) -> NDArray[DType]:
     """
     Return the boundary of a given tensor as a 1D array.
 

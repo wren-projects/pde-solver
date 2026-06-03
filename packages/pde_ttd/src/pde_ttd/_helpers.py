@@ -2,8 +2,8 @@ from collections.abc import Iterable, Reversible
 
 import numpy as np
 
-from numpy_ttd.math import dot_product, qr_rows
-from numpy_ttd.types import Core
+from pde_ttd.math import dot_product, qr_rows
+from pde_ttd.types import Core
 
 
 def reverse_cores[DType: np.floating](

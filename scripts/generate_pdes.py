@@ -6,7 +6,6 @@ from types import NoneType
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
-
 from pde_solver.pde_types import (
     DType,
     Function,

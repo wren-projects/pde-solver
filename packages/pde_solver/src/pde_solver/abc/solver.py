@@ -1,3 +1,4 @@
+# ruff: noqa: PLR0913
 from abc import ABC, abstractmethod
 from types import get_original_bases
 from typing import Any, get_args, get_origin
