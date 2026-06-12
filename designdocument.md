@@ -40,9 +40,6 @@ did not feel like there was sufficient support in python for typing a functional
 code. This resulted in multiple callable classes. In the future, we will
 investigate rewriting them into pure functions.
 
-## Diagram
-TODO
-
 # TTD Component
 
 This core component simply provides an alternative NDArray structure.
@@ -69,7 +66,7 @@ Where DType is a float (or more generally any ring) specified in pde_types
 in which the whole computation is to proceed in and vector is a one dimensional
 NDArray on the type DType.
 
-## Structure
+## File Structure
 
 ```
 packages/pde_solver
