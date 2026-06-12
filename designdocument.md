@@ -95,7 +95,8 @@ packages/pde_solver
 `PDE` describes the equation that the solver is supposed to solve. Importantly,
 there are many different `PDE`s, and a solver need not be able to solve all of
 them. The general notion here is that each `PDE` can be generalized in some way
-(a new term is added, a constant is changed to a variable, etc.), and a solver
+there are many different kinds of PDEs, and a solver may not be able to solve all of
+them (it's not a requirement). The general notion here is that each PDE can be generalized in some way
 can solve some PDEs and all the more concrete versions of these `PDE`s. That is,
 indeed, a lattice structure where, given two elements A and B, we define $A
 \leq B$ if and only if B is a generalization of A. We leave it as an exercise
