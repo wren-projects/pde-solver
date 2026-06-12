@@ -1,6 +1,7 @@
 # Technical Writeup
 
 ## Core Structure
+
 The project is split into two core components:
 * **TTD** — which implements an alternative version of a NumPy array (hereafter NDArray).
 * **Solver** — which solves a given PDE using some implementation of a NumPy array as a state.
@@ -12,22 +13,55 @@ While Solver, in theory, works on any NDArray implementation (which is selected 
 There is also a third component, **common**, which is there strictly for the deduplication of code across both core components, as they need to be independent of each other.
 
 ## General Design Decisions
+
 We generally aimed for testability and scalability when making design decisions. We required every part of the code to be type-hinted, which brought many problems with it. For this reason, we used OOP to a great extent, even though functional programming is perhaps better suited for this problem — there is simply not enough support for its typing in Python as of now.
 
 # TTD Component
+
 This core component simply provides an alternative NDArray structure.
 
-TODO
+## API
+TTD needs to implement all numpy array functions. The following functions, however, are to be called on it repeatedly:
+- np.add of two TTDs with the same dimensions
+- np.mul with a number
+- np.tensordot
+- setting a slice of the form `[:, :, ..., :, 0, :, ..., :, :]` to 0
+
 
 # Solver Component
 
 ## Overview
+
 This core component has multiple parts. The key part is the solver itself, which is a function of the following type:
 > PDE → InitialCondition → BoundaryCondition → ... → FinalState
 
 Where both InitialCondition and FinalState are simply NDArrays.
 
+## Structure
+```
+packages/pde_solver
+├── pyproject.toml --- configuration file of this component
+├── src
+│   └── pde_solver
+│       ├── __init__.py
+│       ├── abc --- all interfaces (ABCs) are located here
+│       │   ├── __init__.py
+│       │   ├── boundary.py --- ABC for boundary condition
+│       │   ├── pde.py --- ABC for a PDE formulation
+│       │   └── solver.py --- ABC for a solver
+│       ├── boundary_conditions.py --- concrete boundary condition implementation
+│       ├── operators.py --- concrete operators implementations
+│       ├── pde.py --- concrete PDE formulations
+│       ├── pde_types.py --- helper with type definitions
+│       ├── py.typed --- ???
+│       └── solvers --- concrete solver implementations 
+│           ├── __init__.py
+│           └── finite_differences.py
+└── tests_solver --- tests
+```
+
 ## PDE (Dataclass)
+
 PDE describes the equation that the solver is supposed to solve. Importantly, there are many different PDEs, and a solver need not be able to solve all of them. The general notion here is that each PDE can be generalized in some way (a new term is added, a constant is changed to a variable, etc.), and a solver can solve some PDEs and all the more concrete versions of these PDEs. That is, indeed, a lattice structure where, given two elements A and B, we define $A \leq B$ if and only if B is a generalization of A. We leave it as an exercise to the reader that this does follow all the lattice axioms. Now that we have a structure for the PDEs, we allow each solver to state which PDEs it can solve (see the Solver section for more information on this), and we can easily check if a given PDE is solvable by the solver.
 
 When it comes to actually implementing this structure, there is one problem. Given N ways to generalize the PDE, there are exponentially many possible PDEs. And we need all of them. Luckily, our N is reasonably small. Still, it is very cumbersome to write out all the possibilities by hand. We have therefore opted for a script that takes the ways of generalization as input and creates a file with all the PDEs. It turns out auto-generating code with no warnings is a non-trivial task, however, hence much time was spent there. In exchange, this part of the code is now easily modifiable.
@@ -35,12 +69,14 @@ When it comes to actually implementing this structure, there is one problem. Giv
 The way this script is executed deserves its own mention. The file itself is necessary for type checkers to work correctly, hence it needs to be locally available and cannot be created for runtime only. We opted for `Just` in place of CMake for calling the script itself. However, calling the script locally after every push is tedious, so we decided to include the file in the remote repository too. To ensure consistency, our pipelines run the script on every merge request, and if a change is detected, they deny the merge request.
 
 ## BoundaryCondition (Class)
+
 The goal of a boundary condition is to alter the NDArray representing the current state in a way that makes it consistent with the theoretical condition. This is usually done by increasing the size of the state by one in all directions and manipulating only these boundaries. Before the solver terminates, these boundaries are then removed.
 
-## Solver (Class)
+## Solver (Callable class)
+
 As mentioned above, the solver is at the core of this component. It takes a few arguments, but more importantly, it knows which PDEs it can solve. This is done via generic types. A parent has a generic T, for which each child substitutes the PDEs it can solve (either the PDE type or a union of multiple PDEs). Via a magic construction, the parent then intercepts the T each of its subclasses selected and saves it in a dictionary. This dictionary will later be used to select the correct solver for a given PDE.
 
 As all solvers are iterative, we have abstracted the code they would share into their parent too. Each specific Solver then contains only the code for one iteration. This code should refrain from accessing the more complex methods of the NDArray. Instead, it is to use operators.
 
-## Operators
+## Operators (Callable class)
 Operators provide an interface for solvers to compute differentials on an NDArray. They are there to ensure all solvers are using the correct (optimized) methods of the specific NDArray.
