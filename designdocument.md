@@ -51,6 +51,10 @@ however, are to be called on it repeatedly:
 - `np.add` of two TTDs with the same dimensions
 - `np.mul` with a number
 - `np.tensordot`
+- `np.gradient`
+- `np.trace`
+- `np.expand_dims`
+- `np.stack`
 - setting a slice of the form `[:, :, ..., :, 0, :, ..., :, :]` to 0
 
 
