@@ -1,3 +1,4 @@
+
 # Technical Writeup
 
 ## Core Structure
@@ -22,6 +23,9 @@ methods are called).
 There is also a third component, **common**, which is there strictly for the
 deduplication of code across both core components, as they need to be
 independent of each other.
+
+<img width="521" height="332" alt="ttd drawio" src="https://github.com/user-attachments/assets/0e836093-9412-4ccf-b96c-c031422f4de1" />
+![Uploading ttd.drawio.svg…]()
 
 ## General Design Decisions
 
