@@ -50,10 +50,12 @@ however, are to be called on it repeatedly:
 ## Overview
 
 This core component has multiple parts. The key part is the solver itself,
-which is a function of the following type:
-> PDE → InitialCondition → BoundaryCondition → ... → FinalState
+which is a function (or rather a callable class) of the following type:
+> PDE : PDE → InitialCondition : NDArray → SpacialStep : Vector → BoundaryCondition : BoundaryCondition → TimeStep : DType → TargetTime : DType → FinalState : NDArray
 
-Where both InitialCondition and FinalState are simply NDArrays.
+Where DType is a float (or more generally any ring) specified in pde_types
+in which the whole computation is to proceed in and vector is a one dimensional
+NDArray on the type DType.
 
 ## Structure
 
