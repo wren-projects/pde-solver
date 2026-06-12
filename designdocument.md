@@ -17,7 +17,7 @@ alter the usage of some specific methods are useful. The `NDArray` is interacted
 with only in the solvers themselves (where usually
 addition/subtraction/multiplication is all that is used), in `BoundaryConditions`
 (where setting slices is used), and in Operators (where a few rather specific
-methods are called).
+methods are called). See [later](#API) for details.
 
 There is also a third component, **common**, which is there strictly for the
 deduplication of code across both core components, as they need to be
