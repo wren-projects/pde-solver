@@ -86,7 +86,7 @@ packages/pde_solver
 └── tests_solver --- tests
 ```
 
-## PDE (Dataclass)
+### PDE (Dataclass)
 
 PDE describes the equation that the solver is supposed to solve. Importantly,
 there are many different PDEs, and a solver need not be able to solve all of
@@ -117,7 +117,7 @@ after every push is tedious, so we decided to include the file in the remote
 repository too. To ensure consistency, our pipelines run the script on every
 merge request, and if a change is detected, they deny the merge request.
 
-## BoundaryCondition (Class)
+### BoundaryCondition (Class)
 
 The goal of a boundary condition is to alter the NDArray representing the
 current state in a way that makes it consistent with the theoretical condition.
@@ -125,7 +125,7 @@ This is usually done by increasing the size of the state by one in all
 directions and manipulating only these boundaries. Before the solver
 terminates, these boundaries are then removed.
 
-## Solver (Callable class)
+### Solver (Callable class)
 
 As mentioned above, the solver is at the core of this component. It takes a few
 arguments, but more importantly, it knows which PDEs it can solve. This is done
@@ -140,7 +140,7 @@ their parent too. Each specific Solver then contains only the code for one
 iteration. This code should refrain from accessing the more complex methods of
 the NDArray. Instead, it is to use operators.
 
-## Operators (Callable class)
+### Operators (Callable class)
 
 Operators provide an interface for solvers to compute differentials on an
 NDArray. They are there to ensure all solvers are using the correct (optimized)
