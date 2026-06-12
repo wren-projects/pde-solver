@@ -24,7 +24,8 @@ There is also a third component, **common**, which is there strictly for the
 deduplication of code across both core components, as they need to be
 independent of each other.
 
-<img width="521" height="332" alt="ttd drawio" src="https://github.com/user-attachments/assets/0e836093-9412-4ccf-b96c-c031422f4de1" />
+<img width="581" height="391" alt="pde drawio" src="https://github.com/user-attachments/assets/11fd59a6-f6c7-45e2-90ad-439ce3704c92" />
+
 
 ## General Design Decisions
 
