@@ -28,8 +28,13 @@ independent of each other.
 We generally aimed for testability and scalability when making design
 decisions. We required every part of the code to be type-hinted, which brought
 many problems with it. For this reason, we used OOP to a great extent, even
-though functional programming is perhaps better suited for this problem — there
-is simply not enough support for its typing in Python as of now.
+though functional programming is perhaps better suited for this problem --- we
+did not feel like there was sufficient support in python for typing a functional
+code. This resulted in multiple callable classes. In the future, we will
+investigate rewriting them into pure functions.
+
+## Diagram
+TODO
 
 # TTD Component
 
