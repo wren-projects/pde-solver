@@ -4,8 +4,7 @@
 ## Core Structure
 
 The project is split into two core components:
-* **TTD** — which implements an alternative version of a NumPy array (hereafter
-NDArray).
+* **TTD** — which is a custom NumPy array container,
 * **Solver** — which solves a given PDE using some implementation of a NumPy
 array as a state.
 
