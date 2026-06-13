@@ -7,9 +7,10 @@ from pde_common.types import NDArray, Vector
 from pde_solver.abc.pde import PDE
 from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
+from pde_solver.pde_types import DType, Scalar
 from pde_solver.solvers.finite_differences import FiniteDifferences
 
-DEFAULT_K = 1.0
+DEFAULT_K = DType(1.0)
 DEFAULT_ATOL = 1e-3
 DEFAULT_RTOL = 1e-3
 
@@ -23,7 +24,7 @@ class PDETestCase:
     boundary_condition: ConstantDirichletBoundaryCondition
     initial_condition: NDArray
     expected_solution: Callable[[float], NDArray]
-    delta_time: float
+    delta_time: Scalar
     steps: int
     atol: float = DEFAULT_ATOL
     rtol: float = DEFAULT_RTOL
@@ -114,7 +115,7 @@ def make_heat_3d_mode_111_case(
         boundary_condition=ConstantDirichletBoundaryCondition(value=0.0),
         initial_condition=exact_solution(0.0),
         expected_solution=exact_solution,
-        delta_time=delta_time,
+        delta_time=DType(delta_time),
         steps=steps,
     )
 
