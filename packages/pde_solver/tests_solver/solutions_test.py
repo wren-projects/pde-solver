@@ -124,8 +124,9 @@ PDE_TEST_CASES = [
     make_heat_3d_mode_111_case((16, 16, 16), delta_time=1e-5, steps=100),
     # Medium grid: checks refinement against the same analytical solution.
     make_heat_3d_mode_111_case((32, 32, 32), delta_time=5e-6, steps=100),
-    # Fine grid: larger validation case.
-    make_heat_3d_mode_111_case((48, 48, 48), delta_time=2e-6, steps=100),
+    # Non-uniform grid: verifies that the solver handles different
+    # resolutions in each spatial dimension correctly.
+    make_heat_3d_mode_111_case((20, 30, 50), delta_time=2e-6, steps=100),
 ]
 
 
