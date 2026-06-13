@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 from pde_common.types import NDArray, Vector
+from pde_solver.abc.boundary import BoundaryCondition
 from pde_solver.abc.pde import PDE
 from pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
@@ -21,7 +22,7 @@ class PDETestCase:
 
     name: str
     pde: PDE
-    boundary_condition: ConstantDirichletBoundaryCondition
+    boundary_condition: BoundaryCondition
     initial_condition: NDArray
     expected_solution: Callable[[float], NDArray]
     delta_time: Scalar
