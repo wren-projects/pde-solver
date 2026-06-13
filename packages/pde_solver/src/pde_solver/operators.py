@@ -3,7 +3,7 @@ from typing import SupportsIndex, cast
 
 import numpy as np
 
-from pde_solver.pde_types import NDArray, Vector
+from pde_solver.pde_types import DType, NDArray, Vector
 
 
 class Gradient:
@@ -77,6 +77,8 @@ class Laplace:
 class Divergence:
     """Divergence operator for NDArray."""
 
+    ZERO: NDArray = np.zeros((1,), dtype=DType)
+
     def __call__(self, tensor: NDArray, spacial_step: Vector) -> NDArray:
         """
         Compute the divergence of the tensor with given spacial_steps.
@@ -104,9 +106,12 @@ class Divergence:
             raise ValueError(
                 "Divergence requires a vector field (at least 2 dimensions)."
             )
-        grad = gradient(tensor, spacial_step, axis=range(1, tensor.ndim))
 
-        return cast(NDArray, np.trace(grad))
+        # Compute dxᵢ/xᵢ for each component of the vector field
+        gradients = (
+            np.gradient(tensor[i], dx, axis=i) for i, dx in np.ndenumerate(spacial_step)
+        )
+        return sum(gradients, start=Divergence.ZERO)
 
 
 gradient = Gradient()
