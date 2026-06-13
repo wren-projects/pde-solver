@@ -782,18 +782,11 @@ def gradient[DType: np.floating](
     results: list[TTD[DType]] = []
     for axis_idx, spacing in zip(axes, step_args, strict=True):
         # differentiate along only a single axis at a time and copy the rest unchanged
-        cores = list(ttd.data)
+        cores = ttd.data.copy()
 
-        core = cores[axis_idx]
-
-        # If the relative variation along the axis is less than epsilon,
-        # treat the axis as constant to prevent numerical errors.
-        if np.ptp(core) < DEFAULT_EPSILON * np.max(np.abs(core)):
-            cores[axis_idx] = np.zeros_like(core)
-        else:
-            # gradient of single axis returns an NDArray despite what typing suggests
-            grad = np.gradient(core, *spacing, axis=1, edge_order=edge_order)
-            cores[axis_idx] = cast(Core[DType], cast(object, grad))
+        # gradient of single axis returns an NDArray despite what typing suggests
+        grad = np.gradient(cores[axis_idx], *spacing, axis=1, edge_order=edge_order)
+        cores[axis_idx] = cast(Core[DType], cast(object, grad))
 
         results.append(TTD(cores, dtype=ttd.dtype))
 
