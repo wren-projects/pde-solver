@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_index, normalize_axis_tuple
+from wren_common.math import dot_product
 from wren_common.types import Index1D, Matrix
 
 from wren_ttd._helpers import orthogonalize_right, reverse_cores
@@ -15,7 +16,6 @@ from wren_ttd._numpy_api import implements_function, implements_ufunc
 from wren_ttd.math import (
     DEFAULT_EPSILON,
     delta_truncated_svd,
-    dot_product,
     truncation_parameter,
 )
 from wren_ttd.types import Core
