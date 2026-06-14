@@ -1034,7 +1034,20 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 \end{minted}
 
 %==================================================
-\subsection{Gradient in TTD}
+\subsection{Differential Operators}
+\label{sec:differential_operators}
+%==================================================
+
+Classical tensor-train approaches often represent differential
+operators as TT-matrices and apply them through TT-matrix--TT-vector
+multiplication.
+
+In this work, however, differential operators are applied directly
+to TT cores. This avoids constructing explicit TT-matrix
+representations and operates directly on the TTD cores.
+
+%==================================================
+\subsubsection{Gradient in TTD}
 \label{sec:gradient_ttd}
 %==================================================
 
@@ -1113,7 +1126,7 @@ If multiple axes are specified, the result is a tuple
 containing one TTD for each derivative direction.
 
 %==================================================
-\subsection{Divergence using gradients}
+\subsubsection{Divergence}
 \label{sec:divergence_ttd}
 %==================================================
 
@@ -1160,7 +1173,7 @@ Jacobian tensor.
 \end{minted} 
 
 %==================================================
-\subsection{Laplace operator using gradients}
+\subsubsection{Laplace operator}
 %==================================================
 
 \begin{definition}[Laplace operator]
@@ -1184,9 +1197,6 @@ directional derivative along the same axis.
 \paragraph{Explanation (informal).}
 
 The Laplace operator is implemented as divergence of the gradient.
-
-This means that second derivatives are not built from a TT-matrix.
-Instead, they are computed by repeated finite differences on TT cores.
 
 \paragraph{Important note.}
 
@@ -1331,9 +1341,8 @@ and $L \in \mathbb{R}^{n \times n}$ is the one-dimensional discrete Laplacian.
 
 \paragraph{Remark.}
 
-This Kronecker structure motivates many classical TT-matrix methods,
-although our implementation applies differential operators directly to
-TT cores rather than constructing TT-matrix operators explicitly.
+The differential operators are applied using the TTD-based
+procedures described in \cref{sec:differential_operators}.
 
 \paragraph{Explanation (informal).}
 
@@ -1660,10 +1669,9 @@ and the divergence yields
 \]
 
 \paragraph{Implementation note.}
-
 The gradient and divergence operators are computed using the
-TTD-based procedures described in \cref{sec:gradient_ttd,sec:divergence_ttd}.
-No explicit differential operator matrices are assembled.
+TTD-based differential operators described in
+\cref{sec:differential_operators}.
 
 \paragraph{Time update.}
 
