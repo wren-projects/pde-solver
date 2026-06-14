@@ -1035,6 +1035,7 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 
 %==================================================
 \subsection{Gradient in TTD}
+\label{sec:gradient_ttd}
 %==================================================
 
 \begin{definition}[Gradient in TTD format]
@@ -1075,10 +1076,12 @@ along the physical index of the core.
 
 \paragraph{Explanation (informal).}
 
-In our implementation, each spatial dimension is associated with the
-physical index of a single TT core. A derivative along axis $k$ is
-therefore approximated by applying a finite-difference rule directly
-to that core while keeping all remaining cores unchanged.
+The TT representation stores each spatial dimension in the physical
+index of a separate core. This locality allows directional derivatives
+to be computed without modifying the entire tensor representation.
+
+Only the core associated with the selected spatial dimension must be
+updated, while all remaining cores are reused.
 
 \paragraph{Implementation.}
 
@@ -1109,13 +1112,9 @@ If a single axis is specified, the result is a single TTD.
 If multiple axes are specified, the result is a tuple
 containing one TTD for each derivative direction.
 
-\paragraph{Remark.}
-
-This approach is specific to our implementation and differs
-from classical TT methods based on TT-matrix representations
-of differential operators.
 %==================================================
 \subsection{Divergence using gradients}
+\label{sec:divergence_ttd}
 %==================================================
 
 \begin{definition}[Divergence]
@@ -1663,7 +1662,7 @@ and the divergence yields
 \paragraph{Implementation note.}
 
 The gradient and divergence operators are computed using the
-TTD-based procedures described in Sections 4.9 and 4.10.
+TTD-based procedures described in \cref{sec:gradient_ttd,sec:divergence_ttd}.
 No explicit differential operator matrices are assembled.
 
 \paragraph{Time update.}
