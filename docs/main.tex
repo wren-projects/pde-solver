@@ -768,79 +768,6 @@ reduces from exponential $\mathcal{O}(n^d)$ to polynomial $\mathcal{O}(dnr^3)$.
   # inner product
 \end{minted}
 
-\subsection{Matrix-vector multiplication}
-
-\begin{definition}[TT matrix applied to TT vector]
-
-  A linear operator in TT format is represented by
-  matrix-valued functions
-
-  \[
-    A_k :
-    \{1,\dots,n_k\}\times\{1,\dots,m_k\}
-    \to
-    \mathbb{R}^{R_{k-1}\times R_k}.
-  \]
-
-  A TT vector is represented by cores
-
-  \[
-    G_k :
-    \{1,\dots,m_k\}
-    \to
-    \mathbb{R}^{r_{k-1}\times r_k}.
-  \]
-
-  The product $y = Ax$ is defined by
-
-  \[
-    y(i_1,\dots,i_d)
-    =
-    \sum_{j_1,\dots,j_d}
-    A(i_1,j_1,\dots,i_d,j_d)
-    x(j_1,\dots,j_d).
-  \]
-
-  The resulting TT cores are
-
-  \[
-    \widetilde{G}_k(i_k)
-    =
-    \sum_{j_k=1}^{m_k}
-    A_k(i_k,j_k)
-    \otimes
-    G_k(j_k),
-  \]
-
-  where $\otimes$ denotes the Kronecker product.
-
-\end{definition}
-\paragraph{Explanation (informal).}
-
-Each core of the operator interacts only with the corresponding core of the
-vector at the same dimension.
-
-For each dimension $k$ we combine:
-
-• the operator slice $A_k(i_k,j_k)$
-• the vector slice $G_k(j_k)$
-
-This produces a new core whose ranks are multiplied:
-
-\[
-  \tilde r_k \approx R_k r_k.
-\]
-
-Afterward, TT rounding is typically applied to control rank growth.
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# - represent TT-matrix cores Acores[k] with shape (R_{k-1}, n_k, m_k, R_k)
-# - represent TT-vector cores X[k] with shape (r_{k-1}, m_k, r_k)
-# - build Y[k] by contracting over m_k, ranks multiply
-# - round Y
-\end{minted}
-
 \subsection{Flipping an axis}
 
 \paragraph{Definition (axis flip).}
@@ -1107,254 +1034,180 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 \end{minted}
 
 %==================================================
-\section{TT-Matrix Format}
+\subsection{Differential Operators}
+\label{sec:differential_operators}
 %==================================================
 
-\subsection{TT-Matrix representation}
+Classical tensor-train approaches often represent differential
+operators as TT-matrices and apply them through TT-matrix--TT-vector
+multiplication.
 
-\begin{definition}[TT-matrix]
+In this work, however, differential operators are applied directly
+to TT cores. This avoids constructing explicit TT-matrix
+representations and operates directly on the TTD cores.
 
-A linear operator
+%==================================================
+\subsubsection{Gradient in TTD}
+\label{sec:gradient_ttd}
+%==================================================
+
+\begin{definition}[Gradient in TTD format]
+
+Let
 \[
-A \in
-\mathbb{R}^{(n_1 \cdots n_d) \times (m_1 \cdots m_d)}
-\]
-is said to be in TT-matrix format if it is represented by
-matrix-valued functions
-
-\[
-A_k :
-\{1,\dots,n_k\} \times \{1,\dots,m_k\}
-\to
-\mathbb{R}^{R_{k-1}\times R_k},
-\]
-
-such that
-
-\[
-A(i_1,\dots,i_d,\; j_1,\dots,j_d)
+A(i_1,\dots,i_d)
 =
-A_1(i_1,j_1)\cdots A_d(i_d,j_d),
+G_1(i_1)\cdots G_d(i_d)
+\]
+be a tensor represented in TT format.
+
+In our implementation, the partial derivative along axis $k$
+is approximated by applying a finite-difference rule directly
+to the physical index of the $k$-th TT core while leaving all
+other cores unchanged.
+
+The resulting approximation is
+
+\[
+\frac{\partial A}{\partial x_k}(i_1,\dots,i_d)
+\approx
+G_1(i_1)\cdots \widetilde{G}_k(i_k)\cdots G_d(i_d),
 \]
 
-with $R_0 = R_d = 1$.
+where
+
+\[
+\widetilde{G}_k
+=
+\operatorname{FD}(G_k),
+\]
+
+and $\operatorname{FD}$ denotes a finite-difference approximation
+along the physical index of the core.
 
 \end{definition}
 
 \paragraph{Explanation (informal).}
 
-A TT-matrix represents a high-dimensional linear operator
-as a sequence of small core tensors.
+The TT representation stores each spatial dimension in the physical
+index of a separate core. This locality allows directional derivatives
+to be computed without modifying the entire tensor representation.
 
-Each core connects input indices $j_k$ and output indices $i_k$
-at dimension $k$, while also propagating low-rank coupling
-information via auxiliary indices.
+Only the core associated with the selected spatial dimension must be
+updated, while all remaining cores are reused.
 
-This representation reduces storage from exponential
-$\mathcal{O}(n^d m^d)$ to polynomial $\mathcal{O}(d n m R^2)$.
+\paragraph{Implementation.}
+
+For a selected axis $k$:
+
+\begin{enumerate}
+  \item Copy all TT cores.
+  \item Apply a finite-difference stencil to the physical dimension
+        of core $G_k$.
+  \item Replace $G_k$ by the differentiated core
+        $\widetilde{G}_k$.
+  \item Construct a new TTD from the modified cores.
+\end{enumerate}
+
+If derivatives are requested along multiple axes,
+the procedure is repeated independently for each axis.
+
+\paragraph{Numerical note.}
+
+If the variation of a core along its physical dimension
+falls below a prescribed tolerance, the derivative core
+is replaced by zero to avoid amplification of numerical noise.
+
+\paragraph{Output convention.}
+
+If a single axis is specified, the result is a single TTD.
+
+If multiple axes are specified, the result is a tuple
+containing one TTD for each derivative direction.
 
 %==================================================
-
-\subsection{Differential operators in TT format}
+\subsubsection{Divergence}
+\label{sec:divergence_ttd}
 %==================================================
 
-\subsubsection{Gradient operator}
+\begin{definition}[Divergence]
 
-\begin{definition}[Gradient in TT format]
-
-Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be a TT tensor.
-
-For each $k = 1,\dots,d$, define a TT-matrix operator
+Let
 \[
-D^{(k)} =
-I \otimes \cdots \otimes D_k \otimes \cdots \otimes I,
+F = (F_1,\dots,F_d)
 \]
-where $D_k \in \mathbb{R}^{n_k \times n_k}$ is a 1D differentiation matrix.
+be a vector field whose components are represented in TTD format.
 
-The partial derivative is defined by
+The divergence is defined as
 \[
-\frac{\partial A}{\partial x_k}
+\nabla \cdot F
 =
-D^{(k)} A,
-\]
-where the product is computed using TT matrix-vector multiplication.
-
-The gradient is given by
-\[
-\nabla A =
-\left(
-D^{(1)}A,\dots,D^{(d)}A
-\right).
-\]
-
-\end{definition}
-
-\paragraph{Explanation (informal).}
-
-Each derivative acts only along one dimension.
-
-The TT-matrix $D^{(k)}$ inserts the differentiation matrix $D_k$
-into the $k$-th position of a Kronecker product.
-
-Applying the operator corresponds to TT matrix-vector multiplication,
-which preserves the tensor structure.
-
-\paragraph{Important note.}
-
-Although the operator $D^{(k)}$ has low TT-rank,
-the resulting tensor $D^{(k)}A$ typically has increased TT-ranks.
-
-Therefore, rounding (\cref{alg:rounding}) is required.
-
-\subsubsection{Laplace operator}
-
-\begin{definition}[Laplace operator in TT format]
-
-The Laplace operator is defined as
-\[
-\Delta =
 \sum_{k=1}^d
-\frac{\partial^2}{\partial x_k^2}.
+\frac{\partial F_k}{\partial x_k}.
 \]
 
-Each term is represented as a TT-matrix
-\[
-L^{(k)} =
-I \otimes \cdots \otimes D_k^{(2)} \otimes \cdots \otimes I,
-\]
-where $D_k^{(2)}$ is a second-order differentiation matrix.
-
-Thus,
-\[
-\Delta = \sum_{k=1}^d L^{(k)}.
-\]
+Each partial derivative is computed using the TTD gradient operation,
+and the resulting TTD tensors are added together.
 
 \end{definition}
 
 \paragraph{Explanation (informal).}
 
-The Laplacian is a sum of independent second derivatives.
+The divergence is computed by differentiating each vector-field component
+along its matching coordinate direction and summing the results.
 
-Each term has a simple tensor-product structure,
-which admits a low-rank TT representation.
+No explicit differential operator is assembled.
 
-The sum increases TT-ranks linearly in $d$,
-and rounding is applied after operator evaluation.
+\paragraph{Implementation choice.}
 
-%==================================================
-\subsection{TT-matrix applied to TT tensor}
-\label{sec:tt_matvec}
-%==================================================
-
-\begin{definition}[TT-matrix times TT tensor]
-
-Let a linear operator $A$ be given in TT-matrix format with cores
-\[
-A_k :
-\{1,\dots,n_k\}\times\{1,\dots,m_k\}
-\to
-\mathbb{R}^{R_{k-1}\times R_k},
-\]
-
-and let a tensor $X$ be given in TT format with cores
-\[
-G_k :
-\{1,\dots,m_k\}
-\to
-\mathbb{R}^{r_{k-1}\times r_k}.
-\]
-
-The product $Y = AX$ is defined componentwise by
-\[
-Y(i_1,\dots,i_d)
-=
-\sum_{j_1,\dots,j_d}
-A(i_1,j_1,\dots,i_d,j_d)\,
-X(j_1,\dots,j_d).
-\]
-
-The resulting tensor $Y$ admits a TT representation with cores
-\[
-\widetilde{G}_k(i_k)
-=
-\sum_{j_k=1}^{m_k}
-A_k(i_k,j_k)
-\otimes
-G_k(j_k),
-\]
-where $\otimes$ denotes the Kronecker product.
-
-\end{definition}
-
-\begin{algorithm}[ht]
-  \caption{TT-matrix applied to TT tensor}
-  \label{alg:tt_matvec}
-  \begin{algorithmic}[1]
-    \Require TT-matrix cores $A_1,\dots,A_d$,
-    TT cores $G_1,\dots,G_d$
-    \Ensure TT cores $\widetilde{G}_1,\dots,\widetilde{G}_d$
-
-    \For{$k = 1$ to $d$}
-
-    \For{$i_k = 1$ to $n_k$}
-
-    \State Compute
-    \[
-      \widetilde{G}_k(i_k)
-      =
-      \sum_{j_k=1}^{m_k}
-      A_k(i_k,j_k) \otimes G_k(j_k)
-    \]
-
-    \EndFor
-
-    \EndFor
-
-    \State Apply TT rounding (\cref{alg:rounding}) to $\widetilde{G}_1,\dots,\widetilde{G}_d$
-
-  \end{algorithmic}
-\end{algorithm}
-
-\paragraph{Explanation (informal).}
-
-The operator acts independently on each dimension.
-
-At dimension $k$, we combine:
-
-\begin{itemize}
-  \item the operator slice $A_k(i_k,j_k)$,
-  \item the tensor slice $G_k(j_k)$,
-\end{itemize}
-
-and sum over the index $j_k$.
-
-The Kronecker product couples the operator rank $R_k$
-with the tensor rank $r_k$, producing new ranks
-\[
-\widetilde{r}_k \approx R_k r_k.
-\]
-
-\paragraph{Important note.}
-
-The TT-ranks grow multiplicatively during this operation.
-
-Therefore, rounding (\cref{alg:rounding}) is required
-to obtain a compact representation and control the error.
-
-\paragraph{Complexity.}
-
-If $n_k \le n$, $m_k \le n$, and all ranks are bounded by $r$ and $R$,
-then the computational cost is
-\[
-\mathcal{O}(d n R^2 r^2).
-\]
+In our implementation, the divergence is obtained by computing the
+gradient of the vector field and extracting the trace of the resulting
+Jacobian tensor.
 
 \paragraph{Code slot.}
 \begin{minted}{python}
-# TODO: TT-matrix x TT-tensor
-# - loop over cores
-# - contract over j_k
-# - use kron(A_k slice, G_k slice)
+# TODO: divergence in TTD
+# - compute gradient of component F_k along axis k
+# - sum all derivative TTDs
+# - round if needed
+\end{minted} 
+
+%==================================================
+\subsubsection{Laplace operator}
+%==================================================
+
+\begin{definition}[Laplace operator]
+
+For a scalar tensor $A$, the Laplace operator is computed as
+\[
+\Delta A
+=
+\nabla \cdot (\nabla A)
+=
+\sum_{k=1}^d
+\frac{\partial^2 A}{\partial x_k^2}.
+\]
+
+In TTD format, this is obtained by applying the gradient operation twice:
+first to compute directional derivatives, then again to differentiate each
+directional derivative along the same axis.
+
+\end{definition}
+
+\paragraph{Explanation (informal).}
+
+The Laplace operator is implemented as divergence of the gradient.
+
+\paragraph{Important note.}
+
+The summation of the second-derivative TTDs may increase TT-ranks.
+Therefore, rounding should be applied after the sum.
+
+\paragraph{Code slot.}
+\begin{minted}{python}
+# TODO: Laplace in TTD
+# - compute gradient(A)
+# - compute divergence(gradient(A))
 # - round result
 \end{minted}
 
@@ -1402,14 +1255,9 @@ In low dimensions ($d=1,2,3$), standard numerical methods work well.
 However, when $d$ becomes large (for example $d=6,8,10$), the computational cost
 grows rapidly.
 
-Tensor Train methods allow us to represent both:
-
-\begin{itemize}
-  \item the solution $u$,
-  \item the operator $\mathcal{L}$,
-\end{itemize}
-
-in compressed TT form.
+Tensor Train methods allow us to represent the solution $u$ in compressed
+TT form, while differential operations are approximated directly on the TT
+cores.
 
 \subsection{Discretization and the Curse of Dimensionality}
 
@@ -1490,6 +1338,11 @@ where
 \]
 
 and $L \in \mathbb{R}^{n \times n}$ is the one-dimensional discrete Laplacian.
+
+\paragraph{Remark.}
+
+The differential operators are applied using the TTD-based
+procedures described in \cref{sec:differential_operators}.
 
 \paragraph{Explanation (informal).}
 
@@ -1705,7 +1558,199 @@ Disadvantages:
   \item CFL condition
   \item Often requires very small time steps
 \end{itemize}
-\subsection{Method A}
+
+
+\subsection{Explicit finite difference method}
+
+\paragraph{Applicable PDEs.}
+
+This method is intended for homogeneous advection--diffusion equations
+with constant coefficients that can be written in the form
+\[
+u_t
++
+\nabla\cdot(\mathbf a\,u)
++
+\nabla\cdot(\mathbf B\,\nabla u)
+=
+0,
+\]
+or equivalently
+\[
+u_t
+=
+-
+\left(
+\nabla\cdot(\mathbf a\,u)
++
+\nabla\cdot(\mathbf B\,\nabla u)
+\right).
+\]
+
+Here $\mathbf a$ is the advection vector and $\mathbf B$ is the diffusion
+matrix. In our implementation, this corresponds to the homogeneous
+vector-advection matrix-diffusion PDE.
+
+\paragraph{Method.}
+
+Using Forward Euler time integration,
+\[
+u^{n+1}
+=
+u^n
+-
+\Delta t
+\left(
+\nabla\cdot(\mathbf a\,u^n)
++
+\nabla\cdot(\mathbf B\,\nabla u^n)
+\right).
+\]
+
+\paragraph{Advection term.}
+
+The advection contribution is
+
+\[
+\alpha
+=
+\nabla\cdot(\mathbf a\,u).
+\]
+
+The flux
+
+\[
+\mathbf F_a
+=
+\mathbf a\,u
+\]
+
+is constructed first, after which the divergence operator
+is applied:
+
+\[
+\alpha
+=
+\nabla\cdot \mathbf F_a.
+\]
+
+\paragraph{Diffusion term.}
+
+The diffusion contribution is
+
+\[
+\beta
+=
+\nabla\cdot(\mathbf B\,\nabla u).
+\]
+
+The gradient is computed first:
+
+\[
+\mathbf g
+=
+\nabla u.
+\]
+
+The diffusion flux is then
+
+\[
+\mathbf F_d
+=
+\mathbf B\,\mathbf g,
+\]
+
+and the divergence yields
+
+\[
+\beta
+=
+\nabla\cdot\mathbf F_d.
+\]
+
+\paragraph{Implementation note.}
+The gradient and divergence operators are computed using the
+TTD-based differential operators described in
+\cref{sec:differential_operators}.
+
+\paragraph{Time update.}
+
+The explicit time derivative is
+
+\[
+u_t
+=
+-(\alpha+\beta).
+\]
+
+The Forward Euler update is therefore
+
+\[
+u^{n+1}
+=
+u^n
+-
+\Delta t
+(\alpha+\beta).
+\]
+
+\begin{algorithm}[ht]
+  \caption{Explicit finite difference time step}
+  \label{alg:explicit_fd}
+  \begin{algorithmic}[1]
+
+    \Require State $u^n$, advection vector $\mathbf a$,
+    diffusion matrix $\mathbf B$, time step $\Delta t$
+
+    \State Compute advection flux
+    \[
+      \mathbf F_a = \mathbf a\,u^n
+    \]
+
+    \State Compute advection term
+    \[
+      \alpha = \nabla\cdot\mathbf F_a
+    \]
+
+    \State Compute gradient
+    \[
+      \mathbf g = \nabla u^n
+    \]
+
+    \State Compute diffusion flux
+    \[
+      \mathbf F_d = \mathbf B\,\mathbf g
+    \]
+
+    \State Compute diffusion term
+    \[
+      \beta = \nabla\cdot\mathbf F_d
+    \]
+
+    \State Compute time derivative
+    \[
+      u_t = -(\alpha+\beta)
+    \]
+
+    \State Update solution
+    \[
+      u^{n+1}
+      =
+      u^n + \Delta t\,u_t
+    \]
+
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Stability remark.}
+
+The Forward Euler method is conditionally stable.
+The admissible time step depends on the spatial discretization,
+the advection velocity, and the diffusion coefficients. For diffusion-dominated problems, the allowable time step may
+decrease quadratically with the spatial resolution.
+
+In practice, the time step must satisfy a suitable CFL-type
+stability condition.
 
 %==================================================
 \section{Conclusion and Further Reading}
