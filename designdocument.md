@@ -4,16 +4,15 @@
 ## Core Structure
 
 The project is split into two core components:
-* **TTD** — which is a custom NumPy array container,
-* **Solver** — which solves a given PDE using some implementation of a NumPy
-array as a state.
+* **TTD** — which introduces a class that implements Numpy's custom array container API,
+* **Solver** — which solves a given PDE using some implementation of Numpy's array container as a state.
 
 This modularity improves testability and allows us to implement other versions
 of tensor compressions and have them work "out of the box."
 
-While Solver, in theory, works on any `NDArray` implementation (which is selected
+While Solver, in theory, works on any array container implementation (which is selected
 by the user via dependency injection), in practice, only implementations that
-alter the usage of some specific methods are useful. The `NDArray` is interacted
+alter the usage of some specific methods are useful. The container implementation is interacted
 with only in the solvers themselves (where usually
 addition/subtraction/multiplication is all that is used), in `BoundaryConditions`
 (where setting slices is used), and in Operators (where a few rather specific
@@ -26,6 +25,7 @@ independent of each other.
 The indetended workflow is then as follows. A user sets the equation they want
 to solve and compresses their initial condition into TTD format. They feed this
 to the solver and collect the solution, which they can decompress if desirable.
+
 
 ![diagram](docs/assets/pde.drawio.svg)
 
@@ -42,7 +42,7 @@ investigate rewriting them into pure functions.
 
 # TTD Component
 
-This core component simply provides an alternative `NDArray` structure.
+This core component simply provides a custom container implementation.
 
 ## API
 
@@ -66,9 +66,9 @@ This core component has multiple parts. The key part is the solver itself,
 which is a function (or rather a callable class) of the following type:
 > `PDE : PDE → InitialCondition : NDArray → SpacialStep : Vector → BoundaryCondition : BoundaryCondition → TimeStep : DType → TargetTime : DType → FinalState : NDArray`
 
-Where `DType` is a float (or more generally any ring) specified in pde_types
-in which the whole computation is to proceed in and vector is a one dimensional
-`NDArray` on the type `DType`.
+Where `NDArray` is some array container, `DType` is a float (or more generally any ring)
+specified in pde_types in which the whole computation is to proceed in and vector is
+a one dimensional `NDArray` on the type `DType`.
 
 ## File Structure
 
@@ -129,7 +129,7 @@ merge request, and if a change is detected, they deny the merge request.
 
 ### BoundaryCondition (Class)
 
-The goal of a boundary condition is to alter the `NDArray` representing the
+The goal of a boundary condition is to alter the array container representing the
 current state in a way that makes it consistent with the theoretical condition.
 This is usually done by increasing the size of the state by one in all
 directions and manipulating only these boundaries. Before the solver
@@ -148,10 +148,10 @@ select the correct solver for a given `PDE`.
 As all solvers are iterative, we have abstracted the code they would share into
 their parent too. Each specific `Solver` then contains only the code for one
 iteration. This code should refrain from accessing the more complex methods of
-the `NDArray`. Instead, it is to use operators.
+the array container. Instead, it is to use operators.
 
 ### Operators (Callable class)
 
 Operators provide an interface for solvers to compute differentials on an
-`NDArray`. They are there to ensure all solvers are using the correct (optimized)
-methods of the specific `NDArray`.
+array container. They are there to ensure all solvers are using the correct (optimized)
+methods of the specific array container.
