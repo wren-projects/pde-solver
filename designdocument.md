@@ -27,7 +27,7 @@ The indetended workflow is then as follows. A user sets the equation they want
 to solve and compresses their initial condition into TTD format. They feed this
 to the solver and collect the solution, which they can decompress if desirable.
 
-[diagram](docs/assets/pde.drawio.svg)
+![diagram](docs/assets/pde.drawio.svg)
 
 
 ## General Design Decisions
