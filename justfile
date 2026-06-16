@@ -11,6 +11,8 @@ format:
 
 lint:
     {{ uv }} run ruff check {{ code_folders }}
+
+typecheck:
     {{ uv }} run basedpyright
 
 test:
@@ -19,7 +21,8 @@ test:
 coverage:
     {{ uv }} run pytest --cov=src --cov=packages
 
-setup:
+setup: && generate-pdes
+    {{ uv }} sync
     {{ uv }} run pre-commit install --hook-type pre-commit --hook-type pre-push
 
 pde_file := "packages/pde_solver/src/pde_solver/pde.py"
@@ -29,4 +32,4 @@ generate-pdes:
     {{ uv }} run ruff check {{ pde_file }} --fix
     {{ uv }} run ruff format {{ pde_file }}
 
-check: lint test
+check: lint test typecheck
