@@ -27,6 +27,16 @@ class ConstantDirichletBoundaryCondition(BoundaryCondition):
 
     @override
     def apply_to_initial_condition(self, state: NDArray) -> NDArray:
+        new_shape = tuple(dim + 2 for dim in state.shape)
+
+        # Pre-allocate array with the constant value and original data type
+        padded_state = np.full(new_shape, self.value, dtype=state.dtype)
+
+        # Create the equivalent of [1:-1, 1:-1, ...] to insert the original state
+        center_slice = tuple(slice(1, -1) for _ in range(state.ndim))
+        padded_state[center_slice] = state
+
+        return padded_state
         return np.pad(state, pad_width=1, constant_values=self.value)
 
     @override
