@@ -2,7 +2,6 @@
 
 Package for solving PDEs using Tensor-Train decomposition.
 
-> [!INFO]
 > This is a work in progress. Currently, only a proof of concept version is implemented.
 
 ## Development
