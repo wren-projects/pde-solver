@@ -22,7 +22,7 @@ coverage:
 setup:
     {{ uv }} run pre-commit install --hook-type pre-commit --hook-type pre-push
 
-pde_file := "packages/pde_solver/src/pde_solver/pde.py"
+pde_file := "packages/wren_pde_solver/src/wren_pde_solver/pde.py"
 
 generate-pdes:
     {{ uv }} run scripts/generate_pdes.py > {{ pde_file }}
