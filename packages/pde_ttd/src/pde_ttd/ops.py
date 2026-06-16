@@ -902,3 +902,153 @@ def gradient[DType: np.floating](
         return results[0]
 
     return tuple(results)
+
+
+def _normalize_pad_width(
+    pad_width: int | tuple[int, ...] | tuple[tuple[int, int], ...],
+    ndim: int,
+) -> tuple[tuple[int, int], ...]:
+    if isinstance(pad_width, int):
+        return ((pad_width, pad_width),) * ndim
+
+    if not isinstance(pad_width, tuple):
+        raise TypeError("pad_width must be an int or a tuple")
+
+    if len(pad_width) == 0:
+        return ((0, 0),) * ndim
+
+    if len(pad_width) != ndim:
+        raise ValueError(
+            f"pad_width tuple length {len(pad_width)} must equal ndim {ndim}"
+        )
+
+    if all(isinstance(x, int) for x in pad_width):
+        return tuple(cast(tuple[int, int], (pw, pw)) for pw in pad_width)
+
+    if all(
+        isinstance(x, tuple)
+        and len(x) == 2
+        and isinstance(x[0], int)
+        and isinstance(x[1], int)
+        for x in pad_width
+    ):
+        return cast(tuple[tuple[int, int], ...], pad_width)
+
+    raise ValueError(f"Invalid pad_width: {pad_width}")
+
+
+def _pad_constant[DType: np.floating](
+    ttd: TTD[DType],
+    pad_width: tuple[tuple[int, int], ...],
+    constant_value: Scalar,
+) -> TTD[DType]:
+    """Pad a TTD with constant values."""
+    from wren_ttd.core import TTD
+
+    new_cores: list[Core[DType]] = []
+    for core, (p_before, p_after) in zip(ttd.data, pad_width, strict=True):
+        if p_before == 0 and p_after == 0:
+            new_cores.append(core.copy())
+            continue
+        r_left, n, r_right = core.shape
+        new_core: Core[DType] = np.zeros(
+            (r_left, n + p_before + p_after, r_right), dtype=ttd.dtype
+        )
+        new_core[:, p_before : p_before + n, :] = core
+        new_cores.append(new_core)
+
+    Z = TTD(new_cores, dtype=ttd.dtype)
+
+    if constant_value == 0 or constant_value == ttd.dtype.type(0):
+        return Z
+
+    # Build an all-ones TTD of the padded shape (rank 1)
+    ones_cores: list[Core[DType]] = []
+    for (p_before, p_after), orig_n in zip(pad_width, ttd.shape, strict=True):
+        new_n = orig_n + p_before + p_after
+        ones_cores.append(np.ones((1, new_n, 1), dtype=ttd.dtype))
+    ones_ttd = TTD(ones_cores, dtype=ttd.dtype)
+
+    # Build a rank-1 indicator TTD: 1 in the original domain, 0 in the padded region
+    indicator_cores: list[Core[DType]] = []
+    for (p_before, p_after), orig_n in zip(pad_width, ttd.shape, strict=True):
+        new_n = orig_n + p_before + p_after
+        ind_core: Core[DType] = np.ones((1, new_n, 1), dtype=ttd.dtype)
+        ind_core[0, :p_before, 0] = 0
+        ind_core[0, p_before + orig_n :, 0] = 0
+        indicator_cores.append(ind_core)
+    indicator_ttd = TTD(indicator_cores, dtype=ttd.dtype)
+
+    return Z + constant_value * (ones_ttd - indicator_ttd)
+
+
+def _pad_edge[DType: np.floating](
+    ttd: TTD[DType],
+    pad_width: tuple[tuple[int, int], ...],
+) -> TTD[DType]:
+    """Pad a TTD by repeating edge values."""
+    from wren_ttd.core import TTD
+
+    new_cores: list[Core[DType]] = []
+    for core, (p_before, p_after) in zip(ttd.data, pad_width, strict=True):
+        if p_before == 0 and p_after == 0:
+            new_cores.append(core)
+            continue
+
+        first_slice = core[:, :1, :]
+        last_slice = core[:, -1:, :]
+
+        before = np.repeat(first_slice, p_before, axis=1)
+        after = np.repeat(last_slice, p_after, axis=1)
+
+        new_core = np.concatenate([before, core, after], axis=1)
+        new_cores.append(new_core)
+
+    return TTD(new_cores, dtype=ttd.dtype)
+
+
+@implements_function("pad")
+def pad[DType: np.floating](
+    array: TTD[DType],
+    pad_width: int | tuple[int, ...] | tuple[tuple[int, int], ...],
+    mode: str = "constant",
+    **kwargs: Any,
+) -> TTD[DType]:
+    """
+    Pad a TTD tensor.
+
+    Parameters
+    ----------
+    array : TTD[DType]
+        The TTD tensor to pad.
+    pad_width : int | tuple[int, ...] | tuple[tuple[int, int], ...]
+        The number of elements to pad on each side of each axis.
+    mode : str, optional
+        The padding mode. Supported: 'constant', 'edge'. Default is 'constant'.
+    **kwargs
+        Additional keyword arguments for the padding mode.
+        For 'constant' mode: constant_values (float, default 0.0).
+
+    Returns
+    -------
+    TTD[DType]
+        The padded TTD tensor.
+
+    """
+    normalized = _normalize_pad_width(pad_width, array.ndim)
+
+    if all(pw == (0, 0) for pw in normalized):
+        return array.copy()
+
+    if mode == "constant":
+        constant_values = kwargs.get("constant_values", 0.0)
+        if isinstance(constant_values, (list, tuple)):
+            raise NotImplementedError(
+                "Per-axis constant_values are not supported, use a scalar"
+            )
+        return _pad_constant(array, normalized, constant_values)
+
+    if mode == "edge":
+        return _pad_edge(array, normalized)
+
+    return NotImplemented

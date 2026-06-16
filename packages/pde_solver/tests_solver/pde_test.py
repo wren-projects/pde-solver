@@ -3,7 +3,6 @@ import types
 from typing import Any, TypeAliasType
 
 import numpy as np
-from pde_solver import pde
 from pde_solver.pde_types import (
     Matrix,
     MatrixFunction,
@@ -12,6 +11,8 @@ from pde_solver.pde_types import (
     Vector,
     VectorFunction,
 )
+
+from pde_solver import pde
 
 
 def get_defined_classes(module: types.ModuleType) -> list[type]:
