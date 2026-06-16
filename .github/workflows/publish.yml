@@ -24,7 +24,7 @@ jobs:
           enable-cache: true
 
       - name: Build
-        run: uv build --package wren-pde-solver && uv build --package wren-ttd && uv build --package wren-commons
+        run: uv build --package wren-pde-solver && uv build --package wren-ttd && uv build --package wren-common
 
       - name: Publish
         run: uv publish

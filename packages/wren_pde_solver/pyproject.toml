@@ -1,13 +1,19 @@
 [project]
 name = "wren-pde-solver"
-version = "0.1.0"
 description = "Library providing solvers for PDEs"
 dependencies = ["numpy~=2.3", "sympy~=1.14", "wren_common"]
-
+dynamic = ["version"]
 
 [build-system]
-requires = ["uv_build~=0.11.18"]
-build-backend = "uv_build"
+requires = ["hatchling", "hatch-vcs"] 
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0-dev"
+
+[tool.hatch.version.raw-options]
+search_parent_directories = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
