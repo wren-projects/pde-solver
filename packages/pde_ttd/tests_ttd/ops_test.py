@@ -396,3 +396,30 @@ def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(
         np.gradient(ttd, edge_order=2), np.gradient(tensor, edge_order=2), scale
     )
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("pad_width", [1, 2])
+def test_pad_constant_zero(tensor: TestTensor, ttd: TestTTD, pad_width: int) -> None:
+    """Test that TTD pad with constant_values=0 works."""
+    expected = np.pad(tensor, pad_width, mode="constant", constant_values=0)
+    result = np.pad(ttd, pad_width, mode="constant", constant_values=0)
+    assert_default_epsilon(result, expected)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("pad_width", [1, 2])
+def test_pad_constant_nonzero(tensor: TestTensor, ttd: TestTTD, pad_width: int) -> None:
+    """Test that TTD pad with non-zero constant_values works."""
+    expected = np.pad(tensor, pad_width, mode="constant", constant_values=3.0)
+    result = np.pad(ttd, pad_width, mode="constant", constant_values=3.0)
+    assert_default_epsilon(result, expected)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("pad_width", [1, 2])
+def test_pad_edge(tensor: TestTensor, ttd: TestTTD, pad_width: int) -> None:
+    """Test that TTD pad with mode='edge' works."""
+    expected = np.pad(tensor, pad_width, mode="edge")
+    result = np.pad(ttd, pad_width, mode="edge")
+    assert_default_epsilon(result, expected)
