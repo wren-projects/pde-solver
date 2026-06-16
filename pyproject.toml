@@ -8,9 +8,9 @@ dependencies = ["numpy~=2.3"]
 
 [dependency-groups]
 dev = [
-  "pde-ttd",
-  "pde-solver",
-  "pde-common",
+  "wren-ttd",
+  "wren-pde-solver",
+  "wren-common",
   "ruff~=0.14",
   "basedpyright~=1.34",
   "pre-commit~=4.4",
@@ -29,9 +29,9 @@ branch = true
 members = ["packages/*"]
 
 [tool.uv.sources]
-pde-ttd = { workspace = true }
-pde-solver = { workspace = true }
-pde-common = { workspace = true }
+wren-ttd = { workspace = true }
+wren-pde-solver = { workspace = true }
+wren-common = { workspace = true }
 
 [tool.basedpyright]
 include = ["src", "packages/**/src", "tests", "scripts"]

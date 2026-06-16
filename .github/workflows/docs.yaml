@@ -6,19 +6,48 @@ on:
       - main
     paths:
       - "docs/**"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Prevent concurrent deployments from stepping on each other
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build_docs:
     name: Build LaTeX Docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Compile LaTeX
         uses: xu-cheng/latex-action@v3
         with:
           root_file: docs/main.tex
           work_in_root_file_dir: true
-      - name: Upload PDF Artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Prepare deployment directory
+        run: |
+          mkdir public
+          cp docs/main.pdf public/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: compiled-documentation
-          path: docs/main.pdf
+          path: ./public
+
+  deploy_docs:
+    name: Deploy to Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build_docs
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

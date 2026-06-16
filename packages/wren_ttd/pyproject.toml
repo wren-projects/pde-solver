@@ -1,0 +1,12 @@
+[project]
+name = "wren-ttd"
+version = "0.1.0"
+description = "Library for working with Tensor Train Decompositions"
+dependencies = ["numpy~=2.3", "wren-common"]
+
+[build-system]
+requires = ["uv_build~=0.11.18"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
