@@ -6,7 +6,7 @@ from types import NoneType
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
-from pde_solver.pde_types import (
+from wren_pde_solver.pde_types import (
     DType,
     Function,
     Matrix,
@@ -24,7 +24,7 @@ from typing import Any, Callable
 
 import numpy as np
 
-from pde_solver.pde_types import (
+from wren_pde_solver.pde_types import (
     DType,
     Function,
     Matrix,
@@ -35,7 +35,7 @@ from pde_solver.pde_types import (
     VectorFunction,
 )
 
-from pde_solver.abc.pde import PDE
+from wren_pde_solver.abc.pde import PDE
 """
 
 type data_type = TypeAliasType | type[NoneType]
