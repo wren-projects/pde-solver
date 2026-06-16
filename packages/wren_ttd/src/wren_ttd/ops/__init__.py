@@ -5,6 +5,7 @@ from .gradient import gradient
 from .inner_product import inner_product
 from .multiply import multiply
 from .neg import neg
+from .pad import pad
 from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
@@ -19,6 +20,7 @@ __all__ = [
     "inner_product",
     "multiply",
     "neg",
+    "pad",
     "stack",
     "subtract",
     "swapaxes",

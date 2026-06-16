@@ -384,3 +384,12 @@ def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(
         np.gradient(ttd, edge_order=2), np.gradient(tensor, edge_order=2), scale
     )
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("value", TEST_SCALARS)
+def test_pad_constant(tensor: TestTensor, ttd: TestTTD, value: float) -> None:
+    """Test that TTD pad with constant_values=0 works."""
+    expected = np.pad(tensor, pad_width=1, mode="constant", constant_values=value)
+    result = np.pad(ttd, pad_width=1, mode="constant", constant_values=value)
+    assert_default_epsilon(result, expected, scale=value)
