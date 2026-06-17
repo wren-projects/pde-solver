@@ -1,7 +1,7 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from itertools import islice, pairwise
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
@@ -912,104 +912,219 @@ def _normalize_pad_width(
         return ((pad_width, pad_width),) * ndim
 
     if not isinstance(pad_width, tuple):
-        raise TypeError("pad_width must be an int or a tuple")
+        raise TypeError(
+            f"pad_width must be an int or a tuple, got {type(pad_width).__name__}"
+        )
 
     if len(pad_width) == 0:
         return ((0, 0),) * ndim
 
-    if len(pad_width) != ndim:
+    # flat tuple of ints — NumPy broadcasts it as (before, after) for all axes
+    if all(isinstance(x, int) for x in pad_width):
+        if len(pad_width) == 1:
+            pw = pad_width[0]
+            return ((pw, pw),) * ndim
+        if len(pad_width) == 2:
+            before, after = pad_width
+            return ((before, after),) * ndim
         raise ValueError(
-            f"pad_width tuple length {len(pad_width)} must equal ndim {ndim}"
+            f"A flat pad_width tuple must have length 1 or 2, got {len(pad_width)}"
         )
 
-    if all(isinstance(x, int) for x in pad_width):
-        return tuple(cast(tuple[int, int], (pw, pw)) for pw in pad_width)
-
+    # per-axis (before, after) pairs
     if all(
-        isinstance(x, tuple)
-        and len(x) == 2
-        and isinstance(x[0], int)
-        and isinstance(x[1], int)
+        isinstance(x, tuple) and len(x) == 2
+        and isinstance(x[0], int) and isinstance(x[1], int)
         for x in pad_width
     ):
-        return cast(tuple[tuple[int, int], ...], pad_width)
+        if len(pad_width) != ndim:
+            raise ValueError(
+                f"pad_width tuple length {len(pad_width)} must equal ndim {ndim}"
+            )
+        return pad_width
 
     raise ValueError(f"Invalid pad_width: {pad_width}")
+
+
+def _normalize_constant_values(
+    constant_values: Scalar | tuple[Scalar, Scalar] | tuple[tuple[Scalar, Scalar], ...],
+    pad_width: tuple[tuple[int, int], ...],
+) -> tuple[tuple[Scalar, Scalar], ...]:
+    ndim = len(pad_width)
+
+    if isinstance(constant_values, ScalarTypes):
+        return ((constant_values, constant_values),) * ndim
+
+    if isinstance(constant_values, tuple):
+        # flat scalar tuple — NumPy broadcasts as (before, after) for all axes
+        if all(isinstance(v, ScalarTypes) for v in constant_values):
+            if len(constant_values) == 1:
+                cv = constant_values[0]
+                return ((cv, cv),) * ndim
+            if len(constant_values) == 2:
+                c0, c1 = constant_values
+                return ((c0, c1),) * ndim
+            raise ValueError(
+                f"A flat constant_values tuple must have length 1 or 2, "
+                f"got {len(constant_values)}"
+            )
+
+        # per-axis (before, after) pairs
+        if len(constant_values) != ndim:
+            raise ValueError(
+                f"constant_values tuple length {len(constant_values)} must equal "
+                f"ndim {ndim} or be a (before, after) pair"
+            )
+
+        result: list[tuple[Scalar, Scalar]] = []
+        for v in constant_values:
+            if isinstance(v, tuple) and len(v) == 2:
+                c0, c1 = v
+                if not isinstance(c0, ScalarTypes) or not isinstance(c1, ScalarTypes):
+                    raise ValueError(f"Invalid constant_values entry: {v}")
+                result.append((c0, c1))
+            else:
+                raise ValueError(f"Invalid constant_values entry: {v}")
+        return tuple(result)
+
+    raise TypeError(
+        f"constant_values must be a scalar, a (before, after) tuple, or a "
+        f"sequence of per-axis pairs, got {type(constant_values).__name__}"
+    )
+
+
+def _pad_cores[DType: np.floating](
+    cores: list[Core[DType]],
+    pad_width: tuple[tuple[int, int], ...],
+    pad_core: Callable[[Core[DType], int, int], Core[DType]],
+) -> list[Core[DType]]:
+    result: list[Core[DType]] = []
+    for core, (p_before, p_after) in zip(cores, pad_width, strict=True):
+        if p_before == 0 and p_after == 0:
+            result.append(core)
+        else:
+            result.append(pad_core(core, p_before, p_after))
+    return result
+
+
+def _zero_pad_core[DType: np.floating](
+    core: Core[DType], p_before: int, p_after: int
+) -> Core[DType]:
+    l, n, r = core.shape
+    new_core = np.zeros((l, n + p_before + p_after, r), dtype=core.dtype)
+    new_core[:, p_before : p_before + n, :] = core
+    return new_core
+
+
+def _edge_pad_core[DType: np.floating](
+    core: Core[DType], p_before: int, p_after: int
+) -> Core[DType]:
+    first_slice = core[:, :1, :]
+    last_slice = core[:, -1:, :]
+    before = np.repeat(first_slice, p_before, axis=1)
+    after = np.repeat(last_slice, p_after, axis=1)
+    return np.concatenate([before, core, after], axis=1)
+
+
+def _rank1_ttd[DType: np.floating](
+    arrays: Sequence[np.ndarray],
+    dtype: np.dtype[DType],
+) -> TTD[DType]:
+    """
+    Build a rank-1 TTD from per-dimension 1D arrays.
+
+    Each array represents the values along one dimension.
+    The result TTD value at index (i0, ..., in) is the product
+    of arrays[k][ik] across all dimensions.
+
+    This is a general building block for creating indicator/mask TTDs.
+    """
+    from pde_ttd.core import TTD
+
+    cores = [a.astype(dtype, copy=False).reshape(1, -1, 1) for a in arrays]
+    return TTD(cores, dtype=dtype)
+
+
+def _make_padding_mask[DType: np.floating](
+    shape: tuple[int, ...],
+    dtype: np.dtype[DType],
+    regions: Iterable[tuple[int, slice]],
+) -> TTD[DType]:
+    """
+    Build a rank-1 TTD that is 1 where NONE of the given regions apply.
+
+    For regions like [(dim_a, slice_a), (dim_b, slice_b), ...], the result is 1
+    at positions where, for all (d, s) in regions, index[d] is NOT in s.
+    It is 0 at positions where at least one dimension falls into one of its
+    region slices.
+
+    The complement (1 where ANY region applies) is obtained via ``ones - mask``.
+    """
+    from pde_ttd.core import TTD
+
+    region_map: dict[int, list[slice]] = {}
+    for dim, s in regions:
+        region_map.setdefault(dim, []).append(s)
+
+    cores: list[Core[DType]] = []
+    for dim, n in enumerate(shape):
+        core = np.ones((1, n, 1), dtype=dtype)
+        for s in region_map.get(dim, []):
+            core[0, s, 0] = 0
+        cores.append(core)
+
+    return TTD(cores, dtype=dtype)
 
 
 def _pad_constant[DType: np.floating](
     ttd: TTD[DType],
     pad_width: tuple[tuple[int, int], ...],
-    constant_value: Scalar,
+    constant_values: tuple[tuple[Scalar, Scalar], ...],
 ) -> TTD[DType]:
-    """Pad a TTD with constant values."""
-    from wren_ttd.core import TTD
+    from pde_ttd.core import TTD
 
-    new_cores: list[Core[DType]] = []
-    for core, (p_before, p_after) in zip(ttd.data, pad_width, strict=True):
-        if p_before == 0 and p_after == 0:
-            new_cores.append(core.copy())
-            continue
-        r_left, n, r_right = core.shape
-        new_core: Core[DType] = np.zeros(
-            (r_left, n + p_before + p_after, r_right), dtype=ttd.dtype
-        )
-        new_core[:, p_before : p_before + n, :] = core
-        new_cores.append(new_core)
+    zero_cores = _pad_cores(ttd.data, pad_width, _zero_pad_core)
+    padded = TTD(zero_cores, dtype=ttd.dtype)
 
-    Z = TTD(new_cores, dtype=ttd.dtype)
-
-    if constant_value == 0 or constant_value == ttd.dtype.type(0):
-        return Z
-
-    # Build an all-ones TTD of the padded shape (rank 1)
-    ones_cores: list[Core[DType]] = []
-    for (p_before, p_after), orig_n in zip(pad_width, ttd.shape, strict=True):
+    regions: dict[float, list[tuple[int, slice]]] = {}
+    for dim, ((p_before, p_after), (cv_before, cv_after)) in enumerate(
+        zip(pad_width, constant_values, strict=True)
+    ):
+        orig_n = ttd.shape[dim]
         new_n = orig_n + p_before + p_after
-        ones_cores.append(np.ones((1, new_n, 1), dtype=ttd.dtype))
-    ones_ttd = TTD(ones_cores, dtype=ttd.dtype)
+        if p_before > 0:
+            r = float(cv_before)
+            if r != 0.0:
+                regions.setdefault(r, []).append((dim, slice(0, p_before)))
+        if p_after > 0:
+            r = float(cv_after)
+            if r != 0.0:
+                regions.setdefault(r, []).append((dim, slice(p_before + orig_n, new_n)))
 
-    # Build a rank-1 indicator TTD: 1 in the original domain, 0 in the padded region
-    indicator_cores: list[Core[DType]] = []
-    for (p_before, p_after), orig_n in zip(pad_width, ttd.shape, strict=True):
-        new_n = orig_n + p_before + p_after
-        ind_core: Core[DType] = np.ones((1, new_n, 1), dtype=ttd.dtype)
-        ind_core[0, :p_before, 0] = 0
-        ind_core[0, p_before + orig_n :, 0] = 0
-        indicator_cores.append(ind_core)
-    indicator_ttd = TTD(indicator_cores, dtype=ttd.dtype)
+    if not regions:
+        return padded
 
-    return Z + constant_value * (ones_ttd - indicator_ttd)
+    ones = TTD.ones(padded.shape, dtype=ttd.dtype)
+    for value, value_regions in regions.items():
+        interior = _make_padding_mask(padded.shape, ttd.dtype, value_regions)
+        padded = padded + value * (ones - interior)
+
+    return padded
 
 
 def _pad_edge[DType: np.floating](
     ttd: TTD[DType],
     pad_width: tuple[tuple[int, int], ...],
 ) -> TTD[DType]:
-    """Pad a TTD by repeating edge values."""
-    from wren_ttd.core import TTD
+    from pde_ttd.core import TTD
 
-    new_cores: list[Core[DType]] = []
-    for core, (p_before, p_after) in zip(ttd.data, pad_width, strict=True):
-        if p_before == 0 and p_after == 0:
-            new_cores.append(core)
-            continue
-
-        first_slice = core[:, :1, :]
-        last_slice = core[:, -1:, :]
-
-        before = np.repeat(first_slice, p_before, axis=1)
-        after = np.repeat(last_slice, p_after, axis=1)
-
-        new_core = np.concatenate([before, core, after], axis=1)
-        new_cores.append(new_core)
-
+    new_cores = _pad_cores(ttd.data, pad_width, _edge_pad_core)
     return TTD(new_cores, dtype=ttd.dtype)
 
 
 @implements_function("pad")
 def pad[DType: np.floating](
-    array: TTD[DType],
+    ttd: TTD[DType],
     pad_width: int | tuple[int, ...] | tuple[tuple[int, int], ...],
     mode: str = "constant",
     **kwargs: Any,
@@ -1019,7 +1134,7 @@ def pad[DType: np.floating](
 
     Parameters
     ----------
-    array : TTD[DType]
+    ttd : TTD[DType]
         The TTD tensor to pad.
     pad_width : int | tuple[int, ...] | tuple[tuple[int, int], ...]
         The number of elements to pad on each side of each axis.
@@ -1027,7 +1142,8 @@ def pad[DType: np.floating](
         The padding mode. Supported: 'constant', 'edge'. Default is 'constant'.
     **kwargs
         Additional keyword arguments for the padding mode.
-        For 'constant' mode: constant_values (float, default 0.0).
+        For 'constant' mode: constant_values (scalar, (before, after),
+        per-axis scalar, or per-axis (before, after) pairs; default 0.0).
 
     Returns
     -------
@@ -1035,20 +1151,19 @@ def pad[DType: np.floating](
         The padded TTD tensor.
 
     """
-    normalized = _normalize_pad_width(pad_width, array.ndim)
+    from pde_ttd.core import TTD
 
-    if all(pw == (0, 0) for pw in normalized):
-        return array.copy()
+    normalized_pw = _normalize_pad_width(pad_width, ttd.ndim)
+
+    if all(pw == (0, 0) for pw in normalized_pw):
+        return TTD(ttd.data, dtype=ttd.dtype)
 
     if mode == "constant":
         constant_values = kwargs.get("constant_values", 0.0)
-        if isinstance(constant_values, (list, tuple)):
-            raise NotImplementedError(
-                "Per-axis constant_values are not supported, use a scalar"
-            )
-        return _pad_constant(array, normalized, constant_values)
+        normalized_cv = _normalize_constant_values(constant_values, normalized_pw)
+        return _pad_constant(ttd, normalized_pw, normalized_cv)
 
     if mode == "edge":
-        return _pad_edge(array, normalized)
+        return _pad_edge(ttd, normalized_pw)
 
     return NotImplemented
