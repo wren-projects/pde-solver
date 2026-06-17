@@ -9,7 +9,7 @@ import numpy as np
 from numpy.lib.array_utils import normalize_axis_index, normalize_axis_tuple
 from pde_common.types import Index1D, Matrix, Scalar, ScalarTypes
 
-from pde_ttd._helpers import orthogonalize_right, reverse_cores
+from pde_ttd._helpers import orthogonalize_right, reverse_cores, smallest_core
 from pde_ttd._numpy_api import implements_function, implements_ufunc
 from pde_ttd.math import (
     DEFAULT_EPSILON,
@@ -267,10 +267,8 @@ def multiply[DType: np.floating](
     ) -> TTD[DType]:
         cores = ttd.data.copy()
 
-        # find smallest core
-        _, index = min((core.size, index) for index, core in enumerate(cores))
-
-        cores[index] = np.multiply(cores[index], scalar)
+        core, index = smallest_core(cores)
+        cores[index] = np.multiply(core, scalar)
 
         if out is not None:
             out.data = cores
@@ -904,70 +902,75 @@ def gradient[DType: np.floating](
     return tuple(results)
 
 
+type ScalarPair = tuple[Scalar, Scalar]
+
+
 def _normalize_pad_width(
-    pad_width: int | tuple[int, ...] | tuple[tuple[int, int], ...],
+    pad_width: int | Sequence[int] | Sequence[ScalarPair],
     ndim: int,
 ) -> tuple[tuple[int, int], ...]:
     if isinstance(pad_width, int):
         return ((pad_width, pad_width),) * ndim
 
-    if not isinstance(pad_width, tuple):
+    if not isinstance(pad_width, Sequence):
         raise TypeError(
-            f"pad_width must be an int or a tuple, got {type(pad_width).__name__}"
+            f"pad_width must be an int or a Sequence, got {type(pad_width).__name__}"
         )
 
-    if len(pad_width) == 0:
+    if not pad_width:
         return ((0, 0),) * ndim
 
     # flat tuple of ints — NumPy broadcasts it as (before, after) for all axes
     if all(isinstance(x, int) for x in pad_width):
+        pad_width = cast(Sequence[int], pad_width)
         if len(pad_width) == 1:
             pw = pad_width[0]
             return ((pw, pw),) * ndim
+
         if len(pad_width) == 2:
             before, after = pad_width
             return ((before, after),) * ndim
+
         raise ValueError(
             f"A flat pad_width tuple must have length 1 or 2, got {len(pad_width)}"
         )
 
     # per-axis (before, after) pairs
     if all(
-        isinstance(x, tuple) and len(x) == 2
-        and isinstance(x[0], int) and isinstance(x[1], int)
-        for x in pad_width
+        isinstance(pw, Sequence)
+        and len(pw) == 2
+        and all(isinstance(y, int) for y in pw)
+        for pw in pad_width
     ):
         if len(pad_width) != ndim:
             raise ValueError(
                 f"pad_width tuple length {len(pad_width)} must equal ndim {ndim}"
             )
-        return pad_width
+
+        return tuple(cast(Sequence[tuple[int, int]], pad_width))
 
     raise ValueError(f"Invalid pad_width: {pad_width}")
 
 
 def _normalize_constant_values(
-    constant_values: Scalar | tuple[Scalar, Scalar] | tuple[tuple[Scalar, Scalar], ...],
-    pad_width: tuple[tuple[int, int], ...],
-) -> tuple[tuple[Scalar, Scalar], ...]:
+    constant_values: Scalar | ScalarPair | Sequence[ScalarPair],
+    pad_width: Sequence[ScalarPair],
+) -> tuple[ScalarPair, ...]:
     ndim = len(pad_width)
 
     if isinstance(constant_values, ScalarTypes):
+        constant_values = cast(Scalar, constant_values)
         return ((constant_values, constant_values),) * ndim
 
-    if isinstance(constant_values, tuple):
-        # flat scalar tuple — NumPy broadcasts as (before, after) for all axes
+    if isinstance(constant_values, Sequence):
+        constant_values = cast(ScalarPair | Sequence[ScalarPair], constant_values)
+        # (before, after) for all axes
         if all(isinstance(v, ScalarTypes) for v in constant_values):
-            if len(constant_values) == 1:
-                cv = constant_values[0]
-                return ((cv, cv),) * ndim
-            if len(constant_values) == 2:
-                c0, c1 = constant_values
-                return ((c0, c1),) * ndim
-            raise ValueError(
-                f"A flat constant_values tuple must have length 1 or 2, "
-                f"got {len(constant_values)}"
-            )
+            assert len(constant_values) == 2
+            constant_values = cast(ScalarPair, constant_values)
+
+            c0, c1 = constant_values
+            return ((c0, c1),) * ndim
 
         # per-axis (before, after) pairs
         if len(constant_values) != ndim:
@@ -976,15 +979,17 @@ def _normalize_constant_values(
                 f"ndim {ndim} or be a (before, after) pair"
             )
 
-        result: list[tuple[Scalar, Scalar]] = []
+        result: list[ScalarPair] = []
         for v in constant_values:
-            if isinstance(v, tuple) and len(v) == 2:
-                c0, c1 = v
+            if isinstance(v, Sequence) and len(v) == 2:
+                c0, c1 = cast(ScalarPair, v)
                 if not isinstance(c0, ScalarTypes) or not isinstance(c1, ScalarTypes):
                     raise ValueError(f"Invalid constant_values entry: {v}")
+
                 result.append((c0, c1))
             else:
                 raise ValueError(f"Invalid constant_values entry: {v}")
+
         return tuple(result)
 
     raise TypeError(
@@ -995,16 +1000,13 @@ def _normalize_constant_values(
 
 def _pad_cores[DType: np.floating](
     cores: list[Core[DType]],
-    pad_width: tuple[tuple[int, int], ...],
+    pad_width: Sequence[tuple[int, int]],
     pad_core: Callable[[Core[DType], int, int], Core[DType]],
-) -> list[Core[DType]]:
-    result: list[Core[DType]] = []
-    for core, (p_before, p_after) in zip(cores, pad_width, strict=True):
-        if p_before == 0 and p_after == 0:
-            result.append(core)
-        else:
-            result.append(pad_core(core, p_before, p_after))
-    return result
+) -> Iterable[Core[DType]]:
+    return (
+        core if p_before == p_after == 0 else pad_core(core, p_before, p_after)
+        for core, (p_before, p_after) in zip(cores, pad_width, strict=True)
+    )
 
 
 def _zero_pad_core[DType: np.floating](
@@ -1012,6 +1014,15 @@ def _zero_pad_core[DType: np.floating](
 ) -> Core[DType]:
     l, n, r = core.shape
     new_core = np.zeros((l, n + p_before + p_after, r), dtype=core.dtype)
+    new_core[:, p_before : p_before + n, :] = core
+    return new_core
+
+
+def _one_pad_core[DType: np.floating](
+    core: Core[DType], p_before: int, p_after: int
+) -> Core[DType]:
+    l, n, r = core.shape
+    new_core = np.ones((l, n + p_before + p_after, r), dtype=core.dtype)
     new_core[:, p_before : p_before + n, :] = core
     return new_core
 
@@ -1041,75 +1052,29 @@ def _rank1_ttd[DType: np.floating](
     """
     from pde_ttd.core import TTD
 
-    cores = [a.astype(dtype, copy=False).reshape(1, -1, 1) for a in arrays]
-    return TTD(cores, dtype=dtype)
-
-
-def _make_padding_mask[DType: np.floating](
-    shape: tuple[int, ...],
-    dtype: np.dtype[DType],
-    regions: Iterable[tuple[int, slice]],
-) -> TTD[DType]:
-    """
-    Build a rank-1 TTD that is 1 where NONE of the given regions apply.
-
-    For regions like [(dim_a, slice_a), (dim_b, slice_b), ...], the result is 1
-    at positions where, for all (d, s) in regions, index[d] is NOT in s.
-    It is 0 at positions where at least one dimension falls into one of its
-    region slices.
-
-    The complement (1 where ANY region applies) is obtained via ``ones - mask``.
-    """
-    from pde_ttd.core import TTD
-
-    region_map: dict[int, list[slice]] = {}
-    for dim, s in regions:
-        region_map.setdefault(dim, []).append(s)
-
-    cores: list[Core[DType]] = []
-    for dim, n in enumerate(shape):
-        core = np.ones((1, n, 1), dtype=dtype)
-        for s in region_map.get(dim, []):
-            core[0, s, 0] = 0
-        cores.append(core)
-
+    cores = [a.astype(dtype, copy=False).reshape(1, a.size, 1) for a in arrays]
     return TTD(cores, dtype=dtype)
 
 
 def _pad_constant[DType: np.floating](
-    ttd: TTD[DType],
-    pad_width: tuple[tuple[int, int], ...],
-    constant_values: tuple[tuple[Scalar, Scalar], ...],
+    ttd: TTD[DType], pad_width: Sequence[tuple[int, int]], value: Scalar
 ) -> TTD[DType]:
     from pde_ttd.core import TTD
 
-    zero_cores = _pad_cores(ttd.data, pad_width, _zero_pad_core)
-    padded = TTD(zero_cores, dtype=ttd.dtype)
-
-    regions: dict[float, list[tuple[int, slice]]] = {}
-    for dim, ((p_before, p_after), (cv_before, cv_after)) in enumerate(
-        zip(pad_width, constant_values, strict=True)
-    ):
-        orig_n = ttd.shape[dim]
-        new_n = orig_n + p_before + p_after
-        if p_before > 0:
-            r = float(cv_before)
-            if r != 0.0:
-                regions.setdefault(r, []).append((dim, slice(0, p_before)))
-        if p_after > 0:
-            r = float(cv_after)
-            if r != 0.0:
-                regions.setdefault(r, []).append((dim, slice(p_before + orig_n, new_n)))
-
-    if not regions:
-        return padded
-
+    padded = TTD(_pad_cores(ttd.data, pad_width, _zero_pad_core), dtype=ttd.dtype)
     ones = TTD.ones(padded.shape, dtype=ttd.dtype)
-    for value, value_regions in regions.items():
-        interior = _make_padding_mask(padded.shape, ttd.dtype, value_regions)
-        padded = padded + value * (ones - interior)
 
-    return padded
+    interior_cores: list[Core[DType]] = []
+    for one_core in ones.data:
+        core = one_core.copy()
+        core[:, 1, :] = 0
+        core[:, -1, :] = 0
+        interior_cores.append(core)
+    interior = TTD(interior_cores, dtype=ttd.dtype)
+
+    padded = padded + value * (ones - interior)
+
+    return padded.rounded()
 
 
 def _pad_edge[DType: np.floating](
@@ -1125,7 +1090,7 @@ def _pad_edge[DType: np.floating](
 @implements_function("pad")
 def pad[DType: np.floating](
     ttd: TTD[DType],
-    pad_width: int | tuple[int, ...] | tuple[tuple[int, int], ...],
+    pad_width: int | Sequence[int] | Sequence[tuple[int, int]],
     mode: str = "constant",
     **kwargs: Any,
 ) -> TTD[DType]:
@@ -1160,8 +1125,8 @@ def pad[DType: np.floating](
 
     if mode == "constant":
         constant_values = kwargs.get("constant_values", 0.0)
-        normalized_cv = _normalize_constant_values(constant_values, normalized_pw)
-        return _pad_constant(ttd, normalized_pw, normalized_cv)
+        assert isinstance(constant_values, ScalarTypes)
+        return _pad_constant(ttd, normalized_pw, constant_values)
 
     if mode == "edge":
         return _pad_edge(ttd, normalized_pw)
