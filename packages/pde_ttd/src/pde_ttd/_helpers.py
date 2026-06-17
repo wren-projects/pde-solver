@@ -12,6 +12,14 @@ def reverse_cores[DType: np.floating](
     return (core.T for core in reversed(cores))
 
 
+def smallest_core[DType: np.floating](
+    cores: Iterable[Core[DType]],
+) -> tuple[Core[DType], int]:
+    """Find the smallest core and its index."""
+    _, index, core = min((core.size, index, core) for index, core in enumerate(cores))
+    return core, index
+
+
 def to_int_tuple(axes: int | Iterable[int]) -> tuple[int, ...]:
     return (int(axes),) if isinstance(axes, int) else tuple(map(int, axes))
 
