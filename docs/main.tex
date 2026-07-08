@@ -1041,6 +1041,7 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 Classical tensor-train approaches often represent differential
 operators as TT-matrices and apply them through TT-matrix--TT-vector
 multiplication.
+\cite{Oseledets2009TreeTucker,Oseledets2011TT}
 
 In this work, however, differential operators are applied directly
 to TT cores. This avoids constructing explicit TT-matrix
@@ -1752,8 +1753,122 @@ decrease quadratically with the spatial resolution.
 In practice, the time step must satisfy a suitable CFL-type
 stability condition.
 
+The explicit finite-difference method approximates the time derivative
+using a forward Euler discretization
+\cite{LeVeque2007}.
+
+
 %==================================================
-\section{Conclusion and Further Reading}
+\section{Validation}
+%==================================================
+
+The implemented numerical methods are verified using analytical
+solutions of the governing partial differential equations and
+convergence studies based on step-size halving.
+
+Analytical solutions provide an exact reference against which the
+numerical approximation can be compared, while step-size halving
+verifies that the implemented method exhibits the expected order of
+convergence. Together, these tests provide evidence for both the
+correctness of the implementation and the consistency of the numerical
+discretization \cite{LeVeque2007}.
+
+%==================================================
+\subsection{Validation using analytical solutions}
+%==================================================
+
+The primary verification procedure compares the numerical solution
+against an analytical solution of the three-dimensional heat equation.
+The analytical solution used in the test cases is taken from Herman
+\cite{HermanPDE} and corresponds to the homogeneous heat equation
+
+\[
+u_t
+=
+\alpha
+\left(
+u_{xx}
++
+u_{yy}
++
+u_{zz}
+\right),
+\]
+
+posed on the unit cube with homogeneous Dirichlet boundary conditions.
+
+The analytical solution has the form
+
+\[
+u(x,y,z,t)
+=
+\sin(l\pi x)
+\sin(m\pi y)
+\sin(n\pi z)
+\exp\!\left(
+-\alpha\pi^2
+(l^2+m^2+n^2)t
+\right),
+\]
+
+where $l$, $m$ and $n$ denote the spatial modes.
+
+For each test case, the numerical solution is evolved to a prescribed
+time and compared with the corresponding analytical solution. The
+difference between the two solutions provides a direct measure of the
+accuracy of the implemented numerical method.
+
+%==================================================
+\subsection{Convergence study using step-size halving}
+%==================================================
+
+In addition to comparison with analytical solutions, the implemented
+methods are verified using a convergence study based on step-size
+halving.
+
+The same problem is solved repeatedly while reducing the spatial and/or
+temporal discretization by a factor of two. For a numerical method of
+order $p$, the discretization error satisfies
+
+\[
+E(h)
+=
+Ch^p
++
+\mathcal{O}(h^{p+1}),
+\]
+
+where $h$ denotes the discretization size and $C$ is independent of
+$h$ \cite{LeVeque2007}.
+
+Consequently,
+
+\[
+\frac{E(h)}
+     {E(h/2)}
+\approx
+2^p,
+\]
+
+which allows the observed convergence order to be estimated as
+
+\[
+p
+\approx
+\log_2
+\left(
+\frac{E(h)}
+     {E(h/2)}
+\right).
+\]
+
+Agreement between the observed and theoretical convergence orders
+provides additional verification that the numerical implementation is
+consistent with the underlying finite-difference discretization.
+
+
+%==================================================
+\section{Conclusion}
 %==================================================
 % Add citations and key references here (TT-SVD, Oseledets, AMEn, etc.)
 
@@ -1761,3 +1876,4 @@ stability condition.
 \bibliography{references}
 
 \end{document}
+
