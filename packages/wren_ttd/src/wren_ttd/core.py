@@ -303,6 +303,29 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         core *= fill_value
         return base
 
+    @staticmethod
+    def random[DT: np.floating](
+        shape: int | Sequence[int],
+        ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT],
+    ) -> TTD[DT]:
+        """Create a TTD representing a random tensor."""
+        shape = to_int_tuple(shape)
+        d = len(shape)
+
+        ranks = (
+            (1, *((ranks,) * (d - 1)), 1) if isinstance(ranks, int) else tuple(ranks)
+        )
+
+        rng = np.random.default_rng()
+        cores = [
+            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
+            for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
+        ]
+
+        return TTD(cores, dtype=dtype)
+
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
