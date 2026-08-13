@@ -81,6 +81,14 @@ def test_full(shape: tuple[int, ...], fill_value: float) -> None:
     assert_default_epsilon(ttd, tensor)
 
 
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_random(shape: tuple[int, ...]) -> None:
+    """Test randomly generated TTD."""
+    ttd = TTD.random(shape, dtype=np.dtype(np.float64))
+    assert ttd.shape == shape
+    np.testing.assert_allclose(ttd.sum() / ttd.size, 0.5, atol=0.5, rtol=0.5)
+
+
 def test_ranks() -> None:
     """Test ranks."""
     ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
