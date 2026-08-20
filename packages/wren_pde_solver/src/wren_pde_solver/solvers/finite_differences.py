@@ -1,6 +1,7 @@
 from typing import final, override
 
 import numpy as np
+from wren_common.math import dot_product
 
 from wren_pde_solver.abc.solver import Solver
 from wren_pde_solver.operators import divergence, gradient
@@ -31,7 +32,7 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
 
         # β = ∇⋅(𝐁 ⋅ ∇u)
         state_gradient = gradient(state, spacial_step)
-        diffusion_flux = np.tensordot(pde.matrix_diffusion, state_gradient, axes=1)
+        diffusion_flux = dot_product(pde.matrix_diffusion, state_gradient)
         diffusion_term = divergence(diffusion_flux, spacial_step)
 
         # uₜ = -(α + β) * Δt

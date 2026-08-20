@@ -8,18 +8,13 @@ from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, overrid
 import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
+from wren_common.math import dot_product, scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray
 
 from wren_ttd import ops
 from wren_ttd._helpers import orthogonalize_right, reverse_cores
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
-from wren_ttd.math import (
-    DEFAULT_EPSILON,
-    delta_truncated_svd,
-    dot_product,
-    scale_matrix,
-    truncation_parameter,
-)
+from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd, truncation_parameter
 from wren_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")

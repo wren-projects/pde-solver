@@ -1,8 +1,9 @@
 from collections.abc import Iterable, Reversible
 
 import numpy as np
+from wren_common.math import dot_product
 
-from wren_ttd.math import dot_product, qr_rows
+from wren_ttd.math import qr_rows
 from wren_ttd.types import Core
 
 
