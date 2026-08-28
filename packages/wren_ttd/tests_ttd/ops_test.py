@@ -89,7 +89,7 @@ def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
+def test_indexing_single_axis(ttd: TestTTD, tensor: TestTensor) -> None:
     """Test partial indexing."""
     for i in range(tensor.shape[0]):
         assert_default_epsilon(ttd[i], tensor[i])
@@ -97,15 +97,23 @@ def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
         assert_default_epsilon(ttd[i:], tensor[i:])
         assert_default_epsilon(ttd[i::2], tensor[i::2])
 
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_double_axis(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
+    for i in range(tensor.shape[0]):
+        for j in range(tensor.shape[1]):
+            assert_default_epsilon(ttd[i, j], tensor[i, j])
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_double_axis_slice(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
     for j in range(tensor.shape[1]):
         assert_default_epsilon(ttd[:, j], tensor[:, j])
         n = tensor.shape[0] // 2
         assert_default_epsilon(ttd[:n, j], tensor[:n, j])
         assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
-
-    for i in range(tensor.shape[0]):
-        for j in range(tensor.shape[1]):
-            assert_default_epsilon(ttd[i, j], tensor[i, j])
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
