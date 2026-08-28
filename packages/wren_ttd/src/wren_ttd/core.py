@@ -12,7 +12,7 @@ from wren_common.math import dot_product, scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray
 
 from wren_ttd import ops
-from wren_ttd._helpers import orthogonalize_right, reverse_cores
+from wren_ttd._helpers import orthogonalize_right, reverse_cores, to_int_tuple
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd, truncation_parameter
 from wren_ttd.types import Core
@@ -140,6 +140,36 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         return TTD(cores)
 
+    @staticmethod
+    def ones[DT: np.floating](
+        shape: int | Sequence[int],
+        *,
+        dtype: np.dtype[DT] | None = None,
+    ) -> TTD[DT]:
+        """Create a TTD representing a tensor of ones."""
+        cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
+        return TTD(cores, dtype=dtype)
+
+    @staticmethod
+    def zeros[DT: np.floating](
+        shape: int | Sequence[int],
+        *,
+        dtype: np.dtype[DT] | None = None,
+    ) -> TTD[DT]:
+        """Create a TTD representing a tensor of zeros."""
+        cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
+        return TTD(cores)
+
+    @staticmethod
+    def full[DT: np.floating](
+        shape: int | Sequence[int],
+        fill_value: DT | float,
+        *,
+        dtype: np.dtype[DT] | None = None,
+    ) -> TTD[DT]:
+        """Create a TTD representing a tensor of a constant value."""
+        return TTD.ones(shape, dtype=dtype) * fill_value
+
     @override
     def __repr__(self) -> str:
         """Return a string representation of the TTD object."""
@@ -167,6 +197,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def size(self) -> int:
         """Return the size of the uncompressed tensor."""
         return math.prod(self.shape)
+
+    @property
+    def compressed_size(self) -> int:
+        """Return the size of the compressed representation."""
+        return sum(core.size for core in self.data)
+
+    @property
+    def ranks(self) -> tuple[int, ...]:
+        """Return the internal ranks of the TTD object."""
+        return tuple(core.shape[2] for core in self.data[:-1])
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None

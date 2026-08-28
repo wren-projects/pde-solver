@@ -13,6 +13,31 @@ def reverse_cores[DType: np.floating](
     return (core.T for core in reversed(cores))
 
 
+def to_int_tuple(a: int | Iterable[int]) -> tuple[int, ...]:
+    """
+    Convert an int or iterable of ints to a tuple of ints.
+
+    If the input is an int, it is converted to a tuple of length 1. An iterable
+    is converted to a tuple of the same length. Useful for normalizing
+    NumPy-style shape or axis arguments to single type.
+
+    See also: :func:`numpy.core.multiarray.normalize_axis_tuple` if the handling
+    of negative and out-of-bounds indices is desired.
+
+    Parameters
+    ----------
+    a : int | Iterable[int]
+        The input to convert.
+
+    Returns
+    -------
+    tuple[int, ...]
+        The converted tuple.
+
+    """
+    return (int(a),) if isinstance(a, int) else tuple(map(int, a))
+
+
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
