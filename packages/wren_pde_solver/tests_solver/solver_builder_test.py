@@ -1,0 +1,3 @@
+def test_builder_run_and_returns_the_same_running_a_solver_directly_would() -> None:
+    """Tests solver builder."""
+    # TODO, as solver tester is not done yet either...
