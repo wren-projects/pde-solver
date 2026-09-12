@@ -176,7 +176,7 @@ def test_scalar_subtraction(tensor: TestTensor, ttd: TestTTD, scalar: float) -> 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_multiplication(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-    """Test that TTD addition works."""
+    """Test that TTD multiplication works."""
     a, b = tensors
     ttd_a, ttd_b = ttds
 
