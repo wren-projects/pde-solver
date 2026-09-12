@@ -202,9 +202,9 @@ def multiply[DType: np.floating](
 
     Parameters
     ----------
-    a : TTD[DType]
+    a : TTD[DType] | Scalar
         The TTD object to multiply.
-    b : Scalar
+    b : TTD[DType] | Scalar
         The scalar to multiply the TTD object by.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
