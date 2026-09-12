@@ -5,8 +5,8 @@ from wren_common.tests import (
     TestTensor,
     TestTensorPair,
 )
-from pde_common.types import NDArray, Scalar
-from pde_ttd import DEFAULT_EPSILON, TTD
+from wren_common.types import NDArray, Scalar
+from wren_ttd import DEFAULT_EPSILON, TTD
 
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
