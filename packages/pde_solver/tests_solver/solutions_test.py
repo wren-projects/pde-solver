@@ -54,13 +54,15 @@ def _make_spacial_step(shape: tuple[int, ...]) -> Vector:
     return 1.0 / (np.array(shape) + 1)
 
 
-def make_heat_3d_mode_111_case(
+def make_heat_3d_mode_case(
+    mode: tuple[int, int, int],
     shape: tuple[int, int, int],
     delta_time: float,
     steps: int,
+    diffusion: DType = DEFAULT_K,
 ) -> PDETestCase:
     """
-    Create a benchmark for the three-dimensional heat equation.
+    Create a benchmark for a 3D heat equation eigenmode.
 
     PDE:
         u_t = k Δu
@@ -69,68 +71,128 @@ def make_heat_3d_mode_111_case(
         (x, y, z) ∈ (0, 1)^3
 
     Boundary conditions:
-        u = 0 on all six faces of the unit cube.
+        u = 0 on all six faces.
 
     Initial condition:
-        u(x,y,z,0) = sin(πx) sin(πy) sin(πz)
+        u(x,y,z,0)
+            = sin(lπx) sin(mπy) sin(nπz)
 
     Analytical solution:
         u(x,y,z,t)
-            = sin(πx) sin(πy) sin(πz) exp(-3π²kt)
-
-    The solver uses the convention
-
-        u_t + div(B ∇u) = 0,
-
-    therefore the heat equation is represented using
-
-        B = -kI.
+            = sin(lπx) sin(mπy) sin(nπz)
+              exp(-π²k(l²+m²+n²)t)
     """
     x, y, z = _make_unit_cube_grid(shape)
-    decay_rate = 3 * np.pi**2 * DEFAULT_K
+
+    l, m, n = mode
+    decay_rate = np.pi**2 * diffusion * (
+        l**2 + m**2 + n**2
+    )
+
+    spatial_mode = (
+        np.sin(l * np.pi * x)
+        * np.sin(m * np.pi * y)
+        * np.sin(n * np.pi * z)
+    )
 
     def exact_solution(time: float) -> NDArray:
-        """
-        Analytical solution of the benchmark problem.
-
-        u(x,y,z,t)
-            = sin(πx) sin(πy) sin(πz) exp(-3π²kt)
-        """
-        return (
-            np.sin(np.pi * x)
-            * np.sin(np.pi * y)
-            * np.sin(np.pi * z)
-            * np.exp(-decay_rate * time)
-        )
+        return spatial_mode * np.exp(-decay_rate * time)
 
     pde = HomogeneousNoAdvectionScalarDiffusionPDE(
         dims=3,
         homogeneous=None,
         no_advection=None,
-        scalar_diffusion=-DEFAULT_K,
+        scalar_diffusion=-diffusion,
     )
 
     return PDETestCase(
-        name=f"3D heat equation mode (1,1,1), shape={shape}, dt={delta_time}",
+        name=(
+            f"3D heat equation mode {mode}, "
+            f"shape={shape}, dt={delta_time}"
+        ),
         pde=pde,
-        boundary_condition=ConstantDirichletBoundaryCondition(value=0.0),
+        boundary_condition=ConstantDirichletBoundaryCondition(
+            value=0.0
+        ),
         initial_condition=exact_solution(0.0),
         expected_solution=exact_solution,
         delta_time=DType(delta_time),
         steps=steps,
     )
 
+def make_poisson_3d_mode_case(
+    mode: tuple[int, int, int],
+    shape: tuple[int, int, int],
+):
+    x, y, z = _make_unit_cube_grid(shape)
+
+    l, m, n = mode
+
+    exact = (
+        np.sin(l*np.pi*x)
+        * np.sin(m*np.pi*y)
+        * np.sin(n*np.pi*z)
+    )
+
+    rhs = (
+        np.pi**2
+        * (l*l + m*m + n*n)
+        * exact
+    )
+
+    PDE = 
+    return PDETestCase(
+        name=f"3D Poisson mode {mode}",
+        pde=PoissonPDE(
+            dims=3,
+        ),
+        boundary_condition=ConstantDirichletBoundaryCondition(
+            value=0.0
+        ),
+        source_term=rhs,
+        expected_solution=lambda _: exact,
+    )
 
 PDE_TEST_CASES = [
-    # Coarse grid: fast smoke test.
-    make_heat_3d_mode_111_case((16, 16, 16), delta_time=1e-5, steps=100),
-    # Medium grid: checks refinement against the same analytical solution.
-    make_heat_3d_mode_111_case((32, 32, 32), delta_time=5e-6, steps=100),
-    # Non-uniform grid: verifies that the solver handles different
-    # resolutions in each spatial dimension correctly.
-    make_heat_3d_mode_111_case((20, 30, 50), delta_time=2e-6, steps=100),
-]
+    # Baseline: fundamental eigenmode.
+    make_heat_3d_mode_case(
+        mode=(1, 1, 1),
+        shape=(32, 32, 32),
+        delta_time=5e-6,
+        steps=100,
+        diffusion=DEFAULT_K,
+    ),
 
+    # Higher spatial frequency mode.
+    # Verifies Laplacian eigenvalue scaling.
+    make_heat_3d_mode_case(
+        mode=(2, 3, 1),
+        shape=(32, 32, 32),
+        delta_time=1e-6,
+        steps=100,
+        diffusion=DEFAULT_K,
+    ),
+
+    # Different diffusion coefficient.
+    # Verifies decay rate depends on k.
+    make_heat_3d_mode_case(
+        mode=(1, 1, 1),
+        shape=(32, 32, 32),
+        delta_time=1e-6,
+        steps=100,
+        diffusion=0.1,
+    ),
+
+    # Non-uniform grid.
+    # Verifies handling of different spatial resolutions.
+    make_heat_3d_mode_case(
+        mode=(1, 2, 1),
+        shape=(20, 30, 50),
+        delta_time=1e-6,
+        steps=100,
+        diffusion=DEFAULT_K,
+    ),
+]
 
 def _advance_case(case: PDETestCase) -> NDArray:
     """Run finite differences through the public solver interface."""
