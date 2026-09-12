@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
-from math import prod
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
@@ -161,6 +160,42 @@ def _add_cores[DType: np.floating](
     ]
 
 
+def _hadamard_impl[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]:
+    from .core import TTD
+
+    if a.shape != b.shape:
+        raise ValueError("Tensors must have the same shape.")
+
+    N = np.newaxis
+
+    new_cores: list[Core[DType]] = []
+    for core_a, core_b in zip(a.data, b.data, strict=True):
+        la, n, ra = core_a.shape
+        lb, _, rb = core_b.shape
+
+        # Expand dimensions to leverage standard NumPy broadcasting:
+        # core_a expanded: (la,  1, n, ra,  1)
+        # core_b expanded: ( 1, lb, n,  1, rb)
+        # Resulting shape: (la, lb, n, ra, rb)
+        # then multiply and flatten back
+        core = np.multiply(
+            core_a[:, N, :, :, N],
+            core_b[N, :, :, N, :],
+        ).reshape(la * lb, n, ra * rb)
+
+        new_cores.append(core)
+
+    if out is not None:
+        if out.shape != a.shape:
+            raise ValueError("Output tensor has an incorrect shape.")
+        out.data = new_cores
+        return out
+
+    return TTD(new_cores)
+
+
 @overload
 def multiply[DType: np.floating](
     a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
@@ -173,12 +208,18 @@ def multiply[DType: np.floating](
 ) -> TTD[DType]: ...
 
 
+@overload
+def multiply[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]: ...
+
+
 @implements_ufunc("multiply")
 def multiply[DType: np.floating](
     a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
-    Multiply a TTD object by a scalar.
+    Multiply a TTD object by a scalar or another TTD object.
 
     For a TTD object A = G₀ ⊗ G₁ ⊗ ... ⊗ Gₙ, the multiplication by a scalar k is defined
     as
@@ -188,11 +229,18 @@ def multiply[DType: np.floating](
     where the choice of i is arbitrary from 0 to n. For performance reasons, we choose
     the smallest core.
 
+    Multiplication by another TTD object is implemented as the Hadamard (element-wise)
+    product defined as
+
+        A ⊙ B = (G₀ ⊙ H₀) ⊗ (G₁ ⊙ H₁) ⊗ … ⊗ (Gₙ ⊙ Hₙ),
+
+    where Gᵣ ⊙ Hᵣ = (Gᵣ Hᵣ).
+
     Parameters
     ----------
-    a : TTD[DType]
+    a : TTD[DType] | Scalar
         The TTD object to multiply.
-    b : Scalar
+    b : TTD[DType] | Scalar
         The scalar to multiply the TTD object by.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
@@ -205,13 +253,13 @@ def multiply[DType: np.floating](
     """
     from .core import TTD
 
-    def impl(
+    def scalar_impl(
         ttd: TTD[DType], scalar: np.floating | float, out: TTD[DType] | None = None
     ) -> TTD[DType]:
         cores = ttd.data.copy()
 
         # find smallest core
-        _, index = min((prod(core.shape), index) for index, core in enumerate(cores))
+        _, index = min((core.size, index) for index, core in enumerate(cores))
 
         cores[index] = np.multiply(cores[index], scalar)
 
@@ -222,10 +270,13 @@ def multiply[DType: np.floating](
         return TTD(cores, dtype=ttd.dtype)
 
     if isinstance(a, TTD) and isinstance(b, ScalarTypes):
-        return impl(a, b, out=out)
+        return scalar_impl(a, b, out=out)
 
     if isinstance(b, TTD) and isinstance(a, ScalarTypes):
-        return impl(b, a, out=out)
+        return scalar_impl(b, a, out=out)
+
+    if isinstance(a, TTD) and isinstance(b, TTD):
+        return _hadamard_impl(a, b, out=out)
 
     return NotImplemented
 
