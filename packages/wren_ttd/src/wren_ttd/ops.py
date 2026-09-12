@@ -160,6 +160,42 @@ def _add_cores[DType: np.floating](
     ]
 
 
+def _hadamard_impl[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]:
+    from .core import TTD
+
+    if a.shape != b.shape:
+        raise ValueError("Tensors must have the same shape.")
+
+    N = np.newaxis
+
+    new_cores: list[Core[DType]] = []
+    for core_a, core_b in zip(a.data, b.data, strict=True):
+        la, n, ra = core_a.shape
+        lb, _, rb = core_b.shape
+
+        # Expand dimensions to leverage standard NumPy broadcasting:
+        # core_a expanded: (la,  1, n, ra,  1)
+        # core_b expanded: ( 1, lb, n,  1, rb)
+        # Resulting shape: (la, lb, n, ra, rb)
+        # then multiply and flatten back
+        core = np.multiply(
+            core_a[:, N, :, :, N],
+            core_b[N, :, :, N, :],
+        ).reshape(la * lb, n, ra * rb)
+
+        new_cores.append(core)
+
+    if out is not None:
+        if out.shape != a.shape:
+            raise ValueError("Output tensor has an incorrect shape.")
+        out.data = new_cores
+        return out
+
+    return TTD(new_cores)
+
+
 @overload
 def multiply[DType: np.floating](
     a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
@@ -233,41 +269,6 @@ def multiply[DType: np.floating](
 
         return TTD(cores, dtype=ttd.dtype)
 
-    def hadamard(
-        a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
-    ) -> TTD[DType]:
-        from .core import TTD
-
-        if a.shape != b.shape:
-            raise ValueError("Tensors must have the same shape.")
-
-        N = np.newaxis
-
-        new_cores: list[Core[DType]] = []
-        for core_a, core_b in zip(a.data, b.data, strict=True):
-            la, n, ra = core_a.shape
-            lb, _, rb = core_b.shape
-
-            # Expand dimensions to leverage standard NumPy broadcasting:
-            # core_a expanded: (la,  1, n, ra,  1)
-            # core_b expanded: ( 1, lb, n,  1, rb)
-            # Resulting shape: (la, lb, n, ra, rb)
-            # then multiply and flatten back
-            core = np.multiply(
-                core_a[:, N, :, :, N],
-                core_b[N, :, :, N, :],
-            ).reshape(la * lb, n, ra * rb)
-
-            new_cores.append(core)
-
-        if out is not None:
-            if out.shape != a.shape:
-                raise ValueError("Output tensor has an incorrect shape.")
-            out.data = new_cores
-            return out
-
-        return TTD(new_cores)
-
     if isinstance(a, TTD) and isinstance(b, ScalarTypes):
         return scalar_impl(a, b, out=out)
 
@@ -275,7 +276,7 @@ def multiply[DType: np.floating](
         return scalar_impl(b, a, out=out)
 
     if isinstance(a, TTD) and isinstance(b, TTD):
-        return hadamard(a, b, out=out)
+        return _hadamard_impl(a, b, out=out)
 
     return NotImplemented
 
