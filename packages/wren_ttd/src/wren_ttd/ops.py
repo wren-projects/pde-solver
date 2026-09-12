@@ -261,6 +261,8 @@ def multiply[DType: np.floating](
             new_cores.append(core)
 
         if out is not None:
+            if out.shape != a.shape:
+                raise ValueError("Output tensor has an incorrect shape.")
             out.data = new_cores
             return out
 
