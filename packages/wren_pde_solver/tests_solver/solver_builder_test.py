@@ -15,18 +15,20 @@ def test_builder_runs_and_returns_the_same_running_a_solver_directly_would() -> 
     PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
         3, None, None, scalar_diffusion=DType(10)
     )
-    dS: Vector = np.array([0, 1, 2])
+    dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
     TT: DType = DType(1)
 
-    a = SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE].create()
-    b = (
-        a.set_boundary_condition(BC)
+    np.testing.assert_array_equal(
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_boundary_condition(BC)
         .set_initial_condition(IC)
         .set_pde(PD)
         .set_solver(FiniteDifferences())
         .set_spatial_step(dS)
         .set_time_step(dT)
         .set_target_time(TT)
+        .compute(),
+        FiniteDifferences()(PD, IC, dS, BC, dT, TT),
     )
-    assert b.compute() == FiniteDifferences()(PD, IC, dS, BC, dT, TT)
