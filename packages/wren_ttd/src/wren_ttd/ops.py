@@ -3,13 +3,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from itertools import islice, pairwise
-from math import prod
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_index, normalize_axis_tuple
 from wren_common.math import dot_product
-from wren_common.types import Index1D, Matrix
+from wren_common.types import Index1D, Matrix, Scalar, ScalarTypes
 
 from wren_ttd._helpers import orthogonalize_right, reverse_cores
 from wren_ttd._numpy_api import implements_function, implements_ufunc
@@ -26,8 +25,8 @@ if TYPE_CHECKING:
 
 @implements_ufunc("add")
 def add[DType: np.floating](
-    a: TTD[DType],
-    b: TTD[DType],
+    a: TTD[DType] | Scalar,
+    b: TTD[DType] | Scalar,
     *,
     out: TTD[DType] | None = None,
 ) -> TTD[DType]:
@@ -40,7 +39,9 @@ def add[DType: np.floating](
         A + B = (G₀ H₀) ⊗ (G₁ 0 ; 0 H₁) ⊗ (G₂ 0 ; 0 H₂) ⊗ … ⊗ (Gₙ ; Hₙ).
 
     The addition requires that the TTD objects have the same shape and the same
-    dtype.
+    dtype. If one of the operands is a scalar, it is broadcasted to the shape of
+    the other operand and then added. That is equivalent to adding the scalar to
+    each element of the other operand.
 
     Parameters
     ----------
@@ -59,6 +60,23 @@ def add[DType: np.floating](
     """
     # the import has to be here to avoid circular imports
     from .core import TTD
+
+    def normalize_operands(
+        a: TTD[DType] | Scalar, b: TTD[DType] | Scalar
+    ) -> tuple[TTD[DType], TTD[DType]]:
+
+        if isinstance(a, TTD) and isinstance(b, TTD):
+            return a, b
+
+        if isinstance(a, TTD) and isinstance(b, ScalarTypes):
+            return a, TTD.full(a.shape, b, dtype=a.dtype)
+
+        if isinstance(b, TTD) and isinstance(a, ScalarTypes):
+            return TTD.full(b.shape, a, dtype=b.dtype), b
+
+        raise TypeError("a and b must be either TTDs or a TTD and a scalar")
+
+    a, b = normalize_operands(a, b)
 
     if a.shape != b.shape:
         raise ValueError("Tensors with different shapes cannot be added.")
@@ -142,26 +160,66 @@ def _add_cores[DType: np.floating](
     ]
 
 
+def _hadamard_impl[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]:
+    from .core import TTD
+
+    if a.shape != b.shape:
+        raise ValueError("Tensors must have the same shape.")
+
+    N = np.newaxis
+
+    new_cores: list[Core[DType]] = []
+    for core_a, core_b in zip(a.data, b.data, strict=True):
+        la, n, ra = core_a.shape
+        lb, _, rb = core_b.shape
+
+        # Expand dimensions to leverage standard NumPy broadcasting:
+        # core_a expanded: (la,  1, n, ra,  1)
+        # core_b expanded: ( 1, lb, n,  1, rb)
+        # Resulting shape: (la, lb, n, ra, rb)
+        # then multiply and flatten back
+        core = np.multiply(
+            core_a[:, N, :, :, N],
+            core_b[N, :, :, N, :],
+        ).reshape(la * lb, n, ra * rb)
+
+        new_cores.append(core)
+
+    if out is not None:
+        if out.shape != a.shape:
+            raise ValueError("Output tensor has an incorrect shape.")
+        out.data = new_cores
+        return out
+
+    return TTD(new_cores)
+
+
 @overload
 def multiply[DType: np.floating](
-    a: TTD[DType], b: np.floating | float, out: TTD[DType] | None = None
+    a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @overload
 def multiply[DType: np.floating](
-    a: np.floating | float, b: TTD[DType], out: TTD[DType] | None = None
+    a: Scalar, b: TTD[DType], out: TTD[DType] | None = None
+) -> TTD[DType]: ...
+
+
+@overload
+def multiply[DType: np.floating](
+    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @implements_ufunc("multiply")
 def multiply[DType: np.floating](
-    a: TTD[DType] | np.floating | float,
-    b: TTD[DType] | np.floating | float,
-    out: TTD[DType] | None = None,
+    a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
-    Multiply a TTD object by a scalar.
+    Multiply a TTD object by a scalar or another TTD object.
 
     For a TTD object A = G₀ ⊗ G₁ ⊗ ... ⊗ Gₙ, the multiplication by a scalar k is defined
     as
@@ -171,11 +229,18 @@ def multiply[DType: np.floating](
     where the choice of i is arbitrary from 0 to n. For performance reasons, we choose
     the smallest core.
 
+    Multiplication by another TTD object is implemented as the Hadamard (element-wise)
+    product defined as
+
+        A ⊙ B = (G₀ ⊙ H₀) ⊗ (G₁ ⊙ H₁) ⊗ … ⊗ (Gₙ ⊙ Hₙ),
+
+    where Gᵣ ⊙ Hᵣ = (Gᵣ Hᵣ).
+
     Parameters
     ----------
-    a : TTD[DType]
+    a : TTD[DType] | Scalar
         The TTD object to multiply.
-    b : np.floating | float
+    b : TTD[DType] | Scalar
         The scalar to multiply the TTD object by.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
@@ -188,13 +253,13 @@ def multiply[DType: np.floating](
     """
     from .core import TTD
 
-    def impl(
+    def scalar_impl(
         ttd: TTD[DType], scalar: np.floating | float, out: TTD[DType] | None = None
     ) -> TTD[DType]:
         cores = ttd.data.copy()
 
         # find smallest core
-        _, index = min((prod(core.shape), index) for index, core in enumerate(cores))
+        _, index = min((core.size, index) for index, core in enumerate(cores))
 
         cores[index] = np.multiply(cores[index], scalar)
 
@@ -204,11 +269,14 @@ def multiply[DType: np.floating](
 
         return TTD(cores, dtype=ttd.dtype)
 
-    if isinstance(a, TTD) and isinstance(b, (np.floating, float, int)):
-        return impl(a, b, out=out)
+    if isinstance(a, TTD) and isinstance(b, ScalarTypes):
+        return scalar_impl(a, b, out=out)
 
-    if isinstance(b, TTD) and isinstance(a, (np.floating, float, int)):
-        return impl(b, a, out=out)
+    if isinstance(b, TTD) and isinstance(a, ScalarTypes):
+        return scalar_impl(b, a, out=out)
+
+    if isinstance(a, TTD) and isinstance(b, TTD):
+        return _hadamard_impl(a, b, out=out)
 
     return NotImplemented
 
@@ -236,7 +304,7 @@ def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
 
 @implements_ufunc("subtract")
 def subtract[DType: np.floating](
-    a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
+    a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
     Subtract two TTD objects.
@@ -259,7 +327,8 @@ def subtract[DType: np.floating](
         The result of the subtraction.
 
     """
-    return add(a, neg(b), out=out)
+    negative = cast("TTD[DType] | Scalar", cast(object, np.negative(b)))
+    return add(a, negative, out=out)
 
 
 @implements_function("vdot")
@@ -627,7 +696,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
         return cast(TTD[DType], ttds)
 
     # typing is dumb
-    ttds = cast(Sequence[TTD[DType]], list(cast(Sequence[TTD[DType]], ttds)))
+    ttds = list(cast(Sequence[TTD[DType]], ttds))
 
     ttd0 = ttds[0]
     dtype = ttd0.dtype
