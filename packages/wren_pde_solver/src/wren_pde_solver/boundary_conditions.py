@@ -39,3 +39,6 @@ class ConstantDirichletBoundaryCondition(BoundaryCondition):
             state_diff[*slices] = 0
             slices[dim] = slice(None)
         return state_diff
+
+
+__all__ = ["ConstantDirichletBoundaryCondition"]

@@ -117,3 +117,5 @@ class Divergence:
 gradient = Gradient()
 laplace = Laplace()
 divergence = Divergence()
+
+__all__ = ["divergence", "gradient", "laplace"]
