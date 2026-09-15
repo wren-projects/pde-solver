@@ -32,3 +32,65 @@ def test_builder_runs_and_returns_the_same_running_a_solver_directly_would() -> 
         .compute(),
         FiniteDifferences()(PD, IC, dS, BC, dT, TT),
     )
+
+
+def test_builder_getters_work() -> None:
+    """Tests solver builder getters."""
+    BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
+    IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
+    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
+        3, None, None, scalar_diffusion=DType(10)
+    )
+    dS: Vector = np.array([1, 1, 2])
+    dT: DType = DType(0.1)
+    TT: DType = DType(1)
+    solver = FiniteDifferences()
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_pde(PD)
+        .get_pde()
+        is PD
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_solver(solver)
+        .get_solver()
+        is solver
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_boundary_condition(BC)
+        .get_boundary_condition()
+        is BC
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_initial_condition(IC)
+        .get_initial_condition()
+        is IC
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_spatial_step(dS)
+        .get_spatial_step()
+        is dS
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_time_step(dT)
+        .get_time_step()
+        is dT
+    )
+    assert (
+        SolverBuilder[HomogeneousNoAdvectionScalarDiffusionPDE]
+        .create()
+        .set_target_time(TT)
+        .get_target_time()
+        is TT
+    )
