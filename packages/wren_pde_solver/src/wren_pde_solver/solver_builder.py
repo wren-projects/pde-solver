@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
 from wren_pde_solver.abc.solver import Solver
@@ -120,6 +122,139 @@ class SolverBuilder[T: PDE]:
             self.boundary_condition: BoundaryCondition | None = boundary_condition
             self.time_step: DType | None = time_step
             self.target_time: DType | None = target_time
+
+        def get_pde(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                PdeSet,
+                S_SOLVER,
+                S_INITIAL_CONDITION,
+                S_SPATIAL_STEP,
+                S_BOUNDARY_CONDITION,
+                S_TIME_STEP,
+                S_TARGET_TIME,
+            ],
+        ) -> S:
+            """
+            Return the set pde.
+
+            Can be called only if the pde was already set.
+            """
+            return cast(S, self.pde)
+
+        def get_solver(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                SolverSet,
+                S_INITIAL_CONDITION,
+                S_SPATIAL_STEP,
+                S_BOUNDARY_CONDITION,
+                S_TIME_STEP,
+                S_TARGET_TIME,
+            ],
+        ) -> Solver[S]:
+            """
+            Return the set solver.
+
+            Can be called only if the solver was already set.
+            """
+            return cast(Solver[S], self.solver)
+
+        def get_initial_condition(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                S_SOLVER,
+                InitialConditionSet,
+                S_SPATIAL_STEP,
+                S_BOUNDARY_CONDITION,
+                S_TIME_STEP,
+                S_TARGET_TIME,
+            ],
+        ) -> NDArray:
+            """
+            Return the set initial condition.
+
+            Can be called only if the initial condition was already set.
+            """
+            return cast(NDArray, self.initial_condition)
+
+        def get_spatial_step(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                S_SOLVER,
+                S_INITIAL_CONDITION,
+                SpatialStepSet,
+                S_BOUNDARY_CONDITION,
+                S_TIME_STEP,
+                S_TARGET_TIME,
+            ],
+        ) -> Vector:
+            """
+            Return the set spacial step.
+
+            Can be called only if the spacial step was already set.
+            """
+            return cast(Vector, self.spatial_step)
+
+        def get_boundary_condition(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                S_SOLVER,
+                S_INITIAL_CONDITION,
+                S_SPATIAL_STEP,
+                BoundaryConditionSet,
+                S_TIME_STEP,
+                S_TARGET_TIME,
+            ],
+        ) -> BoundaryCondition:
+            """
+            Return the set boundary condition.
+
+            Can be called only if the boundary condition already set.
+            """
+            return cast(BoundaryCondition, self.boundary_condition)
+
+        def get_time_step(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                S_SOLVER,
+                S_INITIAL_CONDITION,
+                S_SPATIAL_STEP,
+                S_BOUNDARY_CONDITION,
+                TimeStepSet,
+                S_TARGET_TIME,
+            ],
+        ) -> DType:
+            """
+            Return the set time step.
+
+            Can be called only if the time step was already set.
+            """
+            return cast(DType, self.time_step)
+
+        def get_target_time(
+            self: SolverBuilder.SolverBuilderInner[
+                S,
+                S_PDE,
+                S_SOLVER,
+                S_INITIAL_CONDITION,
+                S_SPATIAL_STEP,
+                S_BOUNDARY_CONDITION,
+                S_TIME_STEP,
+                TargetTimeSet,
+            ],
+        ) -> DType:
+            """
+            Return the set target time.
+
+            Can be called only if the target time was already set.
+            """
+            return cast(DType, self.target_time)
 
         def set_pde(
             self, pde: S
