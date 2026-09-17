@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import cast
+from dataclasses import dataclass
+from typing import cast, final
 
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
@@ -59,7 +60,7 @@ type TimeStepStatus = TimeStepSet | TimeStepNotSet
 type TargetTimeStatus = TargetTimeSet | TargetTimeNotSet
 
 
-class SolverBuilder[T: PDE]:
+class SolutionBuilder[T: PDE]:
     """
     A shorthand for running Solvers.
 
@@ -70,7 +71,7 @@ class SolverBuilder[T: PDE]:
     """
 
     @staticmethod
-    def create() -> SolverBuilderInner[
+    def create() -> SolutionBuilderInner[
         T,
         PdeNotSet,
         SolverNotSet,
@@ -80,59 +81,45 @@ class SolverBuilder[T: PDE]:
         TimeStepNotSet,
         TargetTimeNotSet,
     ]:
-        """Create a SolverBuilderInner instance for a given PDE type."""
-        return SolverBuilder.SolverBuilderInner()
+        """Create a SolutionBuilderInner instance for a given PDE type."""
+        return SolutionBuilder.SolutionBuilderInner()
 
-    class SolverBuilderInner[
+    @final
+    @dataclass(frozen=True)
+    class SolutionBuilderInner[
         S: PDE,
-        S_PDE: PdeStatus,
-        S_SOLVER: SolverStatus,
-        S_INITIAL_CONDITION: InitialConditionStatus,
-        S_SPATIAL_STEP: SpatialStepStatus,
-        S_BOUNDARY_CONDITION: BoundaryConditionStatus,
-        S_TIME_STEP: TimeStepStatus,
-        S_TARGET_TIME: TargetTimeStatus,
+        PdeS: PdeStatus,
+        SolverS: SolverStatus,
+        InitialConditionS: InitialConditionStatus,
+        SpatialStepS: SpatialStepStatus,
+        BoundaryConditionS: BoundaryConditionStatus,
+        TimeStepS: TimeStepStatus,
+        TargetTimeS: TargetTimeStatus,
     ]:
         """
         Represents one specific situation in which a PDE is to be computed.
 
-        Should not be created directly. Instead, use the SolverBuilder.create() method.
+        Should not be created directly. Use the SolutionBuilder.create() method instead.
         """
 
-        # ruff: noqa: PLR0913
-        def __init__(
-            self,
-            pde: S | None = None,
-            solver: Solver[S] | None = None,
-            initial_condition: NDArray | None = None,
-            spatial_step: Vector | None = None,
-            boundary_condition: BoundaryCondition | None = None,
-            time_step: DType | None = None,
-            target_time: DType | None = None,
-        ) -> None:
-            """
-            Initialize a SolverBuilderInner instance.
-
-            For private use only.
-            """
-            self.pde: S | None = pde
-            self.solver: Solver[S] | None = solver
-            self.initial_condition: NDArray | None = initial_condition
-            self.spatial_step: Vector | None = spatial_step
-            self.boundary_condition: BoundaryCondition | None = boundary_condition
-            self.time_step: DType | None = time_step
-            self.target_time: DType | None = target_time
+        pde: S | None = None
+        solver: Solver[S] | None = None
+        initial_condition: NDArray | None = None
+        spatial_step: Vector | None = None
+        boundary_condition: BoundaryCondition | None = None
+        time_step: DType | None = None
+        target_time: DType | None = None
 
         def get_pde(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
                 PdeSet,
-                S_SOLVER,
-                S_INITIAL_CONDITION,
-                S_SPATIAL_STEP,
-                S_BOUNDARY_CONDITION,
-                S_TIME_STEP,
-                S_TARGET_TIME,
+                SolverS,
+                InitialConditionS,
+                SpatialStepS,
+                BoundaryConditionS,
+                TimeStepS,
+                TargetTimeS,
             ],
         ) -> S:
             """
@@ -143,15 +130,15 @@ class SolverBuilder[T: PDE]:
             return cast(S, self.pde)
 
         def get_solver(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
+                PdeS,
                 SolverSet,
-                S_INITIAL_CONDITION,
-                S_SPATIAL_STEP,
-                S_BOUNDARY_CONDITION,
-                S_TIME_STEP,
-                S_TARGET_TIME,
+                InitialConditionS,
+                SpatialStepS,
+                BoundaryConditionS,
+                TimeStepS,
+                TargetTimeS,
             ],
         ) -> Solver[S]:
             """
@@ -162,15 +149,15 @@ class SolverBuilder[T: PDE]:
             return cast(Solver[S], self.solver)
 
         def get_initial_condition(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
-                S_SOLVER,
+                PdeS,
+                SolverS,
                 InitialConditionSet,
-                S_SPATIAL_STEP,
-                S_BOUNDARY_CONDITION,
-                S_TIME_STEP,
-                S_TARGET_TIME,
+                SpatialStepS,
+                BoundaryConditionS,
+                TimeStepS,
+                TargetTimeS,
             ],
         ) -> NDArray:
             """
@@ -181,15 +168,15 @@ class SolverBuilder[T: PDE]:
             return cast(NDArray, self.initial_condition)
 
         def get_spatial_step(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
-                S_SOLVER,
-                S_INITIAL_CONDITION,
+                PdeS,
+                SolverS,
+                InitialConditionS,
                 SpatialStepSet,
-                S_BOUNDARY_CONDITION,
-                S_TIME_STEP,
-                S_TARGET_TIME,
+                BoundaryConditionS,
+                TimeStepS,
+                TargetTimeS,
             ],
         ) -> Vector:
             """
@@ -200,15 +187,15 @@ class SolverBuilder[T: PDE]:
             return cast(Vector, self.spatial_step)
 
         def get_boundary_condition(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
-                S_SOLVER,
-                S_INITIAL_CONDITION,
-                S_SPATIAL_STEP,
+                PdeS,
+                SolverS,
+                InitialConditionS,
+                SpatialStepS,
                 BoundaryConditionSet,
-                S_TIME_STEP,
-                S_TARGET_TIME,
+                TimeStepS,
+                TargetTimeS,
             ],
         ) -> BoundaryCondition:
             """
@@ -219,15 +206,15 @@ class SolverBuilder[T: PDE]:
             return cast(BoundaryCondition, self.boundary_condition)
 
         def get_time_step(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
-                S_SOLVER,
-                S_INITIAL_CONDITION,
-                S_SPATIAL_STEP,
-                S_BOUNDARY_CONDITION,
+                PdeS,
+                SolverS,
+                InitialConditionS,
+                SpatialStepS,
+                BoundaryConditionS,
                 TimeStepSet,
-                S_TARGET_TIME,
+                TargetTimeS,
             ],
         ) -> DType:
             """
@@ -238,14 +225,14 @@ class SolverBuilder[T: PDE]:
             return cast(DType, self.time_step)
 
         def get_target_time(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
-                S_PDE,
-                S_SOLVER,
-                S_INITIAL_CONDITION,
-                S_SPATIAL_STEP,
-                S_BOUNDARY_CONDITION,
-                S_TIME_STEP,
+                PdeS,
+                SolverS,
+                InitialConditionS,
+                SpatialStepS,
+                BoundaryConditionS,
+                TimeStepS,
                 TargetTimeSet,
             ],
         ) -> DType:
@@ -258,22 +245,22 @@ class SolverBuilder[T: PDE]:
 
         def set_pde(
             self, pde: S
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
             PdeSet,
-            S_SOLVER,
-            S_INITIAL_CONDITION,
-            S_SPATIAL_STEP,
-            S_BOUNDARY_CONDITION,
-            S_TIME_STEP,
-            S_TARGET_TIME,
+            SolverS,
+            InitialConditionS,
+            SpatialStepS,
+            BoundaryConditionS,
+            TimeStepS,
+            TargetTimeS,
         ]:
             """
             Set the PDE which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 pde,
                 self.solver,
                 self.initial_condition,
@@ -285,22 +272,22 @@ class SolverBuilder[T: PDE]:
 
         def set_solver(
             self, solver: Solver[S]
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
+            PdeS,
             SolverSet,
-            S_INITIAL_CONDITION,
-            S_SPATIAL_STEP,
-            S_BOUNDARY_CONDITION,
-            S_TIME_STEP,
-            S_TARGET_TIME,
+            InitialConditionS,
+            SpatialStepS,
+            BoundaryConditionS,
+            TimeStepS,
+            TargetTimeS,
         ]:
             """
             Set the solver which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 solver,
                 self.initial_condition,
@@ -312,22 +299,22 @@ class SolverBuilder[T: PDE]:
 
         def set_initial_condition(
             self, initial_condition: NDArray
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
-            S_SOLVER,
+            PdeS,
+            SolverS,
             InitialConditionSet,
-            S_SPATIAL_STEP,
-            S_BOUNDARY_CONDITION,
-            S_TIME_STEP,
-            S_TARGET_TIME,
+            SpatialStepS,
+            BoundaryConditionS,
+            TimeStepS,
+            TargetTimeS,
         ]:
             """
             Set the initial condition which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 self.solver,
                 initial_condition,
@@ -339,22 +326,22 @@ class SolverBuilder[T: PDE]:
 
         def set_spatial_step(
             self, spatial_step: Vector
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
-            S_SOLVER,
-            S_INITIAL_CONDITION,
+            PdeS,
+            SolverS,
+            InitialConditionS,
             SpatialStepSet,
-            S_BOUNDARY_CONDITION,
-            S_TIME_STEP,
-            S_TARGET_TIME,
+            BoundaryConditionS,
+            TimeStepS,
+            TargetTimeS,
         ]:
             """
             Set the spatial step which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 self.solver,
                 self.initial_condition,
@@ -366,22 +353,22 @@ class SolverBuilder[T: PDE]:
 
         def set_boundary_condition(
             self, boundary_condition: BoundaryCondition
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
-            S_SOLVER,
-            S_INITIAL_CONDITION,
-            S_SPATIAL_STEP,
+            PdeS,
+            SolverS,
+            InitialConditionS,
+            SpatialStepS,
             BoundaryConditionSet,
-            S_TIME_STEP,
-            S_TARGET_TIME,
+            TimeStepS,
+            TargetTimeS,
         ]:
             """
             Set the boundary condition which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 self.solver,
                 self.initial_condition,
@@ -393,22 +380,22 @@ class SolverBuilder[T: PDE]:
 
         def set_time_step(
             self, time_step: DType
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
-            S_SOLVER,
-            S_INITIAL_CONDITION,
-            S_SPATIAL_STEP,
-            S_BOUNDARY_CONDITION,
+            PdeS,
+            SolverS,
+            InitialConditionS,
+            SpatialStepS,
+            BoundaryConditionS,
             TimeStepSet,
-            S_TARGET_TIME,
+            TargetTimeS,
         ]:
             """
             Set the time step which will be used for this situation.
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 self.solver,
                 self.initial_condition,
@@ -420,14 +407,14 @@ class SolverBuilder[T: PDE]:
 
         def set_target_time(
             self, target_time: DType
-        ) -> SolverBuilder.SolverBuilderInner[
+        ) -> SolutionBuilder.SolutionBuilderInner[
             S,
-            S_PDE,
-            S_SOLVER,
-            S_INITIAL_CONDITION,
-            S_SPATIAL_STEP,
-            S_BOUNDARY_CONDITION,
-            S_TIME_STEP,
+            PdeS,
+            SolverS,
+            InitialConditionS,
+            SpatialStepS,
+            BoundaryConditionS,
+            TimeStepS,
             TargetTimeSet,
         ]:
             """
@@ -435,7 +422,7 @@ class SolverBuilder[T: PDE]:
 
             After all fields have been set, the "compute" method becomes available.
             """
-            return SolverBuilder.SolverBuilderInner(
+            return SolutionBuilder.SolutionBuilderInner(
                 self.pde,
                 self.solver,
                 self.initial_condition,
@@ -446,7 +433,7 @@ class SolverBuilder[T: PDE]:
             )
 
         def compute(
-            self: SolverBuilder.SolverBuilderInner[
+            self: SolutionBuilder.SolutionBuilderInner[
                 S,
                 PdeSet,
                 SolverSet,
@@ -485,7 +472,7 @@ class SolverBuilder[T: PDE]:
             )
 
 
-type SolverBuilderReady[S: PDE] = SolverBuilder.SolverBuilderInner[
+type SolutionBuilderReady[S: PDE] = SolutionBuilder.SolutionBuilderInner[
     S,
     PdeSet,
     SolverSet,
@@ -497,4 +484,4 @@ type SolverBuilderReady[S: PDE] = SolverBuilder.SolverBuilderInner[
 ]
 
 
-__all__ = ["SolverBuilder", "SolverBuilderReady"]
+__all__ = ["SolutionBuilder", "SolutionBuilderReady"]
