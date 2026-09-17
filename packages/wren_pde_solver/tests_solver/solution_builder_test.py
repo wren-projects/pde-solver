@@ -4,7 +4,7 @@ from wren_pde_solver.abc.pde import PDE
 from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
 from wren_pde_solver.pde_types import DType, NDArray, Vector
-from wren_pde_solver.solver_builder import SolutionBuilder
+from wren_pde_solver.solution_builder import SolutionBuilder
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
 
 
