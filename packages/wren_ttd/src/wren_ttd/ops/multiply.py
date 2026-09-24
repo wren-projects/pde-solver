@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from wren_common.types import Scalar, ScalarTypes
 
+from wren_ttd._helpers import smallest_core
 from wren_ttd._numpy_api import implements_ufunc
 from wren_ttd.types import Core
 
@@ -111,10 +112,9 @@ def multiply[DType: np.floating](
     ) -> TTD[DType]:
         cores = ttd.data.copy()
 
-        # find smallest core
-        _, index = min((core.size, index) for index, core in enumerate(cores))
+        core, index = smallest_core(cores)
 
-        cores[index] = np.multiply(cores[index], scalar)
+        cores[index] = np.multiply(core, scalar)
 
         if out is not None:
             out.data = cores
