@@ -12,9 +12,14 @@ from wren_common.math import dot_product, scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray, Scalar
 
 from wren_ttd import ops
-from wren_ttd._helpers import orthogonalize_right, reverse_cores, to_int_tuple
+from wren_ttd._helpers import (
+    orthogonalize_right,
+    reverse_cores,
+    to_int_tuple,
+    truncation_parameter,
+)
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
-from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd, truncation_parameter
+from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
 from wren_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
