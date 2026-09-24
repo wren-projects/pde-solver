@@ -16,6 +16,25 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
+def smallest_core(cores: Iterable[Core]) -> tuple[Core, int]:
+    """
+    Find the smallest core by size and its index.
+
+    Parameters
+    ----------
+    cores : Iterable[Core]
+        The cores to find the smallest one of.
+
+    Returns
+    -------
+    tuple[Core, int]
+        The smallest core and its index.
+
+    """
+    _, index, core = min((core.size, index, core) for index, core in enumerate(cores))
+    return core, index
+
+
 def reverse_cores[DType: np.floating](
     cores: Reversible[Core[DType]],
 ) -> Iterable[Core[DType]]:
