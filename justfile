@@ -16,7 +16,7 @@ typecheck:
     {{ uv }} run basedpyright
 
 test:
-    {{ uv }} run pytest
+    {{ uv }} run pytest -n 4 --dist=worksteal --durations=5
 
 coverage:
     {{ uv }} run pytest --cov=src --cov=packages
