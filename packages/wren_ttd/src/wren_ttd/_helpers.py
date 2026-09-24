@@ -10,6 +10,23 @@ from wren_ttd.types import Core
 def reverse_cores[DType: np.floating](
     cores: Reversible[Core[DType]],
 ) -> Iterable[Core[DType]]:
+    """
+    Reverse the TTD cores.
+
+    Besides reversing the order of the cores, this function also transposes
+    each core to preserve the TTD structure.
+
+    Parameters
+    ----------
+    cores : Reversible[Core[DType]]
+        The cores to reverse.
+
+    Returns
+    -------
+    Iterable[Core[DType]]
+        The reversed cores.
+
+    """
     return (core.T for core in reversed(cores))
 
 
@@ -39,6 +56,7 @@ def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
+    """Orthogonalize the cores using a right-to-left QR sweep."""
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
         # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
