@@ -1,52 +1,17 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 from wren_common.types import Matrix, Vector
 
 if TYPE_CHECKING:
-    from wren_ttd.core import TTD
+    pass
 
 DEFAULT_EPSILON = np.float64(1e-10)
 
 if TYPE_CHECKING:
-    from wren_ttd.core import TTD
-
-
-def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT] | TTD[DT], epsilon: np.floating | float = DEFAULT_EPSILON
-) -> DT:
-    """
-    Compute the truncation parameter of a tensor.
-
-    It uses the formula δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
-
-    Parameters
-    ----------
-    tensor : NDArray[DT]
-        The tensor to compute the truncation parameter of.
-    epsilon : np.floating | float, optional
-        The error tolerance for the compression, by default DEFAULT_EPSILON.
-
-    Returns
-    -------
-    DT
-        The truncation parameter.
-
-    Raises
-    ------
-    ValueError
-        If the tensor has less than 2 dimensions.
-
-    """
-    d = tensor.ndim
-    if d <= 1:
-        raise ValueError("Tensor must be at least 2D")
-
-    return tensor.dtype.type(epsilon / math.sqrt(d - 1)) * np.linalg.norm(tensor)
+    pass
 
 
 def delta_truncated_svd[DT: np.floating](
