@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from wren_common.types import Scalar
+from wren_common.types import Scalar, ScalarTypes
 
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.types import Core
@@ -97,6 +97,8 @@ def pad[DType: np.floating](
             raise NotImplementedError(
                 "Per-axis constant_values are not supported, use a scalar"
             )
-        return _pad_constant(array, pad_width, constant_values)
+
+        if isinstance(constant_values, ScalarTypes):
+            return _pad_constant(array, pad_width, constant_values)
 
     return NotImplemented
