@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import numpy as np
-from wren_common.types import Matrix, Vector
+from wren_common.types import Matrix, Scalar, Vector
 
 DEFAULT_EPSILON = np.float64(1e-10)
 
 
 def delta_truncated_svd[DT: np.floating](
-    matrix: Matrix[DT], delta: np.floating | float = DEFAULT_EPSILON
+    matrix: Matrix[DT], delta: Scalar = DEFAULT_EPSILON
 ) -> tuple[Matrix[DT], Vector[DT], Matrix[DT]]:
     """
     Compute the SVD of a matrix, dropping singular values below `delta`.

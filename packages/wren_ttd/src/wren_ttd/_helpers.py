@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from wren_common.math import dot_product
-from wren_common.types import Matrix, NDArray
+from wren_common.types import Matrix, NDArray, Scalar
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
@@ -130,7 +130,7 @@ def contract_cores[DType: np.floating](
 
 
 def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT] | TTD[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+    tensor: NDArray[DT] | TTD[DT], epsilon: Scalar = DEFAULT_EPSILON
 ) -> DT:
     """
     Compute the per-SVD truncation tolerance δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
@@ -139,7 +139,7 @@ def truncation_parameter[DT: np.floating](
     ----------
     tensor : NDArray[DT] | TTD[DT]
         The tensor to compute the tolerance of.
-    epsilon : np.floating | float, optional
+    epsilon : Scalar, optional
         The target relative error, by default DEFAULT_EPSILON.
 
     Returns

@@ -460,7 +460,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
-    def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
+    def round(self, epsilon: Scalar = DEFAULT_EPSILON) -> None:
         """
         Round the TTD object by decreasing ranks.
 
@@ -505,7 +505,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
             cores[k] = dot_product(scale_matrix(s, v_t), cores[k])
 
-    def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
+    def rounded(self, epsilon: Scalar = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
         ttd = self[...]
         ttd.round(epsilon)

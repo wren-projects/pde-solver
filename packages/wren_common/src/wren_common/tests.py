@@ -96,7 +96,7 @@ SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
 
 
-def tensor_interior[DType: np.number](
+def tensor_interior[DType: np.floating](
     tensor: NDArray[DType], order: int = 1
 ) -> NDArray[DType]:
     """
@@ -122,7 +122,7 @@ def tensor_interior[DType: np.number](
     return tensor[mask]
 
 
-def tensor_boundary[DType: np.number](
+def tensor_boundary[DType: np.floating](
     tensor: NDArray[DType], order: int = 1
 ) -> NDArray[DType]:
     """
