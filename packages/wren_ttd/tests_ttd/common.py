@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 from wren_common.tests import (
     TEST_PAIR_TENSORS,
@@ -10,6 +12,83 @@ from wren_ttd import DEFAULT_EPSILON, TTD
 
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
+
+
+class BinaryOperatorTests(ABC):
+    """Minimal interface for binary TTD-TTD operator-style op tests."""
+
+    @abstractmethod
+    def test_operator_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+        """Test the op via the Python operator as ``a op b``."""
+        ...
+
+    @abstractmethod
+    def test_operator_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+        """Test the op via the Python operator as ``b op a``."""
+        ...
+
+    @abstractmethod
+    def test_numpy_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+        """Test the op via the NumPy function as ``f(a, b)``."""
+        ...
+
+    @abstractmethod
+    def test_numpy_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+        """Test the op via the NumPy function as ``f(b, a)``."""
+        ...
+
+    @abstractmethod
+    def test_inplace(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+        """Test the op via the in-place operator."""
+        ...
+
+
+class ScalarOperatorTests(ABC):
+    """Minimal interface for binary TTD-scalar operator-style op tests."""
+
+    @abstractmethod
+    def test_operator_right(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+    ) -> None:
+        """Test the op via the Python operator as ``ttd op scalar``."""
+        ...
+
+    @abstractmethod
+    def test_operator_left(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+    ) -> None:
+        """Test the op via the Python operator as ``scalar op ttd``."""
+        ...
+
+    @abstractmethod
+    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+        """Test the op via the NumPy function as ``f(ttd, scalar)``."""
+        ...
+
+    @abstractmethod
+    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+        """Test the op via the NumPy function as ``f(scalar, ttd)``."""
+        ...
+
+    @abstractmethod
+    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+        """Test the op via the in-place operator."""
+        ...
+
+
+class UnaryOperatorTests(ABC):
+    """Minimal interface for unary operator-style op tests."""
+
+    @abstractmethod
+    def test_operator(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test the op via the Python operator."""
+        ...
+
+    @abstractmethod
+    def test_numpy(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test the op via the NumPy function."""
+        ...
+
 
 TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
     (tensor, TTD.from_ndarray(tensor)) for tensor in TEST_TENSORS
