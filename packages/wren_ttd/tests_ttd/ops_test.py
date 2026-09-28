@@ -398,7 +398,7 @@ def test_pad_constant(
     assert_default_epsilon(result, expected, scale=value)
 
 
-def test_pad_constant_zero_width():
+def test_pad_constant_zero_width() -> None:
     """Test that TTD pad with width = 0 doesn't modify the TTD."""
     ttd = TEST_TTD[0][0]
     assert_default_epsilon(
@@ -406,7 +406,7 @@ def test_pad_constant_zero_width():
     )
 
 
-def test_pad_constant_invalid_width():
+def test_pad_constant_invalid_width() -> None:
     """Test that TTD pad with width < 0 fails."""
     ttd = TEST_TTD[0][0]
     with pytest.raises(ValueError):
