@@ -152,7 +152,41 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         *,
         dtype: np.dtype[DT] | None = None,
     ) -> TTD[DT]:
-        """Create a TTD representing a tensor of ones."""
+        """
+        Return a new TTD representing a tensor of ones.
+
+        Equivalent to :func:`numpy.ones`, but returns the tensor in
+        compressed TTD format with all TT-ranks equal to 1.
+
+        Parameters
+        ----------
+        shape : int or sequence of ints
+            Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
+        dtype : data-type, optional
+            The desired data-type of the tensor, e.g. ``numpy.float64``.
+            The default is ``numpy.float64``.
+
+        Returns
+        -------
+        TTD
+            Tensor of ones with the given shape and dtype.
+
+        See Also
+        --------
+        numpy.ones : Equivalent function for dense arrays.
+        TTD.zeros : Return a new TTD of zeros.
+        TTD.full : Return a new TTD filled with a constant value.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 2))
+        >>> np.asarray(t)
+        array([[1., 1.],
+               [1., 1.]])
+
+        """
         cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
         return TTD(cores, dtype=dtype)
 
@@ -162,7 +196,41 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         *,
         dtype: np.dtype[DT] | None = None,
     ) -> TTD[DT]:
-        """Create a TTD representing a tensor of zeros."""
+        """
+        Return a new TTD representing a tensor of zeros.
+
+        Equivalent to :func:`numpy.zeros`, but returns the tensor in
+        compressed TTD format with all TT-ranks equal to 1.
+
+        Parameters
+        ----------
+        shape : int or sequence of ints
+            Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
+        dtype : data-type, optional
+            The desired data-type of the tensor, e.g. ``numpy.float64``.
+            The default is ``numpy.float64``.
+
+        Returns
+        -------
+        TTD
+            Tensor of zeros with the given shape and dtype.
+
+        See Also
+        --------
+        numpy.zeros : Equivalent function for dense arrays.
+        TTD.ones : Return a new TTD of ones.
+        TTD.full : Return a new TTD filled with a constant value.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.zeros((2, 2))
+        >>> np.asarray(t)
+        array([[0., 0.],
+               [0., 0.]])
+
+        """
         cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
         return TTD(cores)
 
@@ -173,7 +241,43 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         *,
         dtype: np.dtype[DT] | None = None,
     ) -> TTD[DT]:
-        """Create a TTD representing a tensor of a constant value."""
+        """
+        Return a new TTD representing a tensor filled with `fill_value`.
+
+        Equivalent to :func:`numpy.full`, but returns the tensor in
+        compressed TTD format with all TT-ranks equal to 1.
+
+        Parameters
+        ----------
+        shape : int or sequence of ints
+            Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
+        fill_value : scalar
+            Value used to fill the tensor.
+        dtype : data-type, optional
+            The desired data-type of the tensor, e.g. ``numpy.float64``.
+            The default is ``numpy.float64``.
+
+        Returns
+        -------
+        TTD
+            Tensor filled with `fill_value`, with the given shape and dtype.
+
+        See Also
+        --------
+        numpy.full : Equivalent function for dense arrays.
+        TTD.ones : Return a new TTD of ones.
+        TTD.zeros : Return a new TTD of zeros.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.full((2, 2), 10)
+        >>> np.asarray(t)
+        array([[10., 10.],
+               [10., 10.]])
+
+        """
         return TTD.ones(shape, dtype=dtype) * fill_value
 
     @override
@@ -189,19 +293,94 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     @property
     @implements_function("shape")
     def shape(self) -> tuple[int, ...]:
-        """Return the shape of the TTD object."""
+        """
+        Tuple of tensor dimensions.
+
+        Equivalent to :attr:`numpy.ndarray.shape`. Unlike the NumPy
+        attribute, it is read-only and cannot be assigned to reshape the
+        tensor in place.
+
+        Returns
+        -------
+        tuple of ints
+            The shape of the uncompressed tensor, i.e. the size of each
+            mode (physical dimension of each core).
+
+        See Also
+        --------
+        TTD.ndim : Number of tensor dimensions.
+        TTD.size : Number of elements in the uncompressed tensor.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.shape
+        (2, 3, 4)
+
+        """
         return tuple(core.shape[1] for core in self.data)
 
     @property
     @implements_function("ndim")
     def ndim(self) -> int:
-        """Return the number of dimensions of the TTD object."""
+        """
+        Number of tensor dimensions.
+
+        Equivalent to :attr:`numpy.ndarray.ndim`. Equal to the number of
+        cores of the TTD.
+
+        Returns
+        -------
+        int
+            The number of dimensions of the uncompressed tensor.
+
+        See Also
+        --------
+        TTD.shape : Tuple of tensor dimensions.
+        TTD.size : Number of elements in the uncompressed tensor.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.ndim
+        3
+
+        """
         return len(self.data)
 
     @property
     @implements_function("size")
     def size(self) -> int:
-        """Return the size of the uncompressed tensor."""
+        """
+        Number of elements in the uncompressed tensor.
+
+        Equivalent to :attr:`numpy.ndarray.size`. Equal to
+        ``math.prod(self.shape)``, i.e. the product of the tensor's
+        dimensions. This is the size of the dense tensor, not of the
+        compressed representation; see :attr:`TTD.compressed_size` for
+        the latter.
+
+        Returns
+        -------
+        int
+            The number of elements of the uncompressed tensor.
+
+        See Also
+        --------
+        TTD.shape : Tuple of tensor dimensions.
+        TTD.ndim : Number of tensor dimensions.
+        TTD.compressed_size : Size of the compressed representation.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.size
+        24
+
+        """
         return math.prod(self.shape)
 
     @property
@@ -419,20 +598,141 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         )
 
     def copy(self) -> TTD[DType]:
-        """Return a copy of the TTD object."""
+        """
+        Return a copy of the TTD.
+
+        Equivalent to :meth:`numpy.ndarray.copy`, but copies the
+        compressed representation: a new TTD with a copy of each core.
+        Mutating the copy does not affect the original.
+
+        Unlike :meth:`numpy.ndarray.copy`, there is no ``order`` parameter
+        since the TTD format dictates the memory layout of the cores.
+
+        Returns
+        -------
+        TTD
+            A copy of the TTD.
+
+        See Also
+        --------
+        numpy.copy : Similar function for dense arrays.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 2))
+        >>> c = t.copy()
+        >>> np.asarray(c)
+        array([[1., 1.],
+               [1., 1.]])
+
+        """
         return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
 
     def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
-        """Transpose the TTD object."""
+        """
+        Permute the dimensions of the TTD.
+
+        Equivalent to :meth:`numpy.ndarray.transpose` and
+        :func:`numpy.transpose`. See :func:`wren_ttd.ops.transpose` for
+        details about the implementation.
+
+        Parameters
+        ----------
+        axes : tuple of ints or None, optional
+            Permutation of the axes. If None, the axes are reversed.
+            Otherwise, ``axes[i]`` is the axis of the input that becomes
+            the ``i``-th axis of the result, so it must be a permutation
+            of ``range(self.ndim)``.
+
+        Returns
+        -------
+        TTD
+            TTD with permuted axes.
+
+        See Also
+        --------
+        numpy.transpose : Equivalent function for dense arrays.
+        TTD.swapaxes : Swap two axes of the TTD.
+        TTD.T : Reverse the order of the axes.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.transpose((2, 0, 1)).shape
+        (4, 2, 3)
+        >>> t.transpose().shape
+        (4, 3, 2)
+
+        """
         return ops.transpose(self, axes)
 
     def swapaxes(self, axis1: int, axis2: int) -> TTD[DType]:
-        """Swap the axes of the TTD object."""
+        """
+        Swap two axes of the TTD.
+
+        Equivalent to :meth:`numpy.ndarray.swapaxes` and
+        :func:`numpy.swapaxes`. If `axis1` and `axis2` are equal, the
+        TTD is returned unchanged.
+
+        Parameters
+        ----------
+        axis1 : int
+            First axis to swap. May be negative, counting from the end.
+        axis2 : int
+            Second axis to swap. May be negative, counting from the end.
+
+        Returns
+        -------
+        TTD
+            TTD with `axis1` and `axis2` swapped.
+
+        See Also
+        --------
+        numpy.swapaxes : Equivalent function for dense arrays.
+        TTD.transpose : Permute the dimensions of the TTD.
+        TTD.T : Reverse the order of the axes.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.swapaxes(0, 2).shape
+        (4, 3, 2)
+
+        """
         return ops.swapaxes(self, axis1, axis2)
 
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
-        """Transpose the TTD object."""
+        """
+        View of the TTD with reversed dimensions.
+
+        Equivalent to :attr:`numpy.ndarray.T` and to calling
+        ``self.transpose()`` with no arguments. Reversing the order of
+        the cores is exact: no truncation is performed.
+
+        Returns
+        -------
+        TTD
+            TTD with reversed axes.
+
+        See Also
+        --------
+        TTD.transpose : Permute the dimensions of the TTD.
+        TTD.swapaxes : Swap two axes of the TTD.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3, 4))
+        >>> t.T.shape
+        (4, 3, 2)
+
+        """
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
@@ -452,7 +752,49 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         self,
         key: Index1D | Sequence[Index1D] | EllipsisType,
     ) -> TTD[DType] | DType:
-        """Index into the TTD object."""
+        """
+        Return a subtensor of the TTD.
+
+        Equivalent to indexing a :class:`numpy.ndarray` with basic
+        indexing: each entry of `key` addresses the corresponding mode
+        of the tensor. An integer index contracts away that mode, while
+        a slice preserves it. Indexing all modes with integers returns
+        a scalar; otherwise a TTD is returned. ``...`` (Ellipsis) alone
+        returns a copy of the TTD.
+
+        Only integer and slice indices are supported; boolean masks and
+        advanced (fancy) indexing are not supported.
+
+        Parameters
+        ----------
+        key : int, slice, Ellipsis, or sequence thereof
+            Index for each addressed mode. A single ``int`` or ``slice``
+            addresses the first mode; a sequence addresses one mode per
+            entry. Negative indices count from the end of the mode.
+
+        Returns
+        -------
+        TTD or scalar
+            The indexed subtensor, or a scalar if every mode was indexed
+            with an integer.
+
+        See Also
+        --------
+        numpy.ndarray.__getitem__ : Equivalent indexing for dense arrays.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 3))
+        >>> np.asarray(t[0])
+        array([1., 1., 1.])
+        >>> t[0, 1]
+        np.float64(1.0)
+        >>> t[...].shape
+        (2, 3)
+
+        """
         if key is Ellipsis:
             return self.copy()
 
@@ -466,55 +808,356 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @override
     def __len__(self) -> int:
-        """Return the number of cores in the TTD object."""
+        """
+        Return the length of the first axis.
+
+        Equivalent to ``len`` on a :class:`numpy.ndarray`, i.e. to
+        ``self.shape[0]``: the size of the first mode of the tensor.
+
+        Returns
+        -------
+        int
+            The size of the first mode.
+
+        See Also
+        --------
+        TTD.shape : Tuple of tensor dimensions.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((4, 2, 3))
+        >>> len(t)
+        4
+
+        """
         return self.data[0].shape[1]
 
     @override
     def __add__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Add two TTD objects."""
+        """
+        Add a TTD or scalar to this TTD, element-wise.
+
+        Equivalent to :func:`numpy.add` and the ``+`` operator on
+        :class:`numpy.ndarray`. If `other` is a scalar, it is broadcast
+        to the shape of this TTD. The TT-ranks of the result are the
+        sums of the operand ranks.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to add. A TTD must have the same shape as
+            this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise sum.
+
+        See Also
+        --------
+        numpy.add : Equivalent ufunc for dense arrays.
+        TTD.__radd__ : Reflected addition.
+        TTD.__iadd__ : In-place addition.
+        TTD.__sub__ : Subtraction.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 2))
+        >>> np.asarray(t + 2)
+        array([[3., 3.],
+               [3., 3.]])
+
+        """
         return ops.add(self, other)
 
     @override
     def __iadd__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """In-place add another tensor."""
+        """
+        Add a TTD or scalar to this TTD in place, element-wise.
+
+        Equivalent to the ``+=`` operator on :class:`numpy.ndarray` and
+        to :func:`numpy.add` with ``out`` set to this TTD. See
+        :meth:`TTD.__add__` for the semantics of the addition. The cores
+        of this TTD are replaced with the cores of the sum.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to add. A TTD must have the same shape as
+            this TTD.
+
+        Returns
+        -------
+        TTD
+            This TTD, holding the element-wise sum.
+
+        See Also
+        --------
+        numpy.add : Equivalent ufunc for dense arrays.
+        TTD.__add__ : Addition.
+        TTD.__radd__ : Reflected addition.
+
+        """
         return ops.add(self, other, out=self)
 
     @override
     def __radd__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Reverse add another tensor."""
+        """
+        Add this TTD to a TTD or scalar, element-wise (reflected).
+
+        Equivalent to :func:`numpy.add` with the operands swapped, i.e.
+        it computes ``other + self``. Called when the left operand does
+        not support the addition. Addition is commutative, so this is
+        the same as :meth:`TTD.__add__`.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to add to this TTD. A TTD must have the
+            same shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise sum.
+
+        See Also
+        --------
+        numpy.add : Equivalent ufunc for dense arrays.
+        TTD.__add__ : Addition.
+        TTD.__iadd__ : In-place addition.
+
+        """
         return ops.add(other, self)
 
     @override
     def __sub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Subtract two TTD objects."""
+        """
+        Subtract a TTD or scalar from this TTD, element-wise.
+
+        Equivalent to :func:`numpy.subtract` and the ``-`` operator on
+        :class:`numpy.ndarray`. If `other` is a scalar, it is broadcast
+        to the shape of this TTD. Computed as the addition of this TTD
+        with the negated `other`.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to subtract. A TTD must have the same
+            shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise difference.
+
+        See Also
+        --------
+        numpy.subtract : Equivalent ufunc for dense arrays.
+        TTD.__rsub__ : Reflected subtraction.
+        TTD.__isub__ : In-place subtraction.
+        TTD.__add__ : Addition.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.full((2, 2), 3.0)
+        >>> np.asarray(t - 1)
+        array([[2., 2.],
+               [2., 2.]])
+
+        """
         return ops.add(self, -other)
 
     @override
     def __isub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """In-place subtract another tensor."""
+        """
+        Subtract a TTD or scalar from this TTD in place, element-wise.
+
+        Equivalent to the ``-=`` operator on :class:`numpy.ndarray` and
+        to :func:`numpy.subtract` with ``out`` set to this TTD. See
+        :meth:`TTD.__sub__` for the semantics of the subtraction. The
+        cores of this TTD are replaced with the cores of the difference.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to subtract. A TTD must have the same
+            shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            This TTD, holding the element-wise difference.
+
+        See Also
+        --------
+        numpy.subtract : Equivalent ufunc for dense arrays.
+        TTD.__sub__ : Subtraction.
+        TTD.__rsub__ : Reflected subtraction.
+
+        """
         return ops.add(self, -other, out=self)
 
     @override
     def __rsub__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Reverse subtract another tensor."""
+        """
+        Subtract this TTD from a TTD or scalar, element-wise (reflected).
+
+        Equivalent to :func:`numpy.subtract` with the operands swapped,
+        i.e. it computes ``other - self``. Called when the left operand
+        does not support the subtraction.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to subtract this TTD from. A TTD must have
+            the same shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise difference ``other - self``.
+
+        See Also
+        --------
+        numpy.subtract : Equivalent ufunc for dense arrays.
+        TTD.__sub__ : Subtraction.
+        TTD.__isub__ : In-place subtraction.
+
+        """
         return ops.add(-self, other)
 
     @override
     def __mul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Multiply two TTD objects."""
+        """
+        Multiply this TTD by a TTD or scalar, element-wise.
+
+        Equivalent to :func:`numpy.multiply` and the ``*`` operator on
+        :class:`numpy.ndarray`. Multiplying by a scalar scales a single
+        core. Multiplying by another TTD computes the Hadamard
+        (element-wise) product, whose TT-ranks are the products of the
+        operand ranks, and requires both operands to have the same
+        shape.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to multiply with. A TTD must have the same
+            shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise product.
+
+        See Also
+        --------
+        numpy.multiply : Equivalent ufunc for dense arrays.
+        TTD.__rmul__ : Reflected multiplication.
+        TTD.__imul__ : In-place multiplication.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.full((2, 2), 2.0)
+        >>> np.asarray(t * 3)
+        array([[6., 6.],
+               [6., 6.]])
+
+        """
         return ops.multiply(self, other)
 
     @override
     def __imul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """In-place multiply two TTD objects."""
+        """
+        Multiply this TTD by a TTD or scalar in place, element-wise.
+
+        Equivalent to the ``*=`` operator on :class:`numpy.ndarray` and
+        to :func:`numpy.multiply` with ``out`` set to this TTD. See
+        :meth:`TTD.__mul__` for the semantics of the multiplication. The
+        cores of this TTD are replaced with the cores of the product.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to multiply with. A TTD must have the same
+            shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            This TTD, holding the element-wise product.
+
+        See Also
+        --------
+        numpy.multiply : Equivalent ufunc for dense arrays.
+        TTD.__mul__ : Multiplication.
+        TTD.__rmul__ : Reflected multiplication.
+
+        """
         return ops.multiply(self, other, out=self)
 
     @override
     def __rmul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Reverse multiply two TTD objects."""
+        """
+        Multiply a TTD or scalar with this TTD, element-wise (reflected).
+
+        Equivalent to :func:`numpy.multiply` with the operands swapped,
+        i.e. it computes ``other * self``. Called when the left operand
+        does not support the multiplication. Multiplication is
+        commutative, so this is the same as :meth:`TTD.__mul__`.
+
+        Parameters
+        ----------
+        other : TTD or scalar
+            The TTD or scalar to multiply with this TTD. A TTD must have
+            the same shape as this TTD.
+
+        Returns
+        -------
+        TTD
+            The element-wise product.
+
+        See Also
+        --------
+        numpy.multiply : Equivalent ufunc for dense arrays.
+        TTD.__mul__ : Multiplication.
+        TTD.__imul__ : In-place multiplication.
+
+        """
         return ops.multiply(self, other)
 
     @override
     def __neg__(self) -> TTD[DType]:
-        """Negate a TTD object."""
+        """
+        Negate the TTD, element-wise.
+
+        Equivalent to :func:`numpy.negative` and the unary ``-`` operator
+        on :class:`numpy.ndarray`. Computed as multiplication by ``-1``.
+
+        Returns
+        -------
+        TTD
+            The negated TTD, i.e. ``-self`` element-wise.
+
+        See Also
+        --------
+        numpy.negative : Equivalent ufunc for dense arrays.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 2))
+        >>> np.asarray(-t)
+        array([[-1., -1.],
+               [-1., -1.]])
+
+        """
         return ops.neg(self)
