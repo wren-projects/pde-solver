@@ -69,9 +69,7 @@ def type_test_dont_allow_build_unless_everything_is_set() -> None:
     """
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
     IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
-    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
-        3, None, None, scalar_diffusion=DType(10)
-    )
+    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
     TT: DType = DType(1)
