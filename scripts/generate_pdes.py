@@ -1,9 +1,9 @@
-# ruff: noqa: ARG001, T201, E501, INP001
+# ruff: noqa: T201, E501, INP001
 import inspect
 import itertools
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from types import NoneType
-from typing import Any, TypeAliasType, cast
+from typing import Any, Protocol, cast
 
 import numpy as np
 from wren_pde_solver.pde_types import (
@@ -38,74 +38,95 @@ from wren_pde_solver.pde_types import (
 from wren_pde_solver.abc.pde import PDE
 """
 
-type data_type = TypeAliasType | type[NoneType]
 
-type Entry = tuple[str, data_type, str]
+class DataType(Protocol):
+    """A type representing any type, including NoneType."""
+
+    @property
+    def __name__(self) -> str:
+        """Each Type needs the __name__ attrubute."""
+        ...
 
 
-def to_camel_case(name: str) -> str:
+class CallableFunction[T, S](Protocol):
+    """A type representing any function."""
+
+    @property
+    def __name__(self) -> str:
+        """Each function needs to have a name."""
+        ...
+
+    def __call__(self, dim: int, value: T, /) -> S:
+        """Each function needs to be callable."""
+        ...
+
+
+type Entry = tuple[str, DataType, str]
+
+
+def _to_camel_case(name: str) -> str:
     """Transform a string from snake_case into camel_case."""
     return "".join(word.title() for word in name.split("_"))
 
 
-def scalar_to_vector(dim: int, value: Scalar) -> Vector:
+def _scalar_to_vector(dim: int, value: Scalar) -> Vector:  # pyright: ignore[reportUnusedFunction]
     """Transform scalar into a vector."""
     return np.full(dim, value, dtype=DType)
 
 
-def scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
+def _scalar_to_matrix(dim: int, value: Scalar) -> Matrix:
     """Transform scalar into a matrix."""
     return value * np.eye(dim, dtype=DType)
 
 
-def constant_to_function[T: Scalar | Vector | Matrix](
-    dim: int, value: T
+def _constant_to_function[T: Scalar | Vector | Matrix](
+    _dim: int, value: T
 ) -> Function[T]:
     """Transform scalar into a constant function."""
     return lambda _: value
 
 
-def constant_zero(dim: int, value: None) -> Scalar:
+def _constant_zero(_dim: int, _value: None) -> Scalar:
     """Transform None into zero scalar."""
     return DType(0)
 
 
-def constant_zero_vector(dim: int, value: None) -> Vector:
+def _constant_zero_vector(dim: int, _value: None) -> Vector:
     """Transform None into zero vector."""
     return np.zeros(dim, dtype=DType)
 
 
-def constant_zero_function(dim: int, value: None) -> ScalarFunction:
+def _constant_zero_function(_dim: int, _value: None) -> ScalarFunction:
     """Transform None into zero function."""
     return lambda _: DType(0)
 
 
-def identity[T](dim: int, value: T) -> T:
+def _identity[T](_dim: int, value: T) -> T:
     """Transform value into itself."""
     return value
 
 
-casting: dict[tuple[data_type, data_type], Callable[[int, Any], Any]] = {
+casting: dict[tuple[DataType, DataType], CallableFunction[Any, Any]] = {
     # identity
-    (NoneType, NoneType): identity,
-    (Matrix, Matrix): identity,
-    (Vector, Vector): identity,
-    (Scalar, Scalar): identity,
-    (ScalarFunction, ScalarFunction): identity,
-    (VectorFunction, VectorFunction): identity,
-    (MatrixFunction, MatrixFunction): identity,
-    (TimeFunction, TimeFunction): identity,
+    (NoneType, NoneType): _identity,
+    (Matrix, Matrix): _identity,
+    (Vector, Vector): _identity,
+    (Scalar, Scalar): _identity,
+    (ScalarFunction, ScalarFunction): _identity,
+    (VectorFunction, VectorFunction): _identity,
+    (MatrixFunction, MatrixFunction): _identity,
+    (TimeFunction, TimeFunction): _identity,
     # None
-    (NoneType, Scalar): constant_zero,
-    (NoneType, Vector): constant_zero_vector,
-    (NoneType, ScalarFunction): constant_zero_function,
+    (NoneType, Scalar): _constant_zero,
+    (NoneType, Vector): _constant_zero_vector,
+    (NoneType, ScalarFunction): _constant_zero_function,
     # Scalar
-    (Scalar, Matrix): scalar_to_matrix,
-    (Scalar, ScalarFunction): constant_to_function,
+    (Scalar, Matrix): _scalar_to_matrix,
+    (Scalar, ScalarFunction): _constant_to_function,
     # Vector
-    (Vector, VectorFunction): constant_to_function,
+    (Vector, VectorFunction): _constant_to_function,
     # Matrix
-    (Matrix, MatrixFunction): constant_to_function,
+    (Matrix, MatrixFunction): _constant_to_function,
 }
 
 right_side: tuple[Entry, ...] = (
@@ -153,7 +174,7 @@ diffusion: tuple[Entry, ...] = (
 
 def create_name(parts: Iterable[str]) -> str:
     """Create an appropriate class name."""
-    return to_camel_case("_".join(parts)) + "PDE"
+    return _to_camel_case("_".join(parts)) + "PDE"
 
 
 def create_class_docs(
@@ -204,9 +225,9 @@ def create_init_docs(
         """'''
 
 
-######################################################################
-# HERE STOPS THE CODE A FUTURE PROGRAM SHOULD EVER TOUCH OR EVEN SEE #
-######################################################################
+########################################################################
+# HERE STOPS THE CODE A FUTURE PROGRAMER SHOULD EVER TOUCH OR EVEN SEE #
+########################################################################
 
 
 # IMPORTS AND FUNCTIONS
@@ -263,8 +284,12 @@ for (current_right_side, prev_right_side), (
         ):
             current_trait_name, current_trait_type, _ = current_trait
             parent_trait_name, parent_trait_type, _ = parent_trait
+            if parent_trait_type == NoneType:
+                continue
 
             casted_name = casting[current_trait_type, parent_trait_type].__name__
+            if current_trait_type == NoneType:
+                current_trait_name = "None"
             super_init_attributes.append(
                 f"{parent_trait_name} = {casted_name}(dims, {current_trait_name})"
             )
@@ -276,14 +301,19 @@ for (current_right_side, prev_right_side), (
     arguments = [
         "self",
         "dims: int",
-        *(f"{name}: {dtype.__name__}" for name, dtype, _ in current_traits),
+        *(
+            f"{name}: {dtype.__name__}"
+            for name, dtype, _ in current_traits
+            if dtype != NoneType
+        ),
     ]
     attributes = [
         string
         for name, dtype, _ in current_traits
         for string in (
-            f'self._check_trait(dims, "{name}", {name})',
-            f"self.{name}: {dtype.__name__} = {name}",
+            f'self._check_trait(dims, "{name}", {name if dtype != NoneType else "None"})',
+            "# it has to be here, otherwise typechecker can't see it",
+            f"self.{name} : {dtype.__name__} = {name if dtype != NoneType else 'None'}",
         )
     ]
 
