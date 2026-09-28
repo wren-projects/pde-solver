@@ -7,8 +7,7 @@ from wren_common.tests import tensor_interior
 from wren_pde_solver.operators import divergence, gradient, laplace
 from wren_pde_solver.pde_types import DType, NDArray
 
-# TODO: Move
-MIN_VAL = 0.5  # we need to not hit any roots of the functions later
+MIN_VAL = 0.5
 MAX_VAL = 10
 STEPS = 20
 SPACIAL_STEP = (MAX_VAL - MIN_VAL) / (STEPS - 1)

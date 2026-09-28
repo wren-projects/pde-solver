@@ -76,7 +76,8 @@ def type_test_dont_allow_build_unless_everything_is_set() -> None:
     dT: DType = DType(0.1)
     TT: DType = DType(1)
 
-    _ = (  # type: ignore[arg-type]
+    # should be OK
+    _ = (
         EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)
         .with_initial_condition(IC)
         .with_pde(PD)
@@ -85,5 +86,69 @@ def type_test_dont_allow_build_unless_everything_is_set() -> None:
         .with_time_step(dT)
         .with_target_time(TT)
         .compute(),
-        FiniteDifferences()(PD, IC, dS, BC, dT, TT),
+    )
+
+    # shouldn't be ok
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_initial_condition(IC)  # pyright: ignore[reportUnknownMemberType]
+        .with_pde(PD)
+        .with_solver(FiniteDifferences())
+        .with_spatial_step(dS)
+        .with_time_step(dT)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_pde(PD)
+        .with_solver(FiniteDifferences())
+        .with_spatial_step(dS)
+        .with_time_step(dT)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_initial_condition(IC)
+        .with_solver(FiniteDifferences())
+        .with_spatial_step(dS)
+        .with_time_step(dT)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_initial_condition(IC)
+        .with_pde(PD)
+        .with_spatial_step(dS)
+        .with_time_step(dT)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_initial_condition(IC)
+        .with_pde(PD)
+        .with_solver(FiniteDifferences())
+        .with_time_step(dT)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_initial_condition(IC)
+        .with_pde(PD)
+        .with_solver(FiniteDifferences())
+        .with_spatial_step(dS)
+        .with_target_time(TT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
+    )
+    _a = (  # pyright: ignore[reportUnknownVariableType]
+        EMPTY_SOLUTION_BUILDER.with_boundary_condition(BC)  # pyright: ignore[reportUnknownMemberType]
+        .with_initial_condition(IC)
+        .with_pde(PD)
+        .with_solver(FiniteDifferences())
+        .with_spatial_step(dS)
+        .with_time_step(dT)
+        .compute(),  # pyright: ignore[reportAttributeAccessIssue]
     )

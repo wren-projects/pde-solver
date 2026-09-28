@@ -38,10 +38,13 @@ wren-pde-solver = { workspace = true }
 wren-common = { workspace = true }
 
 [tool.basedpyright]
-include = ["src", "packages/**/src", "tests", "scripts"]
+include = ["src", "packages/**/src", "tests", "scripts", "packages/**/tests"]
 
+enableTypeIgnoreComments = true
 reportExplicitAny = false
 reportImplicitStringConcatenation = false
 reportImportCycles = false
 reportMissingImports = "error"
 reportMissingTypeArgument = false
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnusedParameter = false # already handeled by ruff

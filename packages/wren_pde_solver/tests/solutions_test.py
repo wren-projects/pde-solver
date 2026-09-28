@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pytest
@@ -23,8 +24,8 @@ class PDETestCase[T: PDE]:
     name: str
     pde: T
     boundary_condition: BoundaryCondition
-    initial_condition: NDArray
-    expected_solution: Callable[[float], NDArray]
+    initial_condition: NDArray[DType]
+    expected_solution: Callable[[float], NDArray[DType]]
     delta_time: Scalar
     steps: int
     atol: float = DEFAULT_ATOL
@@ -33,7 +34,7 @@ class PDETestCase[T: PDE]:
 
 def _make_unit_cube_grid(
     shape: tuple[int, int, int],
-) -> tuple[NDArray, NDArray, NDArray]:
+) -> tuple[NDArray[DType], NDArray[DType], NDArray[DType]]:
     """
     Create interior grid points on the unit cube.
 
@@ -49,7 +50,7 @@ def _make_unit_cube_grid(
     return np.meshgrid(x, y, z, indexing="ij")
 
 
-def _make_spacial_step(shape: tuple[int, ...]) -> Vector:
+def _make_spacial_step(shape: tuple[int, ...]) -> Vector[DType]:
     """Compute grid spacing for an interior grid on the unit cube."""
     return 1.0 / (np.array(shape) + 1)
 
@@ -58,7 +59,7 @@ def make_heat_3d_mode_111_case(
     shape: tuple[int, int, int],
     delta_time: float,
     steps: int,
-) -> PDETestCase:
+) -> PDETestCase[HomogeneousNoAdvectionScalarDiffusionPDE]:
     """
     Create a benchmark for the three-dimensional heat equation.
 
@@ -89,18 +90,21 @@ def make_heat_3d_mode_111_case(
     x, y, z = _make_unit_cube_grid(shape)
     decay_rate = 3 * np.pi**2 * DEFAULT_K
 
-    def exact_solution(time: float) -> NDArray:
+    def exact_solution(time: float) -> NDArray[DType]:
         """
         Analytical solution of the benchmark problem.
 
         u(x,y,z,t)
             = sin(πx) sin(πy) sin(πz) exp(-3π²kt)
         """
-        return (
-            np.sin(np.pi * x)
-            * np.sin(np.pi * y)
-            * np.sin(np.pi * z)
-            * np.exp(-decay_rate * time)
+        return cast(
+            NDArray[DType],
+            (
+                np.sin(np.pi * x)
+                * np.sin(np.pi * y)
+                * np.sin(np.pi * z)
+                * np.exp(-decay_rate * time)
+            ),
         )
 
     pde = HomogeneousNoAdvectionScalarDiffusionPDE(
@@ -132,7 +136,7 @@ PDE_TEST_CASES = [
 
 def _advance_case(
     case: PDETestCase[HomogeneousNoAdvectionScalarDiffusionPDE],
-) -> NDArray:
+) -> NDArray[DType]:
     """Run finite differences through the public solver interface."""
     solver = FiniteDifferences()
 
@@ -146,8 +150,19 @@ def _advance_case(
     )
 
 
-@pytest.mark.parametrize("case", PDE_TEST_CASES, ids=lambda case: case.name)
-def test_finite_differences_heat_3d(case: PDETestCase) -> None:
+def get_case_name[T: PDE](case: PDETestCase[T]) -> str:
+    """
+    Return name of the given case.
+
+    Helper function to ensure that types check out.
+    """
+    return case.name
+
+
+@pytest.mark.parametrize("case", PDE_TEST_CASES, ids=get_case_name)
+def test_finite_differences_heat_3d(
+    case: PDETestCase[HomogeneousNoAdvectionScalarDiffusionPDE],
+) -> None:
     """Test finite differences against a known 3D heat equation solution."""
     actual = _advance_case(case)
     expected = case.expected_solution(case.steps * case.delta_time)
