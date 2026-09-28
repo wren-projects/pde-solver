@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import numpy as np
-from wren_common.types import Matrix, Scalar, Vector
+from wren_common.types import Matrix, Real, Vector
 
-DEFAULT_EPSILON = np.float64(1e-10)
+DEFAULT_EPSILON: Real = np.float64(1e-10)
 
 
-def delta_truncated_svd[DT: np.floating](
-    matrix: Matrix[DT], delta: Scalar = DEFAULT_EPSILON
+def delta_truncated_svd[DT: np.complexfloating](
+    matrix: Matrix[DT], delta: Real = DEFAULT_EPSILON
 ) -> tuple[Matrix[DT], Vector[DT], Matrix[DT]]:
     """
     Compute the SVD of a matrix, dropping singular values below `delta`.
@@ -43,7 +43,9 @@ def delta_truncated_svd[DT: np.floating](
     return u[:, mask], s[mask], v_t[mask, :]
 
 
-def qr_rows[DT: np.floating](matrix: Matrix[DT]) -> tuple[Matrix[DT], Matrix[DT]]:
+def qr_rows[DT: np.complexfloating](
+    matrix: Matrix[DT],
+) -> tuple[Matrix[DT], Matrix[DT]]:
     """
     Compute the QR decomposition of a matrix with orthogonal rows.
 

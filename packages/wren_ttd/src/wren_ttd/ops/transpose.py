@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_tuple
 from wren_common.math import dot_product
-from wren_common.types import Scalar
+from wren_common.types import Real
 
 from wren_ttd._helpers import orthogonalize_right, truncation_parameter
 from wren_ttd._numpy_api import implements_function
@@ -22,10 +22,10 @@ if TYPE_CHECKING:
 
 
 @implements_function("transpose")
-def transpose[DType: np.floating](
+def transpose[DType: np.complexfloating](
     ttd: TTD[DType],
     axes: Sequence[int] | None = None,
-    epsilon: Scalar = DEFAULT_EPSILON,
+    epsilon: Real = DEFAULT_EPSILON,
 ) -> TTD[DType]:
     """
     Permute the dimensions of a TTD.

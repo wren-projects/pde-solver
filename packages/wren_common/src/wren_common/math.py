@@ -42,7 +42,7 @@ def dot_product[DT: np.dtype](
     return cast(np.ndarray[tuple[int, ...], DT], np.tensordot(a, b, axes=1))
 
 
-def scale_matrix[DT: np.floating](a: Vector[DT], b: Matrix[DT]) -> Matrix[DT]:
+def scale_matrix[DT: np.inexact](a: Vector[DT], b: Matrix[DT]) -> Matrix[DT]:
     """
     Scale a matrix by a vector.
 

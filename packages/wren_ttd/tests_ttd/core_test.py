@@ -4,6 +4,7 @@ from typing import cast
 
 import numpy as np
 import pytest
+from wren_common.types import Scalar
 
 from .common import TEST_TTD, TestTensor, TestTTD, assert_default_epsilon
 
@@ -54,7 +55,7 @@ class TestIndexing:
     def test_full(self, ttd: TestTTD, tensor: TestTensor) -> None:
         """Test full indexing."""
         for index, value in islice(np.ndenumerate(tensor), 1000):
-            assert_default_epsilon(ttd[index], value)
+            assert_default_epsilon(ttd[index], cast(Scalar, value))
 
     def test_single_axis(self, ttd: TestTTD, tensor: TestTensor) -> None:
         """Test indexing along a single axis."""

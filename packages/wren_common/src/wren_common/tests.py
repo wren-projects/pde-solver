@@ -82,6 +82,24 @@ for a, b in TEST_PAIR_TENSORS:
     assert a.dtype == b.dtype
 
 
+TEST_COMPLEX_TENSORS: list[NDArray[np.complexfloating]] = [
+    arange_tensor(3, 4, 5) * (1 + 2j),
+    rng.standard_normal((3, 4, 5)) + 1j * rng.standard_normal((3, 4, 5)),
+]
+
+
+# NOTE: each pair of tensors must have the same shape
+TEST_COMPLEX_PAIR_TENSORS: list[
+    tuple[NDArray[np.complexfloating], NDArray[np.complexfloating]]
+] = [
+    (TEST_COMPLEX_TENSORS[0], TEST_COMPLEX_TENSORS[1]),
+]
+
+for a, b in TEST_COMPLEX_PAIR_TENSORS:
+    assert a.shape == b.shape
+    assert a.dtype == b.dtype
+
+
 TEST_SHAPES: list[tuple[int, ...]] = [
     (3,),
     (2, 2),
@@ -94,6 +112,7 @@ TEST_SHAPES: list[tuple[int, ...]] = [
 
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
 TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
+TEST_COMPLEX_SCALARS: tuple[complex, ...] = (1 + 2j, -0.5j, np.complex128(0.5 - 0.25j))
 
 
 def tensor_interior[DType: np.floating](

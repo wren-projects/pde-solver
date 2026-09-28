@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 from wren_common.math import dot_product, scale_matrix
-from wren_common.types import Index1D, Matrix, NDArray, Scalar
+from wren_common.types import Index1D, Matrix, NDArray, Real, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
@@ -28,7 +28,9 @@ ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
 @final
-class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
+class TTD[DType: np.complexfloating](
+    NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]
+):
     """
     Class for storing TTD encoded data.
 
@@ -86,8 +88,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             raise ValueError("The boundary ranks have to be 1")
 
     @staticmethod
-    def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
+    def from_ndarray[DT: np.complexfloating](
+        array: NDArray[DT], epsilon: Real = DEFAULT_EPSILON
     ) -> TTD[DT]:
         """
         Compress an NDArray into a TTD object.
@@ -150,7 +152,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return TTD(cores)
 
     @staticmethod
-    def ones[DT: np.floating](
+    def ones[DT: np.complexfloating](
         shape: int | Sequence[int],
         *,
         dtype: np.dtype[DT] | None = None,
@@ -194,7 +196,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return TTD(cores, dtype=dtype)
 
     @staticmethod
-    def zeros[DT: np.floating](
+    def zeros[DT: np.complexfloating](
         shape: int | Sequence[int],
         *,
         dtype: np.dtype[DT] | None = None,
@@ -238,7 +240,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return TTD(cores)
 
     @staticmethod
-    def full[DT: np.floating](
+    def full[DT: np.complexfloating](
         shape: int | Sequence[int],
         fill_value: Scalar,
         *,
@@ -271,6 +273,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD.ones : Return a new TTD of ones.
         TTD.zeros : Return a new TTD of zeros.
 
+        Notes
+        -----
+        Like :func:`numpy.full`, an explicit `dtype` takes precedence over
+        `fill_value`: the value is downcast to it instead of promoting
+        the result.
+
         Examples
         --------
         >>> import numpy as np
@@ -281,10 +289,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [10., 10.]])
 
         """
-        return TTD.ones(shape, dtype=dtype) * fill_value
+        result = TTD.ones(shape, dtype=dtype) * fill_value
+
+        if dtype is not None and result.dtype != dtype:
+            # Honor an explicit dtype like numpy.full (downcast with warning).
+            return TTD((core.astype(dtype) for core in result.data), dtype=dtype)
+
+        return result
 
     @staticmethod
-    def random[DT: np.floating](
+    def random[DT: np.complexfloating](
         shape: int | Sequence[int],
         ranks: int | Sequence[int] = 2,
         *,
@@ -308,10 +322,26 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             raise ValueError("Boundary ranks must be 1")
 
         rng = np.random.default_rng()
-        cores = [
-            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
-            for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
+        core_shapes = [
+            (r1, n, r2) for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
         ]
+
+        if np.issubdtype(dtype, np.complexfloating):
+            cores = [
+                cast(
+                    Core[DT],
+                    (
+                        rng.standard_normal(core_shape)
+                        + 1j * rng.standard_normal(core_shape)
+                    ).astype(dtype),
+                )
+                for core_shape in core_shapes
+            ]
+        else:
+            cores = [
+                cast(Core[DT], rng.random(core_shape).astype(dtype))
+                for core_shape in core_shapes
+            ]
 
         return TTD(cores, dtype=dtype)
 
@@ -495,7 +525,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
-    def round(self, epsilon: Scalar = DEFAULT_EPSILON) -> None:
+    def round(self, epsilon: Real = DEFAULT_EPSILON) -> None:
         """
         Round the TTD object by decreasing ranks.
 
@@ -540,7 +570,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
             cores[k] = dot_product(scale_matrix(s, v_t), cores[k])
 
-    def rounded(self, epsilon: Scalar = DEFAULT_EPSILON) -> TTD[DType]:
+    def rounded(self, epsilon: Real = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
         ttd = self[...]
         ttd.round(epsilon)

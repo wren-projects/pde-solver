@@ -4,14 +4,15 @@ from typing import cast
 import numpy as np
 import pytest
 from wren_common.tests import (
-    TEST_SCALARS,
     TEST_SHAPES,
     TestTensor,
     TestTensorPair,
 )
+from wren_common.types import Scalar
 from wren_ttd import TTD
 
 from .common import (
+    TEST_ALL_SCALARS,
     TEST_PAIR_TTD,
     TEST_TTD,
     BinaryOperatorTests,
@@ -55,11 +56,11 @@ def test_ones(shape: tuple[int, ...]) -> None:
 
 
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
-@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
-def test_full(shape: tuple[int, ...], fill_value: float) -> None:
+@pytest.mark.parametrize("fill_value", deepcopy(TEST_ALL_SCALARS))
+def test_full(shape: tuple[int, ...], fill_value: Scalar) -> None:
     """Test full."""
-    ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
-    tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
+    ttd = TTD.full(shape, fill_value)
+    tensor = np.full(shape, fill_value)
     assert_default_epsilon(ttd, tensor)
 
 
@@ -154,35 +155,44 @@ class TestAdd(BinaryOperatorTests):
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", TEST_SCALARS)
+@pytest.mark.parametrize("scalar", TEST_ALL_SCALARS)
 class TestScalarAddition(ScalarOperatorTests):
     """Tests for TTD-scalar addition."""
 
     def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar addition via ``ttd + scalar``."""
         assert_default_epsilon(ttd + scalar, tensor + scalar)
 
     def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar addition via ``scalar + ttd``."""
         assert_default_epsilon(scalar + ttd, tensor + scalar)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_right(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
+    ) -> None:
         """Test scalar addition via ``np.add(ttd, scalar)``."""
         assert_default_epsilon(np.add(ttd, scalar), tensor + scalar)
 
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test scalar addition via ``np.add(scalar, ttd)``."""
         assert_default_epsilon(np.add(scalar, ttd), tensor + scalar)
 
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test in-place scalar addition via ``+=``."""
+        summed_tensor = tensor + scalar
+        scale = np.linalg.norm(summed_tensor)
         ttd_copy = ttd.copy()
-        ttd_copy += scalar
-        assert_default_epsilon(ttd_copy, tensor + scalar)
+        if np.can_cast(summed_tensor.dtype, ttd_copy.dtype, casting="same_kind"):
+            ttd_copy += scalar
+            assert_default_epsilon(ttd_copy, summed_tensor, scale)
+        else:
+            # Mirror NumPy: an in-place op cannot upcast the output dtype.
+            with pytest.raises(TypeError, match="same_kind"):
+                ttd_copy += scalar
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
@@ -223,35 +233,44 @@ class TestSub(BinaryOperatorTests):
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", TEST_SCALARS)
+@pytest.mark.parametrize("scalar", TEST_ALL_SCALARS)
 class TestScalarSubtraction(ScalarOperatorTests):
     """Tests for TTD-scalar subtraction."""
 
     def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar subtraction via ``ttd - scalar``."""
         assert_default_epsilon(ttd - scalar, tensor - scalar)
 
     def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar subtraction via ``scalar - ttd``."""
         assert_default_epsilon(scalar - ttd, scalar - tensor)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_right(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
+    ) -> None:
         """Test scalar subtraction via ``np.subtract(ttd, scalar)``."""
         assert_default_epsilon(np.subtract(ttd, scalar), tensor - scalar)
 
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test scalar subtraction via ``np.subtract(scalar, ttd)``."""
         assert_default_epsilon(np.subtract(scalar, ttd), scalar - tensor)
 
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test in-place scalar subtraction via ``-=``."""
+        subtracted_tensor = tensor - scalar
+        scale = np.linalg.norm(subtracted_tensor)
         ttd_copy = ttd.copy()
-        ttd_copy -= scalar
-        assert_default_epsilon(ttd_copy, tensor - scalar)
+        if np.can_cast(subtracted_tensor.dtype, ttd_copy.dtype, casting="same_kind"):
+            ttd_copy -= scalar
+            assert_default_epsilon(ttd_copy, subtracted_tensor, scale)
+        else:
+            # Mirror NumPy: an in-place op cannot upcast the output dtype.
+            with pytest.raises(TypeError, match="same_kind"):
+                ttd_copy -= scalar
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
@@ -292,12 +311,12 @@ class TestMultiplication(BinaryOperatorTests):
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", deepcopy(TEST_SCALARS))
+@pytest.mark.parametrize("scalar", deepcopy(TEST_ALL_SCALARS))
 class TestScalarMultiplication(ScalarOperatorTests):
     """Tests for TTD-scalar multiplication."""
 
     def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar multiplication via ``ttd * scalar``."""
         scaled_tensor = tensor * scalar
@@ -305,32 +324,39 @@ class TestScalarMultiplication(ScalarOperatorTests):
         assert_default_epsilon(ttd * scalar, scaled_tensor, scale)
 
     def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test scalar multiplication via ``scalar * ttd``."""
         scaled_tensor = tensor * scalar
         scale = np.linalg.norm(scaled_tensor)
         assert_default_epsilon(scalar * ttd, scaled_tensor, scale)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_right(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
+    ) -> None:
         """Test scalar multiplication via ``np.multiply(ttd, scalar)``."""
         scaled_tensor = tensor * scalar
         scale = np.linalg.norm(scaled_tensor)
         assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor, scale)
 
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test scalar multiplication via ``np.multiply(scalar, ttd)``."""
         scaled_tensor = tensor * scalar
         scale = np.linalg.norm(scaled_tensor)
         assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor, scale)
 
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test in-place scalar multiplication via ``*=``."""
         scaled_tensor = tensor * scalar
         scale = np.linalg.norm(scaled_tensor)
         ttd_copy = ttd.copy()
-        ttd_copy *= scalar
-        assert_default_epsilon(ttd_copy, scaled_tensor, scale)
+        if np.can_cast(scaled_tensor.dtype, ttd_copy.dtype, casting="same_kind"):
+            ttd_copy *= scalar
+            assert_default_epsilon(ttd_copy, scaled_tensor, scale)
+        else:
+            # Mirror NumPy: an in-place op cannot upcast the output dtype.
+            with pytest.raises(TypeError, match="same_kind"):
+                ttd_copy *= scalar
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -593,13 +619,13 @@ class TestGradient:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("value", TEST_SCALARS)
+@pytest.mark.parametrize("value", TEST_ALL_SCALARS)
 @pytest.mark.parametrize("width", [0, 1, 2])
 class TestPad:
     """Tests for TTD padding."""
 
     def test_pad_single_constant(
-        self, tensor: TestTensor, ttd: TestTTD, value: float, width: int
+        self, tensor: TestTensor, ttd: TestTTD, value: Scalar, width: int
     ) -> None:
         """Test pad with the selected constant value in single width."""
         expected = np.pad(tensor, width, mode="constant", constant_values=value)

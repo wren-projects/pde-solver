@@ -14,7 +14,9 @@ from .transpose import transpose
 
 
 @implements_function("swapaxes")
-def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD[DType]:
+def swapaxes[DType: np.complexfloating](
+    ttd: TTD[DType], axis1: int, axis2: int
+) -> TTD[DType]:
     """
     Swap two axes of a TTD tensor.
 

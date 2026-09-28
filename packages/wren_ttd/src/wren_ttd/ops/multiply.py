@@ -1,7 +1,7 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, cast, overload
 
 import numpy as np
 from wren_common.types import Scalar, ScalarTypes
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-def _hadamard_impl[DType: np.floating](
+def _hadamard_impl[DType: np.complexfloating](
     a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """Compute the Hadamard (element-wise) product of two same-shaped TTDs."""
@@ -24,6 +24,8 @@ def _hadamard_impl[DType: np.floating](
         raise ValueError(
             f"Cannot multiply TTDs with different shapes: {a.shape} and {b.shape}."
         )
+
+    dtype = np.result_type(a.dtype, b.dtype)
 
     N = np.newaxis
 
@@ -49,32 +51,41 @@ def _hadamard_impl[DType: np.floating](
             raise ValueError(
                 f"Output shape mismatch: got {out.shape}, expected {a.shape}."
             )
-        out.data = new_cores
+        if not np.can_cast(dtype, out.dtype, casting="same_kind"):
+            raise TypeError(
+                f"Cannot cast output from dtype '{dtype}' to dtype '{out.dtype}'"
+                " with casting rule 'same_kind'."
+            )
+        out.data = (
+            [cast(Core[DType], np.asarray(core, dtype=out.dtype)) for core in new_cores]
+            if out.dtype != dtype
+            else new_cores
+        )
         return out
 
-    return TTD(new_cores)
+    return TTD(new_cores, dtype=dtype)
 
 
 @overload
-def multiply[DType: np.floating](
+def multiply[DType: np.complexfloating](
     a: TTD[DType], b: Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @overload
-def multiply[DType: np.floating](
+def multiply[DType: np.complexfloating](
     a: Scalar, b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @overload
-def multiply[DType: np.floating](
+def multiply[DType: np.complexfloating](
     a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]: ...
 
 
 @implements_ufunc("multiply")
-def multiply[DType: np.floating](
+def multiply[DType: np.complexfloating](
     a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
@@ -109,8 +120,10 @@ def multiply[DType: np.floating](
         The second factor. A scalar scales `a`.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
-        If provided, it must have the same shape as the result and its cores
-        are replaced with the cores of the product.
+        If provided, it must have the same shape as the result and a dtype
+        to which the result can be cast with 'same_kind' casting (like the
+        `out` argument of NumPy ufuncs); its cores are replaced with the
+        cores of the product.
 
     Returns
     -------
@@ -125,6 +138,7 @@ def multiply[DType: np.floating](
 
     Notes
     -----
+    The result dtype follows :func:`numpy.result_type`, like NumPy.
     The TT-ranks of a Hadamard product are the products of the operand
     ranks, so repeated multiplication inflates the ranks. Consider calling
     :meth:`TTD.round` on the result before performing further operations.
@@ -154,12 +168,28 @@ def multiply[DType: np.floating](
         core, index = smallest_core(cores)
 
         cores[index] = np.multiply(core, scalar)
+        dtype = np.result_type(ttd.dtype, scalar)
 
-        if out is not None:
-            out.data = cores
-            return out
+        if out is None:
+            return TTD(cores, dtype=dtype)
 
-        return TTD(cores, dtype=ttd.dtype)
+        if out.shape != ttd.shape:
+            raise ValueError(
+                f"Output shape mismatch: got {out.shape}, expected {ttd.shape}."
+            )
+
+        if not np.can_cast(dtype, out.dtype, casting="same_kind"):
+            raise TypeError(
+                f"Cannot cast output from dtype '{dtype}' to dtype '{out.dtype}'"
+                " with casting rule 'same_kind'."
+            )
+
+        out.data = (
+            [cast(Core[DType], np.asarray(core, dtype=out.dtype)) for core in cores]
+            if out.dtype != dtype
+            else cores
+        )
+        return out
 
     if isinstance(a, TTD) and isinstance(b, ScalarTypes):
         return scalar_impl(a, b, out=out)

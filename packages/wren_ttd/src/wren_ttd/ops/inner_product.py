@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @implements_function("vdot")
-def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
+def inner_product[DType: np.complexfloating](a: TTD[DType], b: TTD[DType]) -> DType:
     """
     Compute the inner product of two TTD objects.
 
@@ -23,7 +23,10 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
     and B = H₀, H₁, …, Hₙ, the inner product is defined as
 
-        ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᵀ Hₖ.
+        ⟨A, B⟩ = ∑ₖ₌₁ⁿ ⟨Gₖ, Hₖ⟩ = ∑ₖ₌₁ⁿ Gₖᴴ Hₖ,
+
+    where ᴴ denotes the conjugate transpose (so the first operand is
+    conjugated, like in :func:`numpy.vdot`).
 
     The inner product requires that the TTD objects have the same shape and the same
     dtype.
@@ -62,7 +65,7 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
 
     n = len(a.data)
 
-    contracted = contract_cores(a.data, b.data, n)
+    contracted = contract_cores([core.conj() for core in a.data], b.data, n)
 
     assert contracted.size == 1
 

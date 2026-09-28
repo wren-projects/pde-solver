@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from wren_common.math import dot_product
-from wren_common.types import Matrix, NDArray, Scalar
+from wren_common.types import Matrix, NDArray, Real
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-def smallest_core[DType: np.floating](
+def smallest_core[DType: np.complexfloating](
     cores: Iterable[Core[DType]],
 ) -> tuple[Core[DType], int]:
     """
@@ -37,7 +37,7 @@ def smallest_core[DType: np.floating](
     return core, index
 
 
-def reverse_cores[DType: np.floating](
+def reverse_cores[DType: np.complexfloating](
     cores: Reversible[Core[DType]],
 ) -> Iterable[Core[DType]]:
     """
@@ -80,7 +80,7 @@ def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
     return (int(value),) if isinstance(value, int) else tuple(map(int, value))
 
 
-def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
+def orthogonalize_right[DType: np.complexfloating](cores: list[Core[DType]]) -> None:
     """Orthogonalize the cores in place using a right-to-left QR sweep."""
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
@@ -96,7 +96,7 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
         cores[k - 2] = dot_product(cores[k - 2], r)
 
 
-def contract_cores[DType: np.floating](
+def contract_cores[DType: np.complexfloating](
     a_cores: Iterable[Core[DType]],
     b_cores: Iterable[Core[DType]],
     n: int,
@@ -150,9 +150,9 @@ def contract_cores[DType: np.floating](
     return result.squeeze((0, 2))
 
 
-def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT] | TTD[DT], epsilon: Scalar = DEFAULT_EPSILON
-) -> DT:
+def truncation_parameter[DT: np.complexfloating](
+    tensor: NDArray[DT] | TTD[DT], epsilon: Real = DEFAULT_EPSILON
+) -> np.floating[Any]:
     """
     Compute the per-SVD truncation tolerance δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
 
@@ -165,8 +165,8 @@ def truncation_parameter[DT: np.floating](
 
     Returns
     -------
-    DT
-        The truncation tolerance.
+    np.floating
+        The truncation tolerance (always real, even for complex input).
 
     Raises
     ------
@@ -178,10 +178,10 @@ def truncation_parameter[DT: np.floating](
     if d <= 1:
         raise ValueError("Tensor must be at least 2D")
 
-    return tensor.dtype.type(epsilon / math.sqrt(d - 1)) * np.linalg.norm(tensor)
+    return epsilon / math.sqrt(d - 1) * np.linalg.norm(tensor)
 
 
-def block_core[DType: np.floating](
+def block_core[DType: np.complexfloating](
     blocks: tuple[Core[DType], ...],
 ) -> Core[DType]:
     """
