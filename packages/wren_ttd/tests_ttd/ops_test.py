@@ -388,8 +388,26 @@ def test_gradient(tensor: TestTensor, ttd: TestTTD) -> None:
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 @pytest.mark.parametrize("value", TEST_SCALARS)
-def test_pad_constant(tensor: TestTensor, ttd: TestTTD, value: float) -> None:
+@pytest.mark.parametrize("width", [1, 2, 5])
+def test_pad_constant(
+    tensor: TestTensor, ttd: TestTTD, value: float, width: int
+) -> None:
     """Test that TTD pad with constant_values=0 works."""
-    expected = np.pad(tensor, pad_width=1, mode="constant", constant_values=value)
-    result = np.pad(ttd, pad_width=1, mode="constant", constant_values=value)
+    expected = np.pad(tensor, pad_width=width, mode="constant", constant_values=value)
+    result = np.pad(ttd, pad_width=width, mode="constant", constant_values=value)
     assert_default_epsilon(result, expected, scale=value)
+
+
+def test_pad_constant_zero_width():
+    """Test that TTD pad with width = 0 doesn't modify the TTD."""
+    ttd = TEST_TTD[0][0]
+    assert_default_epsilon(
+        np.pad(ttd, pad_width=0, mode="constant", constant_values=0.0), ttd
+    )
+
+
+def test_pad_constant_invalid_width():
+    """Test that TTD pad with width < 0 fails."""
+    ttd = TEST_TTD[0][0]
+    with pytest.raises(ValueError):
+        np.pad(ttd, pad_width=-1, mode="constant", constant_values=0.0)
