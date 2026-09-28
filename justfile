@@ -13,7 +13,7 @@ lint:
     {{ uv }} run ruff check {{ code_folders }}
 
 typecheck:
-    {{ uv }} run basedpyright 
+    {{ uv }} run basedpyright
 
 test:
     {{ uv }} run pytest
