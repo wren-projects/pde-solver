@@ -1,10 +1,11 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, NotRequired, TypedDict, Unpack, cast
 
 import numpy as np
-from wren_common.types import Scalar, ScalarTypes
+from wren_common.types import Scalar
 
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.types import Core
@@ -13,16 +14,16 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-def _padded_mask_core[DType: np.floating](
+def _padded_mask_core[DType: np.complexfloating](
     n: int, pad_width: int, dtype: np.dtype[DType]
 ) -> Core[DType]:
     return np.ones((1, pad_width + n + pad_width, 1), dtype=dtype)
 
 
-def _pad_constant[DType: np.floating](
+def _pad_constant[DType: np.complexfloating](
     ttd: TTD[DType],
     pad_width: int,
-    constant_value: Scalar,
+    constant_value: DType,
 ) -> TTD[DType]:
     """Pad a TTD with constant values."""
     from wren_ttd.core import TTD
@@ -60,12 +61,18 @@ def _pad_constant[DType: np.floating](
     return Z + constant_value * (ones_ttd - indicator_ttd)
 
 
+class PadKwargs(TypedDict):
+    """Additional keyword arguments for the padding mode."""
+
+    constant_values: NotRequired[Sequence[Scalar] | Scalar]
+
+
 @implements_function("pad")
-def pad[DType: np.floating](
+def pad[DType: np.complexfloating](
     array: TTD[DType],
     pad_width: int,
     mode: str = "constant",
-    **kwargs: Any,
+    **kwargs: Unpack[PadKwargs],
 ) -> TTD[DType]:
     """
     Pad a TTD tensor.
@@ -93,12 +100,16 @@ def pad[DType: np.floating](
 
     if mode == "constant":
         constant_values = kwargs.get("constant_values", 0.0)
-        if isinstance(constant_values, (list, tuple)):
+        if isinstance(constant_values, Sequence):
             raise NotImplementedError(
                 "Per-axis constant_values are not supported, use a scalar"
             )
 
-        if isinstance(constant_values, ScalarTypes):
-            return _pad_constant(array, pad_width, constant_values)
+        # Like numpy.pad, the constant is downcast to the input dtype.
+        constant_values = cast(
+            DType,
+            cast(object, np.asarray(constant_values).astype(array.dtype).item()),
+        )
+        return _pad_constant(array, pad_width, constant_values)
 
     return NotImplemented

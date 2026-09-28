@@ -1,7 +1,7 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from wren_common.types import Scalar, ScalarTypes
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @implements_ufunc("add")
-def add[DType: np.floating](
+def add[DType: np.complexfloating](
     a: TTD[DType] | Scalar,
     b: TTD[DType] | Scalar,
     *,
@@ -31,8 +31,9 @@ def add[DType: np.floating](
 
         A + B = (G₀ H₀) ⊗ (G₁ 0 ; 0 H₁) ⊗ (G₂ 0 ; 0 H₂) ⊗ … ⊗ (Gₙ ; Hₙ).
 
-    The addition requires that the TTD objects have the same shape and the same
-    dtype. If one of the operands is a scalar, it is broadcasted to the shape of
+    The addition requires that the TTD objects have the same shape. Operand
+    dtypes are promoted following :func:`numpy.result_type`, like NumPy.
+    If one of the operands is a scalar, it is broadcasted to the shape of
     the other operand and then added. That is equivalent to adding the scalar to
     each element of the other operand.
 
@@ -44,8 +45,10 @@ def add[DType: np.floating](
         The second summand. A scalar is broadcast to the shape of `a`.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
-        If provided, it must have the same shape as the result and its cores
-        are replaced with the cores of the sum.
+        If provided, it must have the same shape as the result and a dtype
+        to which the result can be cast with 'same_kind' casting (like the
+        `out` argument of NumPy ufuncs); its cores are replaced with the
+        cores of the sum.
 
     Returns
     -------
@@ -90,10 +93,10 @@ def add[DType: np.floating](
             return a, b
 
         if isinstance(a, TTD) and isinstance(b, ScalarTypes):
-            return a, TTD.full(a.shape, b, dtype=a.dtype)
+            return a, TTD.full(a.shape, b, dtype=np.result_type(a.dtype, b))
 
         if isinstance(b, TTD) and isinstance(a, ScalarTypes):
-            return TTD.full(b.shape, a, dtype=b.dtype), b
+            return TTD.full(b.shape, a, dtype=np.result_type(b.dtype, a)), b
 
         raise TypeError(
             f"Unsupported operand types: {type(a).__name__} and {type(b).__name__}."
@@ -107,25 +110,43 @@ def add[DType: np.floating](
             f"Cannot add TTDs with different shapes: {a.shape} and {b.shape}."
         )
 
-    if out is not None and out.shape != a.shape:
-        raise ValueError(f"Output shape mismatch: got {out.shape}, expected {a.shape}.")
+    dtype = np.result_type(a.dtype, b.dtype)
 
     cores = _add_cores(a.data, b.data)
 
     if out is None:
-        return TTD(cores, dtype=a.dtype)
+        return TTD(cores, dtype=dtype)
 
-    out.data = list(cores)
+    if out.shape != a.shape:
+        raise ValueError(f"Output shape mismatch: got {out.shape}, expected {a.shape}.")
+
+    if not np.can_cast(dtype, out.dtype, casting="same_kind"):
+        raise TypeError(
+            f"Cannot cast output from dtype '{dtype}' to dtype '{out.dtype}'"
+            " with casting rule 'same_kind'."
+        )
+
+    out.data = (
+        [cast(Core[DType], np.asarray(core, dtype=out.dtype)) for core in cores]
+        if out.dtype != dtype
+        else cores
+    )
     return out
 
 
-def _add_cores[DType: np.floating](
+def _add_cores[DType: np.complexfloating](
     a: list[Core[DType]], b: list[Core[DType]]
 ) -> list[Core[DType]]:
     """Build the cores of the sum of two same-shaped TTDs."""
     # Add vectors directly
     if len(a) == len(b) == 1:
         return [np.add(a[0], b[0])]
+
+    # Upcast mixed-dtype inputs: block_core takes its dtype from the first block.
+    if a[0].dtype != b[0].dtype:
+        dtype = np.result_type(a[0].dtype, b[0].dtype)
+        a = [cast(Core[DType], np.asarray(core, dtype=dtype)) for core in a]
+        b = [cast(Core[DType], np.asarray(core, dtype=dtype)) for core in b]
 
     return [
         # stack first cores horizontally

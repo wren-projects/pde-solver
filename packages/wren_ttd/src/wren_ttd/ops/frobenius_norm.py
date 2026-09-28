@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 @implements_function("linalg.norm")
-def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
+def frobenius_norm[DType: np.complexfloating](ttd: TTD[DType]) -> DType:
     """
     Return the Frobenius norm of a TTD.
 
@@ -20,6 +20,9 @@ def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
     as the square root of its inner product with itself:
 
         ‖A‖ᶠ = √(⟨A, A⟩)
+
+    Like :func:`numpy.linalg.norm`, the result is always real-valued, even
+    for complex TTDs.
 
     Parameters
     ----------
@@ -50,4 +53,4 @@ def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
     np.float64(2.0)
 
     """
-    return cast(DType, np.sqrt(np.vdot(ttd, ttd)))
+    return cast(DType, np.sqrt(np.vdot(ttd, ttd)).real)

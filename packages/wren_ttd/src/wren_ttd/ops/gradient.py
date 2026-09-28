@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @implements_function("gradient")
-def gradient[DType: np.floating](
+def gradient[DType: np.complexfloating](
     ttd: TTD[DType],
     *varargs: float | Sequence[float],
     axis: int | Sequence[int] | None = None,

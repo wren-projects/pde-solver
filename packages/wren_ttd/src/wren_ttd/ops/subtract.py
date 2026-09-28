@@ -14,7 +14,7 @@ from .add import add
 
 
 @implements_ufunc("subtract")
-def subtract[DType: np.floating](
+def subtract[DType: np.complexfloating](
     a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """

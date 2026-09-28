@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @implements_function("sum")
-def sum[DType: np.floating](  # noqa: A001
+def sum[DType: np.complexfloating](  # noqa: A001
     ttd: TTD[DType], axis: int | Iterable[int] | None = None
 ) -> DType | TTD[DType]:
     """
@@ -31,8 +31,8 @@ def sum[DType: np.floating](  # noqa: A001
 
     Returns
     -------
-    TTD[DType]
-        The result of the sum.
+    TTD[DType] | DType
+        The sum along the given axes, or a scalar if all axes were summed.
 
     """
     from wren_ttd.core import TTD

@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 
 
 @implements_function("stack")
-def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[DType]:
+def stack[DType: np.complexfloating](
+    ttds: Sequence[TTD[DType]], axis: int = 0
+) -> TTD[DType]:
     """
     Stack TTDs along a new axis.
 

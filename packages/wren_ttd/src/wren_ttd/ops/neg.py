@@ -13,7 +13,7 @@ from .multiply import multiply
 
 
 @implements_ufunc("negative")
-def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
+def neg[DType: np.complexfloating](a: TTD[DType]) -> TTD[DType]:
     """
     Numerical negative, element-wise.
 

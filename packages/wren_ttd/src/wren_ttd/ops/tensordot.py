@@ -18,7 +18,7 @@ from .transpose import transpose
 
 
 @implements_function("tensordot")
-def tensordot[DType: np.floating](
+def tensordot[DType: np.complexfloating](
     a: TTD[DType],
     b: TTD[DType],
     axes: int | tuple[Sequence[int], Sequence[int]] = 2,
@@ -130,7 +130,7 @@ def tensordot[DType: np.floating](
     return _tensordot_transposed(a_t, b_t, k, dtype=dtype)
 
 
-def _tensordot_transposed[DType: np.floating](
+def _tensordot_transposed[DType: np.complexfloating](
     a: TTD[DType], b: TTD[DType], k: int, dtype: np.dtype[DType]
 ) -> TTD[DType] | DType:
     """Contract the last `k` cores of `a` with the first `k` cores of `b`."""

@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from wren_common.tests import (
+    TEST_COMPLEX_PAIR_TENSORS,
+    TEST_COMPLEX_SCALARS,
+    TEST_COMPLEX_TENSORS,
     TEST_PAIR_TENSORS,
+    TEST_SCALARS,
     TEST_TENSORS,
     TestTensor,
     TestTensorPair,
@@ -12,6 +16,8 @@ from wren_ttd import DEFAULT_EPSILON, TTD
 
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
+
+TEST_ALL_SCALARS: tuple[float | complex, ...] = (*TEST_SCALARS, *TEST_COMPLEX_SCALARS)
 
 
 class BinaryOperatorTests(ABC):
@@ -48,30 +54,32 @@ class ScalarOperatorTests(ABC):
 
     @abstractmethod
     def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test the op via the Python operator as ``ttd op scalar``."""
         ...
 
     @abstractmethod
     def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
     ) -> None:
         """Test the op via the Python operator as ``scalar op ttd``."""
         ...
 
     @abstractmethod
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_right(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar
+    ) -> None:
         """Test the op via the NumPy function as ``f(ttd, scalar)``."""
         ...
 
     @abstractmethod
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test the op via the NumPy function as ``f(scalar, ttd)``."""
         ...
 
     @abstractmethod
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: Scalar) -> None:
         """Test the op via the in-place operator."""
         ...
 
@@ -92,10 +100,13 @@ class UnaryOperatorTests(ABC):
 
 TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
     (tensor, TTD.from_ndarray(tensor)) for tensor in TEST_TENSORS
-]
+] + [(tensor, TTD.from_ndarray(tensor)) for tensor in TEST_COMPLEX_TENSORS]
 
 TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
     ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b))) for a, b in TEST_PAIR_TENSORS
+] + [
+    ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b)))
+    for a, b in TEST_COMPLEX_PAIR_TENSORS
 ]
 
 

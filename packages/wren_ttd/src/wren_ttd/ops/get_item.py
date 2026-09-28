@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-def get_item[DType: np.floating](
+def get_item[DType: np.complexfloating](
     ttd: TTD[DType], indexes: Sequence[Index1D]
 ) -> TTD[DType] | DType:
     """
