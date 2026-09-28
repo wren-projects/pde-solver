@@ -21,7 +21,9 @@ def _hadamard_impl[DType: np.floating](
     from wren_ttd.core import TTD
 
     if a.shape != b.shape:
-        raise ValueError("Tensors must have the same shape.")
+        raise ValueError(
+            f"Cannot multiply TTDs with different shapes: {a.shape} and {b.shape}."
+        )
 
     N = np.newaxis
 
@@ -44,7 +46,9 @@ def _hadamard_impl[DType: np.floating](
 
     if out is not None:
         if out.shape != a.shape:
-            raise ValueError("Output tensor has an incorrect shape.")
+            raise ValueError(
+                f"Output shape mismatch: got {out.shape}, expected {a.shape}."
+            )
         out.data = new_cores
         return out
 

@@ -95,15 +95,20 @@ def add[DType: np.floating](
         if isinstance(b, TTD) and isinstance(a, ScalarTypes):
             return TTD.full(b.shape, a, dtype=b.dtype), b
 
-        raise TypeError("a and b must be either TTDs or a TTD and a scalar")
+        raise TypeError(
+            f"Unsupported operand types: {type(a).__name__} and {type(b).__name__}."
+            " Operands must be either two TTDs, or a TTD and a scalar."
+        )
 
     a, b = normalize_operands(a, b)
 
     if a.shape != b.shape:
-        raise ValueError("Tensors with different shapes cannot be added.")
+        raise ValueError(
+            f"Cannot add TTDs with different shapes: {a.shape} and {b.shape}."
+        )
 
     if out is not None and out.shape != a.shape:
-        raise ValueError("Output tensor has an incorrect shape.")
+        raise ValueError(f"Output shape mismatch: got {out.shape}, expected {a.shape}.")
 
     cores = _add_cores(a.data, b.data)
 
