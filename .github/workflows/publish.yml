@@ -12,6 +12,7 @@ jobs:
   publish-common:
     name: Build and Publish packages
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - uses: actions/checkout@v4
         with:

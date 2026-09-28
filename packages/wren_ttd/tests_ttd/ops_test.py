@@ -4,9 +4,11 @@ import numpy as np
 import pytest
 from wren_common.tests import (
     TEST_SCALARS,
+    TEST_SHAPES,
     TestTensor,
     TestTensorPair,
 )
+from wren_ttd import TTD
 
 from .common import (
     TEST_PAIR_TTD,
@@ -32,6 +34,88 @@ def test_frobenius_norm(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(np.linalg.norm(ttd), np.linalg.norm(tensor))
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test rounding."""
+    assert_default_epsilon(ttd.rounded(), tensor)
+
+    added = ttd + ttd
+    rounded = added.rounded()
+    assert_default_epsilon(rounded, 2 * tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_zeros(shape: tuple[int, ...]) -> None:
+    """Test zeros."""
+    ttd = TTD.zeros(shape, dtype=np.dtype(np.float64))
+    tensor = np.zeros(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_ones(shape: tuple[int, ...]) -> None:
+    """Test ones."""
+    ttd = TTD.ones(shape, dtype=np.dtype(np.float64))
+    tensor = np.ones(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+def test_full(shape: tuple[int, ...], fill_value: float) -> None:
+    """Test full."""
+    ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
+    tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+def test_ranks() -> None:
+    """Test ranks."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.ranks == (2, 2)
+
+
+def test_compressed_size() -> None:
+    """Test ranks."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.compressed_size == 2 * 2 + 2 * 3 * 2 + 2 * 2
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test full indexing."""
+    for index, value in np.ndenumerate(tensor):
+        assert_default_epsilon(ttd[index], value)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_single_axis(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
+    for i in range(tensor.shape[0]):
+        assert_default_epsilon(ttd[i], tensor[i])
+        assert_default_epsilon(ttd[:i], tensor[:i])
+        assert_default_epsilon(ttd[i:], tensor[i:])
+        assert_default_epsilon(ttd[i::2], tensor[i::2])
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_double_axis(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
+    for i in range(tensor.shape[0]):
+        for j in range(tensor.shape[1]):
+            assert_default_epsilon(ttd[i, j], tensor[i, j])
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_indexing_double_axis_slice(ttd: TestTTD, tensor: TestTensor) -> None:
+    """Test partial indexing."""
+    for j in range(tensor.shape[1]):
+        assert_default_epsilon(ttd[:, j], tensor[:, j])
+        n = tensor.shape[0] // 2
+        assert_default_epsilon(ttd[:n, j], tensor[:n, j])
+        assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_add(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test that TTD addition works."""
@@ -51,6 +135,16 @@ def test_add(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     assert_default_epsilon(ttd_copy, tensor_sum)
 
 
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(("scalar"), TEST_SCALARS)
+def test_scalar_addition(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    """Test that TTD scalar addition works."""
+    assert_default_epsilon(ttd + scalar, tensor + scalar)
+    assert_default_epsilon(scalar + ttd, tensor + scalar)
+    assert_default_epsilon(np.add(ttd, scalar), tensor + scalar)
+    assert_default_epsilon(np.add(scalar, ttd), tensor + scalar)
+
+
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     """Test that TTD addition works."""
@@ -68,6 +162,35 @@ def test_sub(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     ttd_copy = ttd_a.copy()
     ttd_copy -= ttd_b
     assert_default_epsilon(ttd_copy, tensor_diff)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(("scalar"), TEST_SCALARS)
+def test_scalar_subtraction(tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+    """Test that TTD scalar subtraction works."""
+    assert_default_epsilon(ttd - scalar, tensor - scalar)
+    assert_default_epsilon(scalar - ttd, scalar - tensor)
+    assert_default_epsilon(np.subtract(ttd, scalar), tensor - scalar)
+    assert_default_epsilon(np.subtract(scalar, ttd), scalar - tensor)
+
+
+@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
+def test_multiplication(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    """Test that TTD multiplication works."""
+    a, b = tensors
+    ttd_a, ttd_b = ttds
+
+    assert a.shape == b.shape
+    tensor_product = a * b
+
+    assert_default_epsilon(ttd_a * ttd_b, tensor_product)
+    assert_default_epsilon(ttd_b * ttd_a, tensor_product)
+    assert_default_epsilon(np.multiply(ttd_a, ttd_b), tensor_product)
+    assert_default_epsilon(np.multiply(ttd_b, ttd_a), tensor_product)
+
+    ttd_copy = ttd_a.copy()
+    ttd_copy *= ttd_b
+    assert_default_epsilon(ttd_copy, tensor_product)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
