@@ -276,7 +276,7 @@ dev = [
     { name = "pre-commit", specifier = "~=4.4" },
     { name = "pytest", specifier = "~=9.0" },
     { name = "pytest-cov", specifier = "~=7.1" },
-    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "pytest-xdist", specifier = "~=3.8" },
     { name = "ruff", specifier = "~=0.14" },
     { name = "wren-common", editable = "packages/wren_common" },
     { name = "wren-pde-solver", editable = "packages/wren_pde_solver" },
