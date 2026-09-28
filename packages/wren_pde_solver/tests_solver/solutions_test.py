@@ -17,11 +17,11 @@ DEFAULT_RTOL = 1e-3
 
 
 @dataclass(frozen=True)
-class PDETestCase:
+class PDETestCase[T: PDE]:
     """Known analytical solution used to test PDE solvers."""
 
     name: str
-    pde: PDE
+    pde: T
     boundary_condition: BoundaryCondition
     initial_condition: NDArray
     expected_solution: Callable[[float], NDArray]
@@ -105,8 +105,6 @@ def make_heat_3d_mode_111_case(
 
     pde = HomogeneousNoAdvectionScalarDiffusionPDE(
         dims=3,
-        homogeneous=None,
-        no_advection=None,
         scalar_diffusion=-DEFAULT_K,
     )
 
@@ -132,7 +130,9 @@ PDE_TEST_CASES = [
 ]
 
 
-def _advance_case(case: PDETestCase) -> NDArray:
+def _advance_case(
+    case: PDETestCase[HomogeneousNoAdvectionScalarDiffusionPDE],
+) -> NDArray:
     """Run finite differences through the public solver interface."""
     solver = FiniteDifferences()
 
