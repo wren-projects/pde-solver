@@ -1,10 +1,11 @@
 import inspect
 import types
-from typing import Any, TypeAliasType
+from typing import Any, TypeAliasType, cast
 
 import numpy as np
 from wren_pde_solver import pde
 from wren_pde_solver.pde_types import (
+    DType,
     Matrix,
     MatrixFunction,
     Scalar,
@@ -19,7 +20,7 @@ def get_defined_classes(module: types.ModuleType) -> list[type]:
     all_classes = inspect.getmembers(module, inspect.isclass)
 
     # Filter-out classes imported from other modules
-    return [cls for name, cls in all_classes if cls.__module__ == module.__name__]
+    return [cls for _, cls in all_classes if cls.__module__ == module.__name__]
 
 
 all_pde_classes = get_defined_classes(pde)
@@ -57,21 +58,30 @@ def test_pde_has_largerst_element() -> None:
 
 def test_all_pdes_can_be_constructed() -> None:
     """Test that all PDE's constructors work."""
+
+    def dummy_scalar_function(_: int) -> DType:
+        return DType(0)
+
+    def dummy_vector_function(_: int) -> Vector:
+        return np.arange(3, dtype=DType)
+
+    def dummy_matrix_function(_: int) -> Matrix:
+        return np.arange(9, dtype=DType).reshape((3, 3))
+
     dummy_value_by_type: dict[type | TypeAliasType, Any] = {
         int: 3,
         Scalar: 3,
         Vector: np.arange(3),
         Matrix: np.arange(9).reshape((3, 3)),
-        ScalarFunction: lambda _: 0,
-        VectorFunction: lambda _: np.arange(3),
-        MatrixFunction: lambda _: np.arange(9).reshape((3, 3)),
+        ScalarFunction: dummy_scalar_function,
+        VectorFunction: dummy_vector_function,
+        MatrixFunction: dummy_matrix_function,
         types.NoneType: None,
     }
     for element in all_pde_classes:
         arg_names = [
-            (name, param.annotation)
-            for name, param in inspect.signature(element.__init__).parameters.items()
-            if name != "self"
+            (name, cast(type | TypeAliasType, param.annotation))
+            for name, param in inspect.signature(element).parameters.items()
         ]
         args = {name: dummy_value_by_type[annotation] for name, annotation in arg_names}
         element(**args)
