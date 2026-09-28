@@ -1,17 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 from wren_common.types import Matrix, Vector
 
-if TYPE_CHECKING:
-    pass
-
 DEFAULT_EPSILON = np.float64(1e-10)
-
-if TYPE_CHECKING:
-    pass
 
 
 def delta_truncated_svd[DT: np.floating](
