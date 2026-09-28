@@ -1,7 +1,24 @@
+"""
+Type-safe incremental builder for PDE solver invocations.
+
+The :class:`SolutionBuilder` collects the seven inputs a
+:class:`~wren_pde_solver.abc.solver.Solver` needs (PDE, solver, initial
+condition, spatial step, boundary condition, time step and target time) one
+at a time. Each ``with_*`` method returns a *new* builder whose type
+parameters record which fields are already set, so :meth:`SolutionBuilder.compute`
+is only available once every field holds a real value (see :data:`Complete`).
+
+PDE/solver compatibility is enforced statically: ``with_pde`` and
+``with_solver`` only accept combinations where the PDE is a subtype of the
+solver's capability (``Solver`` is contravariant in its PDE parameter), or
+where the counterpart is still unset. Incompatible combinations are type
+errors.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast, final
+from typing import Any, final, overload
 
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
@@ -9,479 +26,503 @@ from wren_pde_solver.abc.solver import Solver
 from wren_pde_solver.pde_types import DType, NDArray, Vector
 
 
-class PdeSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class PdeUnset:
+    """Sentinel marking that no PDE has been set on the builder yet."""
 
 
-class PdeNotSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class SolverUnset:
+    """Sentinel marking that no solver has been set on the builder yet."""
 
 
-class SolverSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class InitialConditionUnset:
+    """Sentinel marking that no initial condition has been set yet."""
 
 
-class SolverNotSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class SpatialStepUnset:
+    """Sentinel marking that no spatial step has been set yet."""
 
 
-class InitialConditionSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class BoundaryConditionUnset:
+    """Sentinel marking that no boundary condition has been set yet."""
 
 
-class InitialConditionNotSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class TimeStepUnset:
+    """Sentinel marking that no timestep has been set yet."""
 
 
-class SpatialStepSet: ...
+@final
+@dataclass(frozen=True, slots=True)
+class TargetTimeUnset:
+    """Sentinel marking that no target time has been set yet."""
 
 
-class SpatialStepNotSet: ...
+PDE_UNSET = PdeUnset()
+SOLVER_UNSET = SolverUnset()
+INITIAL_CONDITION_UNSET = InitialConditionUnset()
+SPATIAL_STEP_UNSET = SpatialStepUnset()
+BOUNDARY_CONDITION_UNSET = BoundaryConditionUnset()
+TIME_STEP_UNSET = TimeStepUnset()
+TARGET_TIME_UNSET = TargetTimeUnset()
 
 
-class BoundaryConditionSet: ...
-
-
-class BoundaryConditionNotSet: ...
-
-
-class TimeStepSet: ...
-
-
-class TimeStepNotSet: ...
-
-
-class TargetTimeSet: ...
-
-
-class TargetTimeNotSet: ...
-
-
-type PdeStatus = PdeSet | PdeNotSet
-type SolverStatus = SolverSet | SolverNotSet
-type InitialConditionStatus = InitialConditionSet | InitialConditionNotSet
-type SpatialStepStatus = SpatialStepSet | SpatialStepNotSet
-type BoundaryConditionStatus = BoundaryConditionSet | BoundaryConditionNotSet
-type TimeStepStatus = TimeStepSet | TimeStepNotSet
-type TargetTimeStatus = TargetTimeSet | TargetTimeNotSet
-
-
-class SolutionBuilder[T: PDE]:
+@final
+@dataclass(frozen=True, slots=True)
+class SolutionBuilder[
+    PdeT: PDE | PdeUnset = PdeUnset,
+    SolverT: Solver[Any] | SolverUnset = SolverUnset,
+    InitialConditionT: NDArray | InitialConditionUnset = InitialConditionUnset,
+    SpatialStepT: Vector | SpatialStepUnset = SpatialStepUnset,
+    BoundaryConditionT: BoundaryCondition | BoundaryConditionUnset = (
+        BoundaryConditionUnset
+    ),
+    TimeStepT: DType | TimeStepUnset = TimeStepUnset,
+    TargetTimeT: DType | TargetTimeUnset = TargetTimeUnset,
+]:
     """
-    A shorthand for running Solvers.
+    Immutable builder accumulating the inputs of a solver call.
 
-    Each instance represents one problem/situation which we need to solve. We can set
-    all the necessary fields one by one, rather than having to provide them all at once.
-    The object itself is not supposed to be changed, so all "set" methods return a new
-    copy of the object instead.
+    Type parameters track, per field, whether a real value or the
+    corresponding ``*Unset`` sentinel is stored. Every ``with_*`` method
+    returns a new instance with only its own type parameter updated, except
+    ``with_pde``/``with_solver`` which additionally enforce PDE/solver
+    compatibility (see module docstring).
+
+    Attributes
+    ----------
+    pde : PdeT
+        The PDE to solve, or :data:`PDE_UNSET` if not set yet.
+    solver : SolverT
+        The solver to use, or :data:`SOLVER_UNSET` if not set yet.
+    initial_condition : InitialConditionT
+        Discretized initial state, or :data:`INITIAL_CONDITION_UNSET`.
+    spatial_step : SpatialStepT
+        Discretization steps per axis, or :data:`SPATIAL_STEP_UNSET`.
+    boundary_condition : BoundaryConditionT
+        Boundary condition, or :data:`BOUNDARY_CONDITION_UNSET`.
+    time_step : TimeStepT
+        Solver time increment, or :data:`TIME_STEP_UNSET`.
+    target_time : TargetTimeT
+        Time at which the solution is requested, or :data:`TARGET_TIME_UNSET`.
+
     """
 
-    @staticmethod
-    def create() -> SolutionBuilderInner[
-        T,
-        PdeNotSet,
-        SolverNotSet,
-        InitialConditionNotSet,
-        SpatialStepNotSet,
-        BoundaryConditionNotSet,
-        TimeStepNotSet,
-        TargetTimeNotSet,
-    ]:
-        """Create a SolutionBuilderInner instance for a given PDE type."""
-        return SolutionBuilder.SolutionBuilderInner()
+    pde: PdeT
+    solver: SolverT
+    initial_condition: InitialConditionT
+    spatial_step: SpatialStepT
+    boundary_condition: BoundaryConditionT
+    time_step: TimeStepT
+    target_time: TargetTimeT
 
-    @final
-    @dataclass(frozen=True)
-    class SolutionBuilderInner[
-        S: PDE,
-        PdeS: PdeStatus,
-        SolverS: SolverStatus,
-        InitialConditionS: InitialConditionStatus,
-        SpatialStepS: SpatialStepStatus,
-        BoundaryConditionS: BoundaryConditionStatus,
-        TimeStepS: TimeStepStatus,
-        TargetTimeS: TargetTimeStatus,
+    @overload
+    def with_pde[P: PDE](
+        self: SolutionBuilder[
+            PdeT,
+            Solver[P],
+            InitialConditionT,
+            SpatialStepT,
+            BoundaryConditionT,
+            TimeStepT,
+            TargetTimeT,
+        ],
+        pde: P,
+        /,
+    ) -> SolutionBuilder[
+        P,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]: ...
+
+    @overload
+    def with_pde[P: PDE](
+        self: SolutionBuilder[
+            PdeT,
+            SolverUnset,
+            InitialConditionT,
+            SpatialStepT,
+            BoundaryConditionT,
+            TimeStepT,
+            TargetTimeT,
+        ],
+        pde: P,
+        /,
+    ) -> SolutionBuilder[
+        P,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]: ...
+
+    def with_pde[P: PDE](
+        self, pde: P, /
+    ) -> SolutionBuilder[
+        P,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
     ]:
         """
-        Represents one specific situation in which a PDE is to be computed.
+        Return a copy of this builder with ``pde`` replaced.
 
-        Should not be created directly. Use the SolutionBuilder.create() method instead.
+        Parameters
+        ----------
+        pde : P
+            The PDE to solve from now on. If a solver is already set,
+            ``pde`` must be compatible with it (a subtype of the solver's
+            PDE parameter); otherwise this call is a static type error.
+
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``pde`` and all other fields unchanged.
+
         """
+        return SolutionBuilder(
+            pde,
+            self.solver,
+            self.initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
-        pde: S | None = None
-        solver: Solver[S] | None = None
-        initial_condition: NDArray | None = None
-        spatial_step: Vector | None = None
-        boundary_condition: BoundaryCondition | None = None
-        time_step: DType | None = None
-        target_time: DType | None = None
+    @overload
+    def with_solver[P: PDE](
+        self: SolutionBuilder[
+            P,
+            SolverT,
+            InitialConditionT,
+            SpatialStepT,
+            BoundaryConditionT,
+            TimeStepT,
+            TargetTimeT,
+        ],
+        solver: Solver[P],
+        /,
+    ) -> SolutionBuilder[
+        PdeT,
+        Solver[P],
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]: ...
 
-        def get_pde(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeSet,
-                SolverS,
-                InitialConditionS,
-                SpatialStepS,
-                BoundaryConditionS,
-                TimeStepS,
-                TargetTimeS,
-            ],
-        ) -> S:
-            """
-            Return the set pde.
+    @overload
+    def with_solver[P: PDE](
+        self: SolutionBuilder[
+            PdeUnset,
+            SolverT,
+            InitialConditionT,
+            SpatialStepT,
+            BoundaryConditionT,
+            TimeStepT,
+            TargetTimeT,
+        ],
+        solver: Solver[P],
+        /,
+    ) -> SolutionBuilder[
+        PdeT,
+        Solver[P],
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]: ...
 
-            Can be called only if the pde was already set.
-            """
-            return cast(S, self.pde)
+    def with_solver[P: PDE](
+        self, solver: Solver[P], /
+    ) -> SolutionBuilder[
+        PdeT,
+        Solver[P],
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]:
+        """
+        Return a copy of this builder with ``solver`` replaced.
 
-        def get_solver(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverSet,
-                InitialConditionS,
-                SpatialStepS,
-                BoundaryConditionS,
-                TimeStepS,
-                TargetTimeS,
-            ],
-        ) -> Solver[S]:
-            """
-            Return the set solver.
+        Parameters
+        ----------
+        solver : Solver[P]
+            The solver to use from now on.  If a PDE is already set, it
+            must be compatible with ``solver`` (a subtype of ``P``);
+            otherwise this call is a static type error.
 
-            Can be called only if the solver was already set.
-            """
-            return cast(Solver[S], self.solver)
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``solver`` and all other fields unchanged.
 
-        def get_initial_condition(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverS,
-                InitialConditionSet,
-                SpatialStepS,
-                BoundaryConditionS,
-                TimeStepS,
-                TargetTimeS,
-            ],
-        ) -> NDArray:
-            """
-            Return the set initial condition.
+        """
+        return SolutionBuilder(
+            self.pde,
+            solver,
+            self.initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
-            Can be called only if the initial condition was already set.
-            """
-            return cast(NDArray, self.initial_condition)
+    def with_initial_condition(
+        self, initial_condition: NDArray, /
+    ) -> SolutionBuilder[
+        PdeT,
+        SolverT,
+        NDArray,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]:
+        """
+        Return a copy of this builder with the initial condition replaced.
 
-        def get_spatial_step(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverS,
-                InitialConditionS,
-                SpatialStepSet,
-                BoundaryConditionS,
-                TimeStepS,
-                TargetTimeS,
-            ],
-        ) -> Vector:
-            """
-            Return the set spacial step.
+        Parameters
+        ----------
+        initial_condition : NDArray
+            The already-discretized initial state of the PDE.
 
-            Can be called only if the spacial step was already set.
-            """
-            return cast(Vector, self.spatial_step)
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``initial_condition``.
 
-        def get_boundary_condition(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverS,
-                InitialConditionS,
-                SpatialStepS,
-                BoundaryConditionSet,
-                TimeStepS,
-                TargetTimeS,
-            ],
-        ) -> BoundaryCondition:
-            """
-            Return the set boundary condition.
+        """
+        return SolutionBuilder(
+            self.pde,
+            self.solver,
+            initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
-            Can be called only if the boundary condition already set.
-            """
-            return cast(BoundaryCondition, self.boundary_condition)
+    def with_spatial_step(
+        self, spatial_step: Vector, /
+    ) -> SolutionBuilder[
+        PdeT,
+        SolverT,
+        InitialConditionT,
+        Vector,
+        BoundaryConditionT,
+        TimeStepT,
+        TargetTimeT,
+    ]:
+        """
+        Return a copy of this builder with the spatial step replaced.
 
-        def get_time_step(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverS,
-                InitialConditionS,
-                SpatialStepS,
-                BoundaryConditionS,
-                TimeStepSet,
-                TargetTimeS,
-            ],
-        ) -> DType:
-            """
-            Return the set time step.
+        Parameters
+        ----------
+        spatial_step : Vector
+            Per-axis discretization steps matching the initial condition.
 
-            Can be called only if the time step was already set.
-            """
-            return cast(DType, self.time_step)
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``spatial_step``.
 
-        def get_target_time(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeS,
-                SolverS,
-                InitialConditionS,
-                SpatialStepS,
-                BoundaryConditionS,
-                TimeStepS,
-                TargetTimeSet,
-            ],
-        ) -> DType:
-            """
-            Return the set target time.
+        """
+        return SolutionBuilder(
+            self.pde,
+            self.solver,
+            self.initial_condition,
+            spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
-            Can be called only if the target time was already set.
-            """
-            return cast(DType, self.target_time)
+    def with_boundary_condition(
+        self, boundary_condition: BoundaryCondition, /
+    ) -> SolutionBuilder[
+        PdeT,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryCondition,
+        TimeStepT,
+        TargetTimeT,
+    ]:
+        """
+        Return a copy of this builder with the boundary condition replaced.
 
-        def set_pde(
-            self, pde: S
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeSet,
-            SolverS,
-            InitialConditionS,
-            SpatialStepS,
-            BoundaryConditionS,
-            TimeStepS,
-            TargetTimeS,
-        ]:
-            """
-            Set the PDE which will be used for this situation.
+        Parameters
+        ----------
+        boundary_condition : BoundaryCondition
+            The boundary condition of the PDE.
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                pde,
-                self.solver,
-                self.initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``boundary_condition``.
 
-        def set_solver(
-            self, solver: Solver[S]
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverSet,
-            InitialConditionS,
-            SpatialStepS,
-            BoundaryConditionS,
-            TimeStepS,
-            TargetTimeS,
-        ]:
-            """
-            Set the solver which will be used for this situation.
+        """
+        return SolutionBuilder(
+            self.pde,
+            self.solver,
+            self.initial_condition,
+            self.spatial_step,
+            boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                solver,
-                self.initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+    def with_time_step(
+        self, time_step: DType, /
+    ) -> SolutionBuilder[
+        PdeT,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        DType,
+        TargetTimeT,
+    ]:
+        """
+        Return a copy of this builder with the time step replaced.
 
-        def set_initial_condition(
-            self, initial_condition: NDArray
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverS,
-            InitialConditionSet,
-            SpatialStepS,
-            BoundaryConditionS,
-            TimeStepS,
-            TargetTimeS,
-        ]:
-            """
-            Set the initial condition which will be used for this situation.
+        Parameters
+        ----------
+        time_step : DType
+            Time increment used by the solver's emulation.
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                self.solver,
-                initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``time_step``.
 
-        def set_spatial_step(
-            self, spatial_step: Vector
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverS,
-            InitialConditionS,
-            SpatialStepSet,
-            BoundaryConditionS,
-            TimeStepS,
-            TargetTimeS,
-        ]:
-            """
-            Set the spatial step which will be used for this situation.
+        """
+        return SolutionBuilder(
+            self.pde,
+            self.solver,
+            self.initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            time_step,
+            self.target_time,
+        )
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                self.solver,
-                self.initial_condition,
-                spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+    def with_target_time(
+        self, target_time: DType, /
+    ) -> SolutionBuilder[
+        PdeT,
+        SolverT,
+        InitialConditionT,
+        SpatialStepT,
+        BoundaryConditionT,
+        TimeStepT,
+        DType,
+    ]:
+        """
+        Return a copy of this builder with the target time replaced.
 
-        def set_boundary_condition(
-            self, boundary_condition: BoundaryCondition
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverS,
-            InitialConditionS,
-            SpatialStepS,
-            BoundaryConditionSet,
-            TimeStepS,
-            TargetTimeS,
-        ]:
-            """
-            Set the boundary condition which will be used for this situation.
+        Parameters
+        ----------
+        target_time : DType
+            Time at which the PDE's state is requested.
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                self.solver,
-                self.initial_condition,
-                self.spatial_step,
-                boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+        Returns
+        -------
+        SolutionBuilder
+            A new builder holding ``target_time``.
 
-        def set_time_step(
-            self, time_step: DType
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverS,
-            InitialConditionS,
-            SpatialStepS,
-            BoundaryConditionS,
-            TimeStepSet,
-            TargetTimeS,
-        ]:
-            """
-            Set the time step which will be used for this situation.
+        """
+        return SolutionBuilder(
+            self.pde,
+            self.solver,
+            self.initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            target_time,
+        )
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                self.solver,
-                self.initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                time_step,
-                self.target_time,
-            )
+    def compute[P: PDE](self: CompleteSolutionBuilder[P]) -> NDArray:
+        """
+        Run the solver on the collected inputs.
 
-        def set_target_time(
-            self, target_time: DType
-        ) -> SolutionBuilder.SolutionBuilderInner[
-            S,
-            PdeS,
-            SolverS,
-            InitialConditionS,
-            SpatialStepS,
-            BoundaryConditionS,
-            TimeStepS,
-            TargetTimeSet,
-        ]:
-            """
-            Set the target time which will be used for this situation.
+        Only available when every field holds a real value and the PDE is
+        compatible with the solver (i.e. ``self`` matches
+        :data:`Complete`); otherwise this method is a static type error.
 
-            After all fields have been set, the "compute" method becomes available.
-            """
-            return SolutionBuilder.SolutionBuilderInner(
-                self.pde,
-                self.solver,
-                self.initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                target_time,
-            )
+        Returns
+        -------
+        NDArray
+            The PDE state at ``target_time``.
 
-        def compute(
-            self: SolutionBuilder.SolutionBuilderInner[
-                S,
-                PdeSet,
-                SolverSet,
-                InitialConditionSet,
-                SpatialStepSet,
-                BoundaryConditionSet,
-                TimeStepSet,
-                TargetTimeSet,
-            ],
-        ) -> NDArray:
-            """
-            Compute the state at the given time of the given situation.
-
-            A shorthand for Solver.__call__.
-
-            Here, a partial differential equation is a triple of the PDE itself, the
-            initial condition, and the boundary condition.
-            """
-            if (
-                self.solver is None
-                or self.pde is None
-                or self.initial_condition is None
-                or self.spatial_step is None
-                or self.boundary_condition is None
-                or self.time_step is None
-                or self.target_time is None
-            ):
-                raise ValueError("Cannot compute an instance with some values None")
-            return self.solver(
-                self.pde,
-                self.initial_condition,
-                self.spatial_step,
-                self.boundary_condition,
-                self.time_step,
-                self.target_time,
-            )
+        """
+        return self.solver(
+            self.pde,
+            self.initial_condition,
+            self.spatial_step,
+            self.boundary_condition,
+            self.time_step,
+            self.target_time,
+        )
 
 
-type SolutionBuilderReady[S: PDE] = SolutionBuilder.SolutionBuilderInner[
-    S,
-    PdeSet,
-    SolverSet,
-    InitialConditionSet,
-    SpatialStepSet,
-    BoundaryConditionSet,
-    TimeStepSet,
-    TargetTimeSet,
+type CompleteSolutionBuilder[P: PDE] = SolutionBuilder[
+    P, Solver[P], NDArray, Vector, BoundaryCondition, DType, DType
 ]
+"""A builder with all fields set and a PDE compatible with its solver."""
 
+EMPTY_SOLUTION_BUILDER: SolutionBuilder = SolutionBuilder(
+    PDE_UNSET,
+    SOLVER_UNSET,
+    INITIAL_CONDITION_UNSET,
+    SPATIAL_STEP_UNSET,
+    BOUNDARY_CONDITION_UNSET,
+    TIME_STEP_UNSET,
+    TARGET_TIME_UNSET,
+)
+"""Empty builder with every field unset; entry point for the ``with_*`` chain."""
 
-__all__ = ["SolutionBuilder", "SolutionBuilderReady"]
+__all__ = [
+    "BOUNDARY_CONDITION_UNSET",
+    "EMPTY_SOLUTION_BUILDER",
+    "INITIAL_CONDITION_UNSET",
+    "PDE_UNSET",
+    "SOLVER_UNSET",
+    "SPATIAL_STEP_UNSET",
+    "TARGET_TIME_UNSET",
+    "TIME_STEP_UNSET",
+    "BoundaryConditionUnset",
+    "CompleteSolutionBuilder",
+    "InitialConditionUnset",
+    "PdeUnset",
+    "SolutionBuilder",
+    "SolverUnset",
+    "SpatialStepUnset",
+    "TargetTimeUnset",
+    "TimeStepUnset",
+]
