@@ -117,6 +117,7 @@ def add[DType: np.floating](
 def _add_cores[DType: np.floating](
     a: list[Core[DType]], b: list[Core[DType]]
 ) -> list[Core[DType]]:
+    """Build the cores of the sum of two same-shaped TTDs."""
     # Add vectors directly
     if len(a) == len(b) == 1:
         return [np.add(a[0], b[0])]

@@ -133,6 +133,7 @@ def tensordot[DType: np.floating](
 def _tensordot_transposed[DType: np.floating](
     a: TTD[DType], b: TTD[DType], k: int, dtype: np.dtype[DType]
 ) -> TTD[DType] | DType:
+    """Contract the last `k` cores of `a` with the first `k` cores of `b`."""
     from wren_ttd.core import TTD
 
     assert a.ndim >= k, "k must be <= a.ndim"

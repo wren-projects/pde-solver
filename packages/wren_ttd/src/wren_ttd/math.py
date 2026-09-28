@@ -10,19 +10,17 @@ def delta_truncated_svd[DT: np.floating](
     matrix: Matrix[DT], delta: np.floating | float = DEFAULT_EPSILON
 ) -> tuple[Matrix[DT], Vector[DT], Matrix[DT]]:
     """
-    Compute δ-truncated Singular Value Decomposition of a matrix.
+    Compute the SVD of a matrix, dropping singular values below `delta`.
 
-    Regular SVD decomposes a matrix into the matrix product 𝐔Σ𝐕ᵀ, where Σ is a
-    diagonal matrix with singular values on its main diagonal and 𝐔 and 𝐕ᵀ are
-    unitary matrices. δ-truncation additionally cuts off singular values smaller
-    or equal to the parameter δ.
+    At least one singular value is always kept.
 
     Parameters
     ----------
     matrix : Matrix[DT]
-        The matrix to compute the SVD of.
+        The matrix to decompose.
     delta : np.floating | float, optional
-        The truncation parameter, by default DEFAULT_EPSILON.
+        The cutoff below which singular values are dropped, by default
+        DEFAULT_EPSILON.
 
     Returns
     -------
@@ -47,12 +45,12 @@ def delta_truncated_svd[DT: np.floating](
 
 def qr_rows[DT: np.floating](matrix: Matrix[DT]) -> tuple[Matrix[DT], Matrix[DT]]:
     """
-    Compute the QR decomposition, where Q has orthogonal rows.
+    Compute the QR decomposition of a matrix with orthogonal rows.
 
     Parameters
     ----------
     matrix : Matrix[DT]
-        The matrix to compute the QR decomposition of.
+        The matrix to decompose.
 
     Returns
     -------

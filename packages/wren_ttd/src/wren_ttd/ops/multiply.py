@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 def _hadamard_impl[DType: np.floating](
     a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]:
+    """Compute the Hadamard (element-wise) product of two same-shaped TTDs."""
     from wren_ttd.core import TTD
 
     if a.shape != b.shape:
