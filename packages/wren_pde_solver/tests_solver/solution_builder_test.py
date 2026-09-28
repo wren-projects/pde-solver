@@ -12,9 +12,7 @@ def test_builder_runs_and_returns_the_same_running_a_solver_directly_would() -> 
     """Tests solver builder."""
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
     IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
-    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
-        3, None, None, scalar_diffusion=DType(10)
-    )
+    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
     TT: DType = DType(1)
@@ -36,9 +34,7 @@ def test_builder_getters_work() -> None:
     """Tests solver builder getters."""
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
     IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
-    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
-        3, None, None, scalar_diffusion=DType(10)
-    )
+    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
     TT: DType = DType(1)
@@ -73,9 +69,7 @@ def type_test_dont_allow_build_unless_everything_is_set() -> None:
     """
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
     IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
-    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(
-        3, None, None, scalar_diffusion=DType(10)
-    )
+    PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
     TT: DType = DType(1)
