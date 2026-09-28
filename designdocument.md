@@ -55,6 +55,7 @@ however, are to be called on it repeatedly:
 - `np.trace`
 - `np.expand_dims`
 - `np.stack`
+- `np.pad`
 - setting a slice of the form `[:, :, ..., :, 0, :, ..., :, :]` to 0
 
 
