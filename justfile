@@ -16,7 +16,7 @@ typecheck:
     {{ uv }} run basedpyright
 
 test:
-    {{ uv }} run pytest
+    {{ uv }} run pytest -n 4 --dist=load
 
 coverage:
     {{ uv }} run pytest --cov=src --cov=packages
