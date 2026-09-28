@@ -22,7 +22,9 @@ def add[DType: np.floating](
     out: TTD[DType] | None = None,
 ) -> TTD[DType]:
     """
-    Add two tensors in the TTD representation.
+    Add arguments element-wise.
+
+    Equivalent to :func:`numpy.add` for dense arrays, extended to TTDs.
 
     For two TTD objects A = G₀ ⊗ G₁ ⊗ … ⊗ Gₙ and B = H₀ ⊗ H₁ ⊗ … ⊗ Hₙ, the
     addition is defined as
@@ -36,17 +38,45 @@ def add[DType: np.floating](
 
     Parameters
     ----------
-    a : TTD[DType]
-        The first TTD object.
-    b : TTD[DType]
-        The second TTD object.
+    a : TTD[DType] | Scalar
+        The first summand. A scalar is broadcast to the shape of `b`.
+    b : TTD[DType] | Scalar
+        The second summand. A scalar is broadcast to the shape of `a`.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
+        If provided, it must have the same shape as the result and its cores
+        are replaced with the cores of the sum.
 
     Returns
     -------
     TTD[DType]
-        The result of the addition.
+        The element-wise sum of `a` and `b`.
+
+    See Also
+    --------
+    numpy.add : Equivalent ufunc for dense arrays.
+    subtract : Subtract TTDs element-wise.
+    multiply : Multiply TTDs element-wise.
+
+    Notes
+    -----
+    The TT-ranks of the sum are the sums of the operand ranks, so repeated
+    addition inflates the ranks. Consider calling :meth:`TTD.round` on the
+    result before performing further operations.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> a = TTD.ones((2, 2))
+    >>> b = TTD.full((2, 2), 2.0)
+    >>> np.asarray(ops.add(a, b))
+    array([[3., 3.],
+           [3., 3.]])
+    >>> np.asarray(ops.add(a, 1))
+    array([[2., 2.],
+           [2., 2.]])
 
     """
     # the import has to be here to avoid circular imports

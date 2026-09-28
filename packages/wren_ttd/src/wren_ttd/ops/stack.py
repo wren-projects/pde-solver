@@ -21,6 +21,8 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     """
     Stack TTDs along a new axis.
 
+    Equivalent to :func:`numpy.stack` for dense arrays, extended to TTDs.
+
     Create a new TTD by stacking the given sequence of TTDs along the new axis.
     All TTDs must have the same shape and dtype.
 
@@ -33,14 +35,31 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     Parameters
     ----------
     ttds : Sequence[TTD[DType]]
-        The TTDs to stack.
+        The TTDs to stack. All TTDs must have the same shape and dtype.
     axis : int, optional
-        The index of the new axis along which to stack the TTDs, by default 0.
+        The index of the new axis along which to stack the TTDs, by
+        default 0. May be negative, counting from the last axis of the
+        result.
 
     Returns
     -------
     TTD[DType]
-        The stacked TTD.
+        The stacked TTD, with one more dimension than the inputs. The new
+        axis has size ``len(ttds)``.
+
+    See Also
+    --------
+    numpy.stack : Equivalent function for dense arrays.
+
+    Examples
+    --------
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> t = TTD.ones((2, 2))
+    >>> ops.stack([t, t]).shape
+    (2, 2, 2)
+    >>> ops.stack([t, t], axis=-1).shape
+    (2, 2, 2)
 
     """
     from wren_ttd.core import TTD

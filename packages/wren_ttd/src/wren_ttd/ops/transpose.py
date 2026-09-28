@@ -27,7 +27,10 @@ def transpose[DType: np.floating](
     epsilon: float | DType = DEFAULT_EPSILON,
 ) -> TTD[DType]:
     """
-    Permute the cores (dimensions) of a TTD.
+    Permute the dimensions of a TTD.
+
+    Equivalent to :func:`numpy.transpose` for dense arrays, extended to
+    TTDs.
 
     This is achieved by a sequence of adjacent swaps. Each adjacent swap is done
     by contracting two neighboring TTD cores, swapping the two physical
@@ -35,17 +38,43 @@ def transpose[DType: np.floating](
 
     Parameters
     ----------
-    ttd : TTD
+    ttd : TTD[DType]
         Input TTD tensor.
     axes : sequence[int] | None
-        Permutation of axes. If None, reverse axes.
+        Permutation of the axes. If None, the axes are reversed. Otherwise,
+        ``axes[i]`` is the axis of the input that becomes the ``i``-th axis
+        of the result, so it must be a permutation of
+        ``range(ttd.ndim)``. Negative indices count from the end.
     epsilon : float
         Relative tolerance for truncation during TTD-SVD.
 
     Returns
     -------
-    TTD
+    TTD[DType]
         TTD with transposed axes.
+
+    See Also
+    --------
+    numpy.transpose : Equivalent function for dense arrays.
+    TTD.transpose : Permute the dimensions of a TTD.
+    swapaxes : Swap two axes of a TTD.
+
+    Notes
+    -----
+    Each adjacent swap splits the merged cores back with TTD-SVD using the
+    `epsilon` tolerance, so the result may be approximate and its ranks may
+    differ from the input ranks.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> t = TTD.ones((2, 3, 4))
+    >>> ops.transpose(t, (2, 0, 1)).shape
+    (4, 2, 3)
+    >>> ops.transpose(t).shape
+    (4, 3, 2)
 
     """
     from wren_ttd.core import TTD

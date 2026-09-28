@@ -24,9 +24,13 @@ def tensordot[DType: np.floating](
     axes: int | tuple[Sequence[int], Sequence[int]] = 2,
 ) -> TTD[DType] | DType:
     """
-    Compute a tensordot of two TTDs.
+    Compute the tensor dot product of two TTDs along the specified axes.
+
+    Equivalent to :func:`numpy.tensordot` for dense arrays, extended to
+    TTDs.
 
     Supports:
+
       * axes = int k: contracts cores a[-k:] with b[:k]
       * axes = (a_axis, b_axis): contracts cores a[a_axis] with b[b_axis]
       * axes = (a_axes, b_axes): contracts a_axes with b_axes
@@ -34,12 +38,49 @@ def tensordot[DType: np.floating](
     Note: Axes may be specified by negative indices. In that case, they are
     counted from the end of the tensor.
 
-    See :func:`numpy.tensordot` for more details about the axes argument.
+    Parameters
+    ----------
+    a : TTD[DType]
+        First input TTD.
+    b : TTD[DType]
+        Second input TTD. Must have the same dtype as `a`, and the sizes
+        of the contracted axes must match.
+    axes : int or tuple of sequences of ints
+        Axes to contract over. If an int ``k``, contract the last ``k``
+        axes of `a` with the first ``k`` axes of `b`. Otherwise, a pair
+        ``(a_axes, b_axes)`` of axis sequences of equal length. See
+        :func:`numpy.tensordot` for more details about the axes argument.
 
     Returns
     -------
     TTD[DType] | DType
-        TTD with uncontracted dimensions (first for a, than from b) or scalar.
+        TTD with uncontracted dimensions (first from `a`, then from `b`),
+        or a scalar if all axes were contracted.
+
+    See Also
+    --------
+    numpy.tensordot : Equivalent function for dense arrays.
+    inner_product : Inner product of two TTDs.
+
+    Notes
+    -----
+    Non-contracted axes are moved out of the way with :func:`transpose`
+    before the contracted cores are contracted pairwise, and the resulting
+    message matrix is multiplied into a neighboring free core. Contracting
+    ``axes=0`` concatenates the cores of `a` and `b` without any
+    arithmetic.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> a = TTD.from_ndarray(np.array([1.0, 2.0]))
+    >>> b = TTD.from_ndarray(np.array([3.0, 4.0]))
+    >>> ops.tensordot(a, b, axes=1)
+    np.float64(11.0)
+    >>> ops.tensordot(a, b, axes=0).shape
+    (2, 2)
 
     """
     from wren_ttd.core import TTD
