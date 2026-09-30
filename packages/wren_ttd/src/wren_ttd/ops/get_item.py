@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, cast, SupportsIndex
+from typing import TYPE_CHECKING, SupportsIndex, cast
 
 import numpy as np
 from wren_common.math import dot_product
