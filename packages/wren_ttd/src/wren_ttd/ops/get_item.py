@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, SupportsIndex
 
 import numpy as np
 from wren_common.math import dot_product
@@ -76,7 +76,7 @@ def get_item[DType: np.floating](
     cores: list[Core[DType]] = []
 
     for core, index in zip(ttd.data, indexes, strict=False):
-        if isinstance(index, int):
+        if isinstance(index, SupportsIndex):
             message_matrix = cast(Matrix[DType], message_matrix @ core[:, index, :])
             continue
 
