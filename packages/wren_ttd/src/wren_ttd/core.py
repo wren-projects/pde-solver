@@ -709,7 +709,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
         """
-        View of the TTD with reversed dimensions.
+        Return a TTD with reversed dimensions.
 
         Equivalent to :attr:`numpy.ndarray.T` and to calling
         ``self.transpose()`` with no arguments. Reversing the order of
