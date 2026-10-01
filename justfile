@@ -16,10 +16,12 @@ typecheck:
     {{ uv }} run basedpyright
 
 test:
-    {{ uv }} run pytest -n 4 --dist=load
+    {{ uv }} run pytest packages -n 4 --dist=load
+    {{ uv }} run pytest tests -n 4 --dist=load
 
 coverage:
-    {{ uv }} run pytest --cov=src --cov=packages
+    {{ uv }} run pytest tests --cov=src --cov=packages
+    {{ uv }} run pytest packages --cov=src --cov=packages
 
 setup: && generate-pdes
     {{ uv }} sync
