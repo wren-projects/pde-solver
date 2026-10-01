@@ -19,18 +19,30 @@ if TYPE_CHECKING:
 def reverse_cores[DType: np.floating](
     cores: Reversible[Core[DType]],
 ) -> Iterable[Core[DType]]:
+    """
+    Reverse the order of the cores and transpose each one.
+
+    Implementation of :func:`numpy.ndarray.T` for TTDs.
+
+    Parameters
+    ----------
+    cores : Reversible[Core[DType]]
+        The cores to reverse.
+
+    Returns
+    -------
+    Iterable[Core[DType]]
+        The reversed cores.
+
+    """
     return (core.T for core in reversed(cores))
 
 
 def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
     """
-    Convert an int or iterable of ints to a tuple of ints.
+    Normalize an int or iterable of ints to a tuple of ints.
 
-    If the input is an int, it is converted to a tuple of length 1. An iterable
-    is converted to a tuple of the same length. Useful for normalizing
-    NumPy-style shape or axis arguments to single type.
-
-    See also: :func:`numpy.core.multiarray.normalize_axis_tuple` if the handling
+    See also :func:`numpy.lib.array_utils.normalize_axis_tuple` when handling
     of negative and out-of-bounds indices is desired.
 
     Parameters
@@ -48,6 +60,7 @@ def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
+    """Orthogonalize the cores in place using a right-to-left QR sweep."""
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
         # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
@@ -68,9 +81,10 @@ def contract_cores[DType: np.floating](
     n: int,
 ) -> Matrix[DType]:
     """
-    Contract pairwise the lists of cores A and B using repeated tensordot.
+    Contract two matching core sequences pairwise into a single matrix.
 
-    Results in a matrix of shape .
+    Sums over the shared physical modes and all inner ranks, keeping only
+    the outer rank of the first `a` core and the last `b` core.
 
     Parameters
     ----------
@@ -79,7 +93,7 @@ def contract_cores[DType: np.floating](
     b_cores : Iterable[Core[DType]]
         The cores of the second tensor.
     n : int
-        The number of cores in each tensor.
+        The number of cores in each sequence.
 
     Returns
     -------
@@ -119,21 +133,19 @@ def truncation_parameter[DT: np.floating](
     tensor: NDArray[DT] | TTD[DT], epsilon: np.floating | float = DEFAULT_EPSILON
 ) -> DT:
     """
-    Compute the truncation parameter of a tensor.
-
-    It uses the formula δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
+    Compute the per-SVD truncation tolerance δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
 
     Parameters
     ----------
-    tensor : NDArray[DT]
-        The tensor to compute the truncation parameter of.
+    tensor : NDArray[DT] | TTD[DT]
+        The tensor to compute the tolerance of.
     epsilon : np.floating | float, optional
-        The error tolerance for the compression, by default DEFAULT_EPSILON.
+        The target relative error, by default DEFAULT_EPSILON.
 
     Returns
     -------
     DT
-        The truncation parameter.
+        The truncation tolerance.
 
     Raises
     ------
@@ -152,27 +164,19 @@ def block_core[DType: np.floating](
     blocks: tuple[Core[DType], ...],
 ) -> Core[DType]:
     """
-    Stack cores into a single block core.
+    Arrange cores of shape (lᵢ, n, rᵢ) into a block-diagonal core.
 
-    For cores C₀, C₁, ..., Cₙ with shapes (lᵢ, n, rᵢ), the block core is
-    defined as
-
-        ⌈ C₀ 0  … 0 ⌉
-        | 0  C₁ … 0 |
-        | ⋮  ⋮  ⋱ ⋮ |
-        ⌊ 0  0  … Cₙ⌋
-
-    with shape (l₀ + ⋯ + lₙ, n, r₀ + ⋯ + rₙ).
+    The result has shape (l₀ + ⋯ + lₙ, n, r₀ + ⋯ + rₙ).
 
     Parameters
     ----------
     blocks : tuple[Core[DType], ...]
-        The cores to stack.
+        The cores to stack. All must share the same mode size `n`.
 
     Returns
     -------
     Core[DType]
-        The block core.
+        The block-diagonal core.
 
     """
     n = blocks[0].shape[1]

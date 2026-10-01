@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 def _hadamard_impl[DType: np.floating](
     a: TTD[DType], b: TTD[DType], out: TTD[DType] | None = None
 ) -> TTD[DType]:
+    """Compute the Hadamard (element-wise) product of two same-shaped TTDs."""
     from wren_ttd.core import TTD
 
     if a.shape != b.shape:
@@ -72,7 +73,9 @@ def multiply[DType: np.floating](
     a: TTD[DType] | Scalar, b: TTD[DType] | Scalar, out: TTD[DType] | None = None
 ) -> TTD[DType]:
     """
-    Multiply a TTD object by a scalar or another TTD object.
+    Multiply arguments element-wise.
+
+    Equivalent to :func:`numpy.multiply` for dense arrays, extended to TTDs.
 
     For a TTD object A = G₀ ⊗ G₁ ⊗ ... ⊗ Gₙ, the multiplication by a scalar k is defined
     as
@@ -89,19 +92,51 @@ def multiply[DType: np.floating](
 
     where Gᵣ ⊙ Hᵣ = (Gᵣ Hᵣ).
 
+    The multiplication of two TTD objects requires that they have the same
+    shape. If one of the operands is a scalar, it scales the other operand
+    as described above.
+
     Parameters
     ----------
     a : TTD[DType] | Scalar
-        The TTD object to multiply.
+        The first factor. A scalar scales `b`.
     b : TTD[DType] | Scalar
-        The scalar to multiply the TTD object by.
+        The second factor. A scalar scales `a`.
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
+        If provided, it must have the same shape as the result and its cores
+        are replaced with the cores of the product.
 
     Returns
     -------
     TTD[DType]
-        The result of the multiplication.
+        The element-wise product of `a` and `b`.
+
+    See Also
+    --------
+    numpy.multiply : Equivalent ufunc for dense arrays.
+    add : Add TTDs element-wise.
+    neg : Negate a TTD element-wise.
+
+    Notes
+    -----
+    The TT-ranks of a Hadamard product are the products of the operand
+    ranks, so repeated multiplication inflates the ranks. Consider calling
+    :meth:`TTD.round` on the result before performing further operations.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> a = TTD.ones((2, 2))
+    >>> b = TTD.full((2, 2), 2.0)
+    >>> np.asarray(ops.multiply(a, b))
+    array([[2., 2.],
+           [2., 2.]])
+    >>> np.asarray(ops.multiply(a, 3))
+    array([[3., 3.],
+           [3., 3.]])
 
     """
     from wren_ttd.core import TTD

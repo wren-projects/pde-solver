@@ -15,9 +15,11 @@ from .multiply import multiply
 @implements_ufunc("negative")
 def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
     """
-    Negate a TTD object.
+    Numerical negative, element-wise.
 
-    This is a shorthand for multiplication by -1.
+    Equivalent to :func:`numpy.negative` for dense arrays, extended to
+    TTDs. This is a shorthand for multiplication by -1. See `multiply`
+    for more details.
 
     Parameters
     ----------
@@ -27,7 +29,23 @@ def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
     Returns
     -------
     TTD[DType]
-        The negated TTD object.
+        The negated TTD object, i.e. ``-a`` element-wise.
+
+    See Also
+    --------
+    numpy.negative : Equivalent ufunc for dense arrays.
+    multiply : Multiply TTDs element-wise.
+    subtract : Subtract TTDs element-wise.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> a = TTD.ones((2, 2))
+    >>> np.asarray(ops.neg(a))
+    array([[-1., -1.],
+           [-1., -1.]])
 
     """
     return multiply(a, -1.0)
