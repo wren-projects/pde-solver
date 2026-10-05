@@ -1,5 +1,4 @@
 from copy import deepcopy
-from itertools import islice
 from typing import cast
 
 import numpy as np
