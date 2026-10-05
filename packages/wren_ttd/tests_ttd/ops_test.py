@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import override
+from typing import TYPE_CHECKING, override
 
 import numpy as np
 import pytest
@@ -20,6 +22,9 @@ from .common import (
     assert_default_epsilon,
 )
 from .templates import BinaryOperatorTests, ScalarOperatorTests, UnaryOperatorTests
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsAdd, SupportsMul, SupportsSub
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
@@ -103,7 +108,7 @@ class TestAdd(BinaryOperatorTests):
         return np.add(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsAdd, b: EpsilonComparable) -> None:
         a += b
 
 
@@ -121,7 +126,7 @@ class TestScalarAddition(ScalarOperatorTests):
         return np.add(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsAdd, b: EpsilonComparable) -> None:
         a += b
 
 
@@ -139,7 +144,7 @@ class TestSub(BinaryOperatorTests):
         return np.subtract(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsSub, b: EpsilonComparable) -> None:
         a -= b
 
 
@@ -157,7 +162,7 @@ class TestScalarSubtraction(ScalarOperatorTests):
         return np.subtract(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsSub, b: EpsilonComparable) -> None:
         a -= b
 
 
@@ -175,7 +180,7 @@ class TestMultiplication(BinaryOperatorTests):
         return np.multiply(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsMul, b: EpsilonComparable) -> None:
         a *= b
 
 
@@ -193,7 +198,7 @@ class TestScalarMultiplication(ScalarOperatorTests):
         return np.multiply(a, b)
 
     @override
-    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+    def operator_inplace(self, a: SupportsMul, b: EpsilonComparable) -> None:
         a *= b
 
 
