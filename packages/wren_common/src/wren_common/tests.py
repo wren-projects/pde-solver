@@ -77,7 +77,7 @@ _TEST_PAIR_TENSORS: list[TestTensorPair] = [
     ]
 ]
 
-# Add the reverse of each pair to test commutativity
+# Add the reverse of each pair to test both operand orders
 TEST_PAIR_TENSORS: list[TestTensorPair] = [
     pair for a, b in _TEST_PAIR_TENSORS for pair in [(a, b), (b, a)]
 ]
