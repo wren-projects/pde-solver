@@ -122,7 +122,10 @@ class ScalarOperatorTests(ABC):
         )
 
     def test_operator_matches_numpy_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+        self,
+        tensor: TestTensor,  # noqa: ARG002
+        ttd: TestTTD,
+        scalar: float,
     ) -> None:
         """Test the op via the Python operator as ``ttd op scalar``."""
         assert_default_epsilon(
