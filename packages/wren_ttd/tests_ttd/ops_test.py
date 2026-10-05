@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import override
 
 import numpy as np
 import pytest
@@ -13,13 +14,12 @@ from wren_ttd import TTD
 from .common import (
     TEST_PAIR_TTD,
     TEST_TTD,
-    BinaryOperatorTests,
-    ScalarOperatorTests,
+    EpsilonComparable,
     TestTTD,
     TestTTDPair,
-    UnaryOperatorTests,
     assert_default_epsilon,
 )
+from .templates import BinaryOperatorTests, ScalarOperatorTests, UnaryOperatorTests
 
 
 @pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
@@ -89,234 +89,124 @@ class TestRounding:
         assert_default_epsilon(rounded, 2 * tensor)
 
 
-@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 class TestAdd(BinaryOperatorTests):
     """Tests for TTD addition."""
 
-    def test_operator_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test addition via the ``+`` operator."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_a + ttd_b, a + b)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a + b
 
-    def test_operator_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test addition via the ``+`` operator with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_b + ttd_a, a + b)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.add(a, b)
 
-    def test_numpy_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test addition via ``np.add``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.add(ttd_a, ttd_b), a + b)
-
-    def test_numpy_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test addition via ``np.add`` with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.add(ttd_b, ttd_a), a + b)
-
-    def test_inplace(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test in-place addition via ``+=``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        ttd_copy = ttd_a.copy()
-        ttd_copy += ttd_b
-        assert_default_epsilon(ttd_copy, a + b)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a += b
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", TEST_SCALARS)
 class TestScalarAddition(ScalarOperatorTests):
     """Tests for TTD-scalar addition."""
 
-    def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar addition via ``ttd + scalar``."""
-        assert_default_epsilon(ttd + scalar, tensor + scalar)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a + b
 
-    def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar addition via ``scalar + ttd``."""
-        assert_default_epsilon(scalar + ttd, tensor + scalar)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.add(a, b)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar addition via ``np.add(ttd, scalar)``."""
-        assert_default_epsilon(np.add(ttd, scalar), tensor + scalar)
-
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar addition via ``np.add(scalar, ttd)``."""
-        assert_default_epsilon(np.add(scalar, ttd), tensor + scalar)
-
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test in-place scalar addition via ``+=``."""
-        ttd_copy = ttd.copy()
-        ttd_copy += scalar
-        assert_default_epsilon(ttd_copy, tensor + scalar)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a += b
 
 
-@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 class TestSub(BinaryOperatorTests):
     """Tests for TTD subtraction."""
 
-    def test_operator_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test subtraction via the ``-`` operator."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_a - ttd_b, a - b)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a - b
 
-    def test_operator_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test subtraction via the ``-`` operator with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_b - ttd_a, b - a)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.subtract(a, b)
 
-    def test_numpy_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test subtraction via ``np.subtract``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.subtract(ttd_a, ttd_b), a - b)
-
-    def test_numpy_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test subtraction via ``np.subtract`` with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.subtract(ttd_b, ttd_a), b - a)
-
-    def test_inplace(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test in-place subtraction via ``-=``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        ttd_copy = ttd_a.copy()
-        ttd_copy -= ttd_b
-        assert_default_epsilon(ttd_copy, a - b)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a -= b
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", TEST_SCALARS)
 class TestScalarSubtraction(ScalarOperatorTests):
     """Tests for TTD-scalar subtraction."""
 
-    def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar subtraction via ``ttd - scalar``."""
-        assert_default_epsilon(ttd - scalar, tensor - scalar)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a - b
 
-    def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar subtraction via ``scalar - ttd``."""
-        assert_default_epsilon(scalar - ttd, scalar - tensor)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.subtract(a, b)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar subtraction via ``np.subtract(ttd, scalar)``."""
-        assert_default_epsilon(np.subtract(ttd, scalar), tensor - scalar)
-
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar subtraction via ``np.subtract(scalar, ttd)``."""
-        assert_default_epsilon(np.subtract(scalar, ttd), scalar - tensor)
-
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test in-place scalar subtraction via ``-=``."""
-        ttd_copy = ttd.copy()
-        ttd_copy -= scalar
-        assert_default_epsilon(ttd_copy, tensor - scalar)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a -= b
 
 
-@pytest.mark.parametrize(("tensors", "ttds"), deepcopy(TEST_PAIR_TTD))
 class TestMultiplication(BinaryOperatorTests):
     """Tests for TTD elementwise multiplication."""
 
-    def test_operator_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test multiplication via the ``*`` operator."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_a * ttd_b, a * b)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a * b
 
-    def test_operator_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test multiplication via the ``*`` operator with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(ttd_b * ttd_a, a * b)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.multiply(a, b)
 
-    def test_numpy_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test multiplication via ``np.multiply``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.multiply(ttd_a, ttd_b), a * b)
-
-    def test_numpy_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test multiplication via ``np.multiply`` with swapped operands."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(np.multiply(ttd_b, ttd_a), a * b)
-
-    def test_inplace(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test in-place multiplication via ``*=``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        ttd_copy = ttd_a.copy()
-        ttd_copy *= ttd_b
-        assert_default_epsilon(ttd_copy, a * b)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a *= b
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", deepcopy(TEST_SCALARS))
 class TestScalarMultiplication(ScalarOperatorTests):
     """Tests for TTD-scalar multiplication."""
 
-    def test_operator_right(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar multiplication via ``ttd * scalar``."""
-        scaled_tensor = tensor * scalar
-        scale = np.linalg.norm(scaled_tensor)
-        assert_default_epsilon(ttd * scalar, scaled_tensor, scale)
+    @override
+    def operator(self, a: EpsilonComparable, b: EpsilonComparable) -> EpsilonComparable:
+        return a * b
 
-    def test_operator_left(
-        self, tensor: TestTensor, ttd: TestTTD, scalar: float
-    ) -> None:
-        """Test scalar multiplication via ``scalar * ttd``."""
-        scaled_tensor = tensor * scalar
-        scale = np.linalg.norm(scaled_tensor)
-        assert_default_epsilon(scalar * ttd, scaled_tensor, scale)
+    @override
+    def operator_numpy(
+        self, a: EpsilonComparable, b: EpsilonComparable
+    ) -> EpsilonComparable:
+        return np.multiply(a, b)
 
-    def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar multiplication via ``np.multiply(ttd, scalar)``."""
-        scaled_tensor = tensor * scalar
-        scale = np.linalg.norm(scaled_tensor)
-        assert_default_epsilon(np.multiply(ttd, scalar), scaled_tensor, scale)
-
-    def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test scalar multiplication via ``np.multiply(scalar, ttd)``."""
-        scaled_tensor = tensor * scalar
-        scale = np.linalg.norm(scaled_tensor)
-        assert_default_epsilon(np.multiply(scalar, ttd), scaled_tensor, scale)
-
-    def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
-        """Test in-place scalar multiplication via ``*=``."""
-        scaled_tensor = tensor * scalar
-        scale = np.linalg.norm(scaled_tensor)
-        ttd_copy = ttd.copy()
-        ttd_copy *= scalar
-        assert_default_epsilon(ttd_copy, scaled_tensor, scale)
+    @override
+    def operator_inplace(self, a: EpsilonComparable, b: EpsilonComparable) -> None:
+        a *= b
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 class TestNegation(UnaryOperatorTests):
     """Tests for TTD negation."""
 
-    def test_operator(self, tensor: TestTensor, ttd: TestTTD) -> None:
-        """Test negation via the ``-`` operator."""
-        assert_default_epsilon(-ttd, -tensor)
+    @override
+    def operator(self, a: EpsilonComparable) -> EpsilonComparable:
+        return -a
 
-    def test_numpy(self, tensor: TestTensor, ttd: TestTTD) -> None:
-        """Test negation via ``np.negative``."""
-        assert_default_epsilon(np.negative(ttd), np.negative(tensor))
+    @override
+    def operator_numpy(self, a: EpsilonComparable) -> EpsilonComparable:
+        return np.negative(a)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
