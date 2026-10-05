@@ -35,19 +35,13 @@ class BinaryOperatorTests(ABC):
         """Perform the op using the in-place operator."""
         ...
 
-    def test_operator_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    def test_operator(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
         """Test the op via the Python operator as ``a op b``."""
         a, b = tensors
         ttd_a, ttd_b = ttds
         assert_default_epsilon(self.operator(ttd_a, ttd_b), self.operator(a, b))
 
-    def test_operator_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test the op via the Python operator as ``b op a``."""
-        a, b = tensors
-        ttd_a, ttd_b = ttds
-        assert_default_epsilon(self.operator(ttd_b, ttd_a), self.operator(b, a))
-
-    def test_numpy_ab(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
+    def test_numpy(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
         """Test the op via the NumPy function as ``f(a, b)``."""
         a, b = tensors
         ttd_a, ttd_b = ttds
@@ -55,12 +49,15 @@ class BinaryOperatorTests(ABC):
             self.operator_numpy(ttd_a, ttd_b), self.operator_numpy(a, b)
         )
 
-    def test_numpy_ba(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
-        """Test the op via the NumPy function as ``f(b, a)``."""
-        a, b = tensors
+    def test_operator_matches_numpy(
+        self,
+        tensors: TestTensorPair,  # noqa: ARG002
+        ttds: TestTTDPair,
+    ) -> None:
+        """Test the op via the Python operator as ``a op b``."""
         ttd_a, ttd_b = ttds
         assert_default_epsilon(
-            self.operator_numpy(ttd_b, ttd_a), self.operator_numpy(b, a)
+            self.operator(ttd_a, ttd_b), self.operator_numpy(ttd_a, ttd_b)
         )
 
     def test_inplace(self, tensors: TestTensorPair, ttds: TestTTDPair) -> None:
@@ -124,6 +121,25 @@ class ScalarOperatorTests(ABC):
             self.operator_numpy(scalar, tensor),
         )
 
+    def test_operator_matches_numpy_left(
+        self, tensor: TestTensor, ttd: TestTTD, scalar: float
+    ) -> None:
+        """Test the op via the Python operator as ``ttd op scalar``."""
+        assert_default_epsilon(
+            self.operator(ttd, scalar), self.operator_numpy(ttd, scalar)
+        )
+
+    def test_operator_matches_numpy_right(
+        self,
+        tensor: TestTensor,  # noqa: ARG002
+        ttd: TestTTD,
+        scalar: float,
+    ) -> None:
+        """Test the op via the Python operator as ``scalar op ttd``."""
+        assert_default_epsilon(
+            self.operator(scalar, ttd), self.operator_numpy(scalar, ttd)
+        )
+
     def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
         """Test the op via the in-place operator."""
         ttd_copy = ttd.copy()
@@ -152,3 +168,7 @@ class UnaryOperatorTests(ABC):
     def test_numpy(self, tensor: TestTensor, ttd: TestTTD) -> None:
         """Test the op via the NumPy function."""
         assert_default_epsilon(self.operator_numpy(ttd), self.operator_numpy(tensor))
+
+    def test_operator_matches_numpy(self, tensor: TestTensor, ttd: TestTTD) -> None:  # noqa: ARG002
+        """Test the op via the Python operator."""
+        assert_default_epsilon(self.operator(ttd), self.operator_numpy(ttd))
