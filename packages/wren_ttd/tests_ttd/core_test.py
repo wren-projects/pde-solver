@@ -53,7 +53,7 @@ class TestIndexing:
 
     def test_full(self, ttd: TestTTD, tensor: TestTensor) -> None:
         """Test full indexing."""
-        for index, value in islice(np.ndenumerate(tensor), 1000):
+        for index, value in np.ndenumerate(tensor):
             assert_default_epsilon(ttd[index], value)
 
     def test_single_axis(self, ttd: TestTTD, tensor: TestTensor) -> None:
