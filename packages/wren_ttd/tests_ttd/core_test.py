@@ -3,8 +3,10 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor
+from wren_common.tests import TEST_TENSORS, TestTensor
 from wren_common.types import Scalar
+from wren_ttd import DEFAULT_EPSILON
+from wren_ttd.nonnegative import TroppTTD
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -15,6 +17,18 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     # the compression is done in TEST_TTD and the decompression is done
     # implicitly inside assert_default_epsilon
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+def test_roundtrip_compression_tropp(tensor: TestTensor) -> None:
+    """Test the round-trip compression/decompression of a tensor."""
+    nnttd = TroppTTD.from_ndarray(tensor)
+
+    tensor[tensor < 0] = 0
+    assert_default_epsilon(nnttd, tensor)
+
+    expanded = np.array(nnttd)
+    np.testing.assert_equal(expanded >= -DEFAULT_EPSILON, desired=True)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -41,6 +55,19 @@ def test_size(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test rounding."""
+    assert_default_epsilon(ttd.rounded(), tensor)
+
+    added = ttd + ttd
+    rounded = added.rounded()
+    assert_default_epsilon(rounded, 2 * tensor)
+
+
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+def test_rounding_tropp(tensor: TestTensor) -> None:
+    """Test rounding."""
+    ttd = TroppTTD.from_ndarray(tensor)
+
+    tensor[tensor < 0] = 0
     assert_default_epsilon(ttd.rounded(), tensor)
 
     added = ttd + ttd

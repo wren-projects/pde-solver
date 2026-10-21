@@ -432,6 +432,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         return squeezed if dtype is None else squeezed.astype(dtype)
 
+    def as_array(self, dtype: npt.DTypeLike | None = None) -> NDArray[DType]:
+        return self.__array__(dtype=dtype)
+
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
         Round the TTD object by decreasing ranks.

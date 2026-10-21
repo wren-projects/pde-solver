@@ -218,7 +218,7 @@ def ttsvd[DT: np.floating, **Params](
     delta = truncation_parameter(array, epsilon)
 
     # 𝐂 = reshape(𝐂, [n, -1])
-    residue: Matrix[DT] = array.reshape((array.shape[0], -1))
+    residue: Matrix[DT] = unfold(array, 0)
 
     # r₀ = 1
     r = 1
@@ -247,3 +247,19 @@ def ttsvd[DT: np.floating, **Params](
     cores.append(residue.reshape((*residue.shape, 1)))
 
     return cores
+
+
+def unfold[DT: np.floating](array: NDArray[DT], mode: int) -> Matrix[DT]:
+    """Move given mode to the first dimension and flatten the rest."""
+    return np.moveaxis(array, mode, 0).reshape((array.shape[mode], -1))
+
+
+def fold[DT: np.floating](
+    unfolded: Matrix[DT], mode: int, original_shape: Iterable[int]
+) -> NDArray[DT]:
+    """Fold given mode back to its original position."""
+    # move the unfolded mode to front
+    full_shape = list(original_shape)
+    full_shape.insert(0, full_shape.pop(mode))
+    # fold over the first dimension and move it where it originally was
+    return np.moveaxis(unfolded.reshape(full_shape), 0, mode)
