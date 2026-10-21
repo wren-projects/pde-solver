@@ -2,6 +2,9 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
+from wren_ttd.core import TTD
+from wren_ttd.nonnegative import TroppTTD
+from wren_ttd.ops import frobenius_norm
 
 from .common import TEST_TTD, TestTensor, TestTTD, assert_default_epsilon
 
@@ -12,6 +15,24 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     # the compression is done in TEST_TTD and the decompression is done
     # implicitly inside assert_default_epsilon
     assert_default_epsilon(ttd, tensor)
+
+
+def test_roundtrip_nncompression() -> None:
+    """Test the round-trip compression/decompression of a tensor."""
+    tensor = np.arange(5 * 5 * 5 * 3 * 8 * 11, dtype=np.float64).reshape(
+        5, 5, 5, 3, 8, 11
+    )
+    ttd = TTD.from_ndarray(tensor)
+    nnttd = TroppTTD.from_ndarray(tensor)
+
+    assert_default_epsilon(ttd, tensor)
+    assert_default_epsilon(nnttd, tensor)
+
+    print(nnttd.compressed_size, ttd.compressed_size)
+    assert nnttd.compressed_size <= ttd.compressed_size
+    print(frobenius_norm(nnttd), frobenius_norm(ttd))
+    assert frobenius_norm(nnttd) <= frobenius_norm(ttd)
+    assert False
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
