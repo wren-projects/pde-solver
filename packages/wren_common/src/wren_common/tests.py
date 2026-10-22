@@ -39,7 +39,7 @@ TEST_TENSORS: list[TestTensor] = [
 
 
 # NOTE: each pair of tensors must have the same shape
-TEST_PAIR_TENSORS: list[TestTensorPair] = [
+_TEST_PAIR_TENSORS: list[TestTensorPair] = [
     (a.astype(np.float64), b.astype(np.float64))
     for a, b in [
         # ---- 2D ----
@@ -75,6 +75,11 @@ TEST_PAIR_TENSORS: list[TestTensorPair] = [
             rng.random((2, 3, 2, 4, 2, 3, 2, 3)),
         ),
     ]
+]
+
+# Add the reverse of each pair to test both operand orders
+TEST_PAIR_TENSORS: list[TestTensorPair] = [
+    pair for a, b in _TEST_PAIR_TENSORS for pair in [(a, b), (b, a)]
 ]
 
 for a, b in TEST_PAIR_TENSORS:

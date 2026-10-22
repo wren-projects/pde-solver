@@ -20,249 +20,242 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(ttd, tensor)
 
 
-@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
-def test_construct_from_ndarray(tensor: TestTensor) -> None:
-    """Test construction from an ndarray."""
-    result = TTD(tensor)
+class TestConstructFromNdarray:
+    """Tests for constructing a TTD from an ndarray."""
 
-    assert result.dtype == tensor.dtype
-    assert_default_epsilon(result, tensor)
+    @pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+    def test_ndarray(self, tensor: TestTensor) -> None:
+        """Test construction from an ndarray."""
+        result = TTD(tensor)
 
-
-@pytest.mark.parametrize(
-    "tensor", [np.arange(1, 6, dtype=np.float64), np.zeros(4), np.ones(3)]
-)
-def test_construct_from_1d_ndarray(tensor: TestTensor) -> None:
-    """Test construction from a one-dimensional ndarray."""
-    result = TTD(tensor)
-
-    assert result.ndim == 1
-    assert_default_epsilon(result, tensor)
-
-
-def test_construct_from_ndarray_preserves_dtype() -> None:
-    """Test construction from an ndarray preserves the dtype."""
-    tensor = np.ones((2, 3, 4), dtype=np.float32)
-    result = TTD(tensor)
-
-    assert result.dtype == np.float32
-    assert_default_epsilon(result, tensor, epsilon=1e-5)
-
-
-@pytest.mark.parametrize(
-    "data",
-    [
-        [1.0, 2.0, 3.0],
-        [[1.0, 2.0], [3.0, 4.0]],
-        [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
-        ((1.0, 2.0), (3.0, 4.0)),
-    ],
-)
-def test_construct_from_sequence(data: Any) -> None:
-    """Test construction from raw Python sequences."""
-    result: TTD[Any] = TTD(data)
-    tensor = np.asarray(data, dtype=np.float64)
-
-    assert result.dtype == np.float64
-    assert_default_epsilon(result, tensor)
-
-
-def test_construct_from_integer_ndarray() -> None:
-    """Test construction from an integer ndarray promotes to floating."""
-    tensor = np.arange(1, 7).reshape(2, 3)
-    result: TTD[Any] = TTD(tensor)
-
-    assert result.dtype == np.float64
-    assert_default_epsilon(result, tensor.astype(np.float64))
-
-
-def test_construct_from_integer_sequence() -> None:
-    """Test construction from a sequence of integers promotes to floating."""
-    data = [[1, 2], [3, 4]]
-    result: TTD[Any] = TTD(data)
-
-    assert result.dtype == np.float64
-    assert_default_epsilon(result, np.asarray(data, dtype=np.float64))
-
-
-def test_construct_from_sequence_preserves_dtype() -> None:
-    """Test construction from a sequence preserves a floating dtype."""
-    data = [[np.float32(1), np.float32(2)], [np.float32(3), np.float32(4)]]
-    result = cast(TTD[np.float32], TTD(data))
-
-    assert result.dtype == np.float32
-    assert_default_epsilon(result, np.asarray(data), epsilon=1e-5)
-
-
-@pytest.mark.parametrize(
-    ("dtype", "expected"),
-    [
-        (np.float32, np.float32),
-        (np.dtype(np.float32), np.float32),
-        ("float32", np.float32),
-        (float, np.float64),
-    ],
-)
-def test_construct_from_sequence_with_dtype(dtype: Any, expected: Any) -> None:
-    """Test construction from a sequence honors the requested dtype."""
-    result = TTD([[1, 2], [3, 4]], dtype=dtype)
-
-    assert result.dtype == expected
-    assert_default_epsilon(
-        result, np.array([[1, 2], [3, 4]], dtype=expected), epsilon=1e-5
-    )
-
-
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_construct_from_ttd(tensor: TestTensor, ttd: TestTTD) -> None:
-    """Test construction from another TTD shallow-copies its data."""
-    result = TTD(ttd)
-
-    assert result.dtype == ttd.dtype
-    assert result.data is not ttd.data
-    assert all(a is b for a, b in zip(result.data, ttd.data, strict=True))
-    assert_default_epsilon(result, tensor)
-
-
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_construct_from_cores(tensor: TestTensor, ttd: TestTTD) -> None:
-    """Test construction from an iterable of cores."""
-    cores = [*ttd.data]
-    for data in (cores, iter(cores)):
-        result = TTD(data)
-
-        assert result.dtype == ttd.dtype
-        assert all(a is b for a, b in zip(result.data, cores, strict=True))
+        assert result.dtype == tensor.dtype
         assert_default_epsilon(result, tensor)
 
+    @pytest.mark.parametrize(
+        "tensor", [np.arange(1, 6, dtype=np.float64), np.zeros(4), np.ones(3)]
+    )
+    def test_1d_ndarray(self, tensor: TestTensor) -> None:
+        """Test construction from a one-dimensional ndarray."""
+        result = TTD(tensor)
 
-def test_construct_from_ttd_with_dtype() -> None:
-    """Test construction from another TTD casts its cores."""
-    ttd = TTD(np.ones((2, 3)))
-    result = TTD(ttd, dtype=np.float32)
+        assert result.ndim == 1
+        assert_default_epsilon(result, tensor)
 
-    assert result.dtype == np.float32
-    assert result.data is not ttd.data
-    assert all(core.dtype == np.float32 for core in result.data)
-    assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
+    def test_preserves_dtype(self) -> None:
+        """Test construction from an ndarray preserves the dtype."""
+        tensor = np.ones((2, 3, 4), dtype=np.float32)
+        result = TTD(tensor)
 
+        assert result.dtype == np.float32
+        assert_default_epsilon(result, tensor, epsilon=1e-5)
 
-def test_construct_from_cores_with_dtype() -> None:
-    """Test construction from cores with a directly passed dtype."""
-    ttd = TTD(np.ones((2, 3)))
-    result = TTD(ttd.data, dtype=np.float32)
+    def test_integer_ndarray(self) -> None:
+        """Test construction from an integer ndarray promotes to floating."""
+        tensor = np.arange(1, 7).reshape(2, 3)
+        result: TTD[Any] = TTD(tensor)
 
-    assert result.dtype == np.float32
-    assert all(core.dtype == np.float32 for core in result.data)
-    assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
+        assert result.dtype == np.float64
+        assert_default_epsilon(result, tensor.astype(np.float64))
 
+    def test_zeros_preserves_dtype(self) -> None:
+        """Test that zeros forwards and preserves the requested dtype."""
+        result = TTD.zeros((2, 2), dtype=np.float32)
 
-def test_construct_from_cores_infers_dtype() -> None:
-    """Test that the core dtype is inferred and unified across cores."""
-    ttd = TTD(np.ones((2, 3)))
-    mixed = [ttd.data[0].astype(np.float32), ttd.data[1].astype(np.float64)]
+        assert result.dtype == np.float32
+        assert all(core.dtype == np.float32 for core in result.data)
 
-    result = TTD(cast(Any, mixed))
+    def test_forwards_compression_parameters(self) -> None:
+        """Test that subclasses can add their own compression parameters."""
+        received: dict[str, Any] = {}
 
-    assert result.dtype == np.float64
-    assert all(core.dtype == np.float64 for core in result.data)
+        class IteratedTTD(TTD[np.float64]):
+            iterations: int
 
+            @override
+            def __init__(
+                self,
+                data: Any,
+                *,
+                dtype: TTDType[np.float64] | None = None,
+                epsilon: Scalar = DEFAULT_EPSILON,
+                iterations: int = 1,
+            ) -> None:
+                self.iterations = iterations
+                super().__init__(data, dtype=dtype, epsilon=epsilon)
 
-def test_construct_from_integer_cores_falls_back_to_float64() -> None:
-    """Test that non-floating core dtypes fall back to float64."""
-    integer_cores = [
-        np.ones((1, 2, 1), dtype=np.int64),
-        np.ones((1, 3, 1), dtype=np.int64),
-    ]
+            @override
+            def _compress[DT: np.floating](
+                self,
+                array: NDArray[DT],
+                **compression_params: Unpack[CompressionParameters],
+            ) -> list[Core[DT]]:
+                received.update(compression_params)
+                received["iterations"] = self.iterations
+                return super()._compress(array, **compression_params)
 
-    result = TTD(cast(Any, integer_cores))
+        tensor = np.ones((2, 3))
+        result = IteratedTTD(tensor, epsilon=1e-5, iterations=7)
 
-    assert result.dtype == np.float64
-    assert all(core.dtype == np.float64 for core in result.data)
-    assert_default_epsilon(result, np.ones((2, 3)))
-
-
-@pytest.mark.parametrize(
-    "data",
-    [
-        np.ones((2, 3)),
-        TTD(np.ones((2, 3))),
-        TTD(np.ones((2, 3))).data,
-    ],
-)
-@pytest.mark.parametrize("dtype", [np.int32, np.dtype(np.int32)], ids=["type", "dtype"])
-def test_construct_rejects_non_floating_dtype(data: Any, dtype: Any) -> None:
-    """Test that an explicit non-floating dtype is rejected."""
-    with pytest.raises(TypeError, match="not a valid dtype"):
-        _ = TTD(data, dtype=dtype)
-
-
-def test_construct_rejects_complex_data() -> None:
-    """Test that complex data is rejected."""
-    with pytest.raises(TypeError, match="Complex dtypes"):
-        _ = TTD(cast(Any, np.ones((2, 3), dtype=np.complex128)))
-
-
-def test_zeros_preserves_dtype() -> None:
-    """Test that zeros forwards and preserves the requested dtype."""
-    result = TTD.zeros((2, 2), dtype=np.float32)
-
-    assert result.dtype == np.float32
-    assert all(core.dtype == np.float32 for core in result.data)
+        assert received == {"epsilon": 1e-5, "iterations": 7}
+        assert result.dtype == tensor.dtype
+        assert_default_epsilon(result, tensor, epsilon=1e-5)
 
 
-@pytest.mark.parametrize("data", [42, 3.14, None, object()])
-def test_construct_invalid_type(data: Any) -> None:
-    """Test construction from an unsupported type raises an error."""
-    with pytest.raises(TypeError):
-        _ = TTD(data)
+class TestConstructFromSequence:
+    """Tests for constructing a TTD from a Python sequence."""
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            [1.0, 2.0, 3.0],
+            [[1.0, 2.0], [3.0, 4.0]],
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            ((1.0, 2.0), (3.0, 4.0)),
+        ],
+    )
+    def test_sequence(self, data: Any) -> None:
+        """Test construction from raw Python sequences."""
+        result: TTD[Any] = TTD(data)
+        tensor = np.asarray(data, dtype=np.float64)
+
+        assert result.dtype == np.float64
+        assert_default_epsilon(result, tensor)
+
+    def test_integer_sequence(self) -> None:
+        """Test construction from a sequence of integers promotes to floating."""
+        data = [[1, 2], [3, 4]]
+        result: TTD[Any] = TTD(data)
+
+        assert result.dtype == np.float64
+        assert_default_epsilon(result, np.asarray(data, dtype=np.float64))
+
+    def test_preserves_dtype(self) -> None:
+        """Test construction from a sequence preserves a floating dtype."""
+        data = [[np.float32(1), np.float32(2)], [np.float32(3), np.float32(4)]]
+        result = cast(TTD[np.float32], TTD(data))
+
+        assert result.dtype == np.float32
+        assert_default_epsilon(result, np.asarray(data), epsilon=1e-5)
+
+    @pytest.mark.parametrize(
+        ("dtype", "expected"),
+        [
+            (np.float32, np.float32),
+            (np.dtype(np.float32), np.float32),
+            ("float32", np.float32),
+            (float, np.float64),
+        ],
+    )
+    def test_with_dtype(self, dtype: Any, expected: Any) -> None:
+        """Test construction from a sequence honors the requested dtype."""
+        result = TTD([[1, 2], [3, 4]], dtype=dtype)
+
+        assert result.dtype == expected
+        assert_default_epsilon(
+            result, np.array([[1, 2], [3, 4]], dtype=expected), epsilon=1e-5
+        )
 
 
-def test_construct_from_ndarray_with_epsilon() -> None:
-    """Test that epsilon is passed through the constructor."""
-    tensor = np.random.default_rng(0).random((4, 4))
+class TestConstructFromTTD:
+    """Tests for constructing a TTD from another TTD."""
 
-    exact = TTD(tensor)
-    approximate = TTD(tensor, epsilon=10.0)
+    @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+    def test_from_ttd(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test construction from another TTD shallow-copies its data."""
+        result = TTD(ttd)
 
-    assert approximate.compressed_size < exact.compressed_size
+        assert result.dtype == ttd.dtype
+        assert result.data is not ttd.data
+        assert all(a is b for a, b in zip(result.data, ttd.data, strict=True))
+        assert_default_epsilon(result, tensor)
+
+    def test_with_dtype(self) -> None:
+        """Test construction from another TTD casts its cores."""
+        ttd = TTD(np.ones((2, 3)))
+        result = TTD(ttd, dtype=np.float32)
+
+        assert result.dtype == np.float32
+        assert result.data is not ttd.data
+        assert all(core.dtype == np.float32 for core in result.data)
+        assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
 
 
-def test_construct_from_ndarray_forwards_compression_parameters() -> None:
-    """Test that subclasses can add their own compression parameters."""
-    received: dict[str, Any] = {}
+class TestConstructFromCores:
+    """Tests for constructing a TTD from its cores."""
 
-    class IteratedTTD(TTD[np.float64]):
-        iterations: int
+    @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+    def test_from_cores(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test construction from an iterable of cores."""
+        cores = [*ttd.data]
+        for data in (cores, iter(cores)):
+            result = TTD(data)
 
-        @override
-        def __init__(
-            self,
-            data: Any,
-            *,
-            dtype: TTDType[np.float64] | None = None,
-            epsilon: Scalar = DEFAULT_EPSILON,
-            iterations: int = 1,
-        ) -> None:
-            self.iterations = iterations
-            super().__init__(data, dtype=dtype, epsilon=epsilon)
+            assert result.dtype == ttd.dtype
+            assert all(a is b for a, b in zip(result.data, cores, strict=True))
+            assert_default_epsilon(result, tensor)
 
-        @override
-        def _compress[DT: np.floating](
-            self,
-            array: NDArray[DT],
-            **compression_params: Unpack[CompressionParameters],
-        ) -> list[Core[DT]]:
-            received.update(compression_params)
-            received["iterations"] = self.iterations
-            return super()._compress(array, **compression_params)
+    def test_with_dtype(self) -> None:
+        """Test construction from cores with a directly passed dtype."""
+        ttd = TTD(np.ones((2, 3)))
+        result = TTD(ttd.data, dtype=np.float32)
 
-    tensor = np.ones((2, 3))
-    result = IteratedTTD(tensor, epsilon=1e-5, iterations=7)
+        assert result.dtype == np.float32
+        assert all(core.dtype == np.float32 for core in result.data)
+        assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
 
-    assert received == {"epsilon": 1e-5, "iterations": 7}
-    assert result.dtype == tensor.dtype
-    assert_default_epsilon(result, tensor, epsilon=1e-5)
+    def test_infers_dtype(self) -> None:
+        """Test that the core dtype is inferred and unified across cores."""
+        ttd = TTD(np.ones((2, 3)))
+        mixed = [ttd.data[0].astype(np.float32), ttd.data[1].astype(np.float64)]
+
+        result = TTD(cast(Any, mixed))
+
+        assert result.dtype == np.float64
+        assert all(core.dtype == np.float64 for core in result.data)
+
+    def test_integer_cores_fall_back_to_float64(self) -> None:
+        """Test that non-floating core dtypes fall back to float64."""
+        integer_cores = [
+            np.ones((1, 2, 1), dtype=np.int64),
+            np.ones((1, 3, 1), dtype=np.int64),
+        ]
+
+        result = TTD(cast(Any, integer_cores))
+
+        assert result.dtype == np.float64
+        assert all(core.dtype == np.float64 for core in result.data)
+        assert_default_epsilon(result, np.ones((2, 3)))
+
+
+class TestConstructErrors:
+    """Tests for invalid TTD construction."""
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            np.ones((2, 3)),
+            TTD(np.ones((2, 3))),
+            TTD(np.ones((2, 3))).data,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "dtype", [np.int32, np.dtype(np.int32)], ids=["type", "dtype"]
+    )
+    def test_rejects_non_floating_dtype(self, data: Any, dtype: Any) -> None:
+        """Test that an explicit non-floating dtype is rejected."""
+        with pytest.raises(TypeError, match="not a valid dtype"):
+            _ = TTD(data, dtype=dtype)
+
+    def test_rejects_complex_data(self) -> None:
+        """Test that complex data is rejected."""
+        with pytest.raises(TypeError, match="Complex dtypes"):
+            _ = TTD(cast(Any, np.ones((2, 3), dtype=np.complex128)))
+
+    @pytest.mark.parametrize("data", [42, 3.14, None, object()])
+    def test_invalid_type(self, data: Any) -> None:
+        """Test construction from an unsupported type raises an error."""
+        with pytest.raises(TypeError):
+            _ = TTD(data)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -297,30 +290,36 @@ def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test full indexing."""
-    for index, value in np.ndenumerate(tensor):
-        assert_default_epsilon(ttd[index], value)
+class TestIndexing:
+    """Tests for TTD indexing."""
 
+    def test_full(self, ttd: TestTTD, tensor: TestTensor) -> None:
+        """Test full indexing."""
+        for index, value in np.ndenumerate(tensor):
+            assert_default_epsilon(ttd[index], value)
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test partial indexing."""
-    for i in range(tensor.shape[0]):
-        assert_default_epsilon(ttd[i], tensor[i])
-        assert_default_epsilon(ttd[:i], tensor[:i])
-        assert_default_epsilon(ttd[i:], tensor[i:])
-        assert_default_epsilon(ttd[i::2], tensor[i::2])
+    def test_single_axis(self, ttd: TestTTD, tensor: TestTensor) -> None:
+        """Test indexing along a single axis."""
+        for i in range(tensor.shape[0]):
+            assert_default_epsilon(ttd[i], tensor[i])
+            assert_default_epsilon(ttd[:i], tensor[:i])
+            assert_default_epsilon(ttd[i:], tensor[i:])
+            assert_default_epsilon(ttd[i::2], tensor[i::2])
 
-    for j in range(tensor.shape[1]):
-        assert_default_epsilon(ttd[:, j], tensor[:, j])
-        n = tensor.shape[0] // 2
-        assert_default_epsilon(ttd[:n, j], tensor[:n, j])
-        assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
+    def test_double_axis(self, ttd: TestTTD, tensor: TestTensor) -> None:
+        """Test indexing along two axes with integers."""
+        for i in range(tensor.shape[0]):
+            for j in range(tensor.shape[1]):
+                assert_default_epsilon(ttd[i, j], tensor[i, j])
+                assert_default_epsilon(cast(TestTTD, ttd[i])[j], tensor[i][j])
 
-    for i in range(tensor.shape[0]):
+    def test_double_axis_slice(self, ttd: TestTTD, tensor: TestTensor) -> None:
+        """Test indexing along two axes with slices."""
         for j in range(tensor.shape[1]):
-            assert_default_epsilon(ttd[i, j], tensor[i, j])
+            assert_default_epsilon(ttd[:, j], tensor[:, j])
+            n = tensor.shape[0] // 2
+            assert_default_epsilon(ttd[:n, j], tensor[:n, j])
+            assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
