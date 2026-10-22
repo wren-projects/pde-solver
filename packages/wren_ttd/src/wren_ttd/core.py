@@ -8,7 +8,6 @@ from typing import (
     ParamSpec,
     SupportsIndex,
     cast,
-    final,
     overload,
     override,
 )
@@ -17,7 +16,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 from wren_common.math import dot_product, scale_matrix
-from wren_common.types import Index1D, Matrix, NDArray, Scalar
+from wren_common.types import Index1D, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
@@ -25,16 +24,17 @@ from wren_ttd._helpers import (
     reverse_cores,
     to_int_tuple,
     truncation_parameter,
+    ttsvd,
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
-from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
+from wren_ttd._svd import delta_truncated_svd
+from wren_ttd.math import DEFAULT_EPSILON
 from wren_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
-@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
@@ -116,43 +116,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             The compressed TTD.
 
         """
-        d = array.ndim
-
-        if d == 1:
-            return TTD([array.reshape((1, len(array), 1))])
-
-        delta = truncation_parameter(array, epsilon)
-
-        # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = array.reshape((array.shape[0], -1))
-
-        # r₀ = 1
-        r = 1
-
-        cores: list[Core[DT]] = []
-
-        # for k = 1 to d - 1 do
-        # note: n = nₖ, r = rₖ₋₁
-        for n in array.shape[:-1]:
-            # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
-            residue = residue.reshape((r * n, -1))
-
-            # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
-            u, s, v_t = delta_truncated_svd(residue, delta)
-
-            # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
-            new_core = u.reshape((r, n, -1))
-            cores.append(new_core)
-
-            # set rₖ = rankᵟ(C) for next iteration
-            r = new_core.shape[2]
-
-            # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t)
-
-        cores.append(residue.reshape((*residue.shape, 1)))
-
-        return TTD(cores)
+        return TTD(ttsvd(array, delta_truncated_svd, epsilon))
 
     @staticmethod
     def ones[DT: np.floating](
