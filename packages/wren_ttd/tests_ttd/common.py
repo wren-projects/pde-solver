@@ -5,11 +5,12 @@ from wren_common.tests import (
     TestTensor,
     TestTensorPair,
 )
-from wren_common.types import NDArray, Scalar
+from wren_common.types import Scalar
 from wren_ttd import DEFAULT_EPSILON, TTD
 
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
+
 
 TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
     (tensor, TTD.from_ndarray(tensor)) for tensor in TEST_TENSORS
@@ -20,7 +21,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 ]
 
 
-type EpsilonComparable = NDArray | TTD | Scalar
+type EpsilonComparable = TestTensor | TestTTD | Scalar
 
 
 def assert_default_epsilon(
