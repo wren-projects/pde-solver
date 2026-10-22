@@ -13,6 +13,7 @@ from wren_ttd import DEFAULT_EPSILON, TTD
 type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
 
+
 TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
     (tensor, TTD(tensor)) for tensor in TEST_TENSORS
 ]
