@@ -17,10 +17,8 @@ from wren_ttd._helpers import (
     unfold_left,
 )
 from wren_ttd._numpy_api import implements_function
-from wren_ttd.math import (
-    DEFAULT_EPSILON,
-    delta_truncated_svd,
-)
+from wren_ttd._svd import delta_truncated_svd
+from wren_ttd.math import DEFAULT_EPSILON
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD

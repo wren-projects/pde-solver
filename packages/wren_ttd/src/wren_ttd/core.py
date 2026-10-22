@@ -9,7 +9,6 @@ from typing import (
     ParamSpec,
     SupportsIndex,
     cast,
-    final,
     overload,
     override,
 )
@@ -18,10 +17,11 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 from wren_common.math import scale_matrix
-from wren_common.types import Index1D, Matrix, NDArray, Scalar
+from wren_common.types import Index1D, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
+    expand_cores,
     fold_left,
     mode_1_product,
     orthogonalize_right,
@@ -29,17 +29,18 @@ from wren_ttd._helpers import (
     smallest_core,
     to_int_tuple,
     truncation_parameter,
+    ttsvd,
     unfold_left,
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
-from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
+from wren_ttd._svd import delta_truncated_svd
+from wren_ttd.math import DEFAULT_EPSILON
 from wren_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
-@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
@@ -53,7 +54,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__ = ("data", "dtype")
+    __slots__: tuple[str, ...] = ("data", "dtype")
 
     def __init__(
         self,
@@ -124,43 +125,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             The compressed TTD.
 
         """
-        d = array.ndim
-
-        if d == 1:
-            return TTD([np.expand_dims(array, (0, 2))])
-
-        delta = truncation_parameter(array, epsilon)
-
-        # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = fold_left(array)
-
-        # r₀ = 1
-        r = 1
-
-        cores: list[Core[DT]] = []
-
-        # for k = 1 to d - 1 do
-        # note: n = nₖ, r = rₖ₋₁
-        for n in array.shape[:-1]:
-            # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
-            residue = residue.reshape((r * n, -1))
-
-            # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
-            u, s, v_t = delta_truncated_svd(residue, delta)
-
-            # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
-            new_core = u.reshape((r, n, -1))
-            cores.append(new_core)
-
-            # set rₖ = rankᵟ(C) for next iteration
-            r = new_core.shape[2]
-
-            # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t, out=v_t)
-
-        cores.append(np.expand_dims(residue, axis=2))
-
-        return TTD(cores)
+        return TTD(ttsvd(array, delta_truncated_svd, epsilon))
 
     @staticmethod
     def ones[DT: np.floating](
@@ -461,39 +426,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "single-dimensional array."
             )
 
-        if any(mode == 0 for mode in self.shape):
-            return np.empty(self.shape, dtype=self.dtype if dtype is None else dtype)
-
-        intermediate_sizes = np.cumprod(self.shape)
-        intermediate_rank_sizes = cast(
-            np.ndarray[tuple[int], np.dtype[np.int64]],
-            np.multiply(np.asarray((*self.ranks, 1)), intermediate_sizes),
-        )
-
-        largest_buffer_size = max(
-            np.max(intermediate_sizes), np.max(intermediate_rank_sizes)
-        )
-
-        buffer_a = np.empty(largest_buffer_size, dtype=self.dtype)
-        buffer_b = np.empty(largest_buffer_size, dtype=self.dtype)
-
-        intermediate = np.ones((1, 1), dtype=self.dtype)
-
-        for size, core in zip(intermediate_rank_sizes, self.data, strict=True):
-            left, mode, right = core.shape
-            intermediate: Matrix[DType] = np.matmul(
-                intermediate,
-                core.reshape(left, -1),
-                out=buffer_a[:size].reshape(-1, mode * right),
-                dtype=self.dtype,
-            ).reshape(-1, right)
-            buffer_a, buffer_b = buffer_b, buffer_a
-
-        result = intermediate.reshape(self.shape)
+        result = expand_cores(self.data)
 
         return result if dtype is None else result.astype(dtype, copy=False)
 
-    def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
+    def round(self, epsilon: Scalar = DEFAULT_EPSILON) -> None:
         """
         Round the TTD object by decreasing ranks.
 
@@ -537,7 +474,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
             cores[k] = mode_1_product(scale_matrix(s, v_t, out=v_t), cores[k])
 
-    def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
+    def rounded(self, epsilon: Scalar = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
         ttd = self[...]
         ttd.round(epsilon)

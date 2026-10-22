@@ -3,8 +3,10 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor
-from wren_common.types import Scalar
+from wren_common.tests import TEST_SCALARS, TEST_TENSORS, TestTensor
+from wren_common.types import NDArray, Scalar
+from wren_ttd import DEFAULT_EPSILON
+from wren_ttd.nonnegative import TroppTTD
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -15,6 +17,23 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     # the compression is done in TEST_TTD and the decompression is done
     # implicitly inside assert_default_epsilon
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+def test_roundtrip_compression_tropp(tensor: TestTensor) -> None:
+    """Test the round-trip compression/decompression of a tensor."""
+    nnttd = TroppTTD.from_ndarray(tensor)
+
+    tensor[tensor < 0] = 0
+    assert_default_epsilon(nnttd, tensor)
+
+    expanded: NDArray[np.float64] = np.asarray(nnttd)
+    np.testing.assert_array_less(
+        # the used method seems to be unable to achieve exact non-negativity
+        # so we test for "good enough" non-negativity
+        -DEFAULT_EPSILON,
+        expanded,
+    )
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
