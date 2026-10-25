@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from copy import deepcopy
 
 import numpy as np
@@ -67,6 +68,66 @@ def test_full(shape: tuple[int, ...], fill_value: float) -> None:
     ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
     tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_zeros_like(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test zeros_like."""
+    result = np.zeros_like(ttd)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, np.zeros_like(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_ones_like(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test ones_like."""
+    result = np.ones_like(ttd)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, np.ones_like(tensor))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+def test_full_like(tensor: TestTensor, ttd: TestTTD, fill_value: float) -> None:
+    """Test full_like."""
+    result = np.full_like(ttd, fill_value)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, np.full_like(tensor, fill_value))
+
+    dtype = np.dtype(np.float32)
+    shape = (2, 2)
+
+    result = np.full_like(ttd, 2.5, dtype=dtype, shape=shape)
+    assert_default_epsilon(result, np.full_like(tensor, 2.5, dtype=dtype, shape=shape))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("func", [np.zeros_like, np.ones_like])
+def test_like_dtype_and_shape(
+    func: Callable[..., np.ndarray], tensor: TestTensor, ttd: TestTTD
+) -> None:
+    """Test that the like functions accept a dtype and shape override."""
+    dtype = np.dtype(np.float32)
+    result = func(ttd, dtype=dtype)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, func(tensor, dtype=dtype))
+
+    shape = (2, 2)
+    result = func(ttd, shape=shape)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, func(tensor, shape=shape))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD[:1]))
+def test_like_numpy_arguments(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test that the like functions handle the remaining NumPy arguments."""
+    dense = np.ones_like(ttd, subok=False)
+    assert isinstance(dense, np.ndarray)
+    assert_default_epsilon(dense, np.ones_like(tensor, subok=False))
+
+    result = np.zeros_like(ttd, order="F")
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, np.zeros_like(tensor, order="F"))
 
 
 def test_ranks() -> None:
