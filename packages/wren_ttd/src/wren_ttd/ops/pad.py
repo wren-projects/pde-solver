@@ -13,12 +13,6 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-def _padded_mask_core[DType: np.floating](
-    n: int, pad_width: int, dtype: np.dtype[DType]
-) -> Core[DType]:
-    return np.ones((1, pad_width + n + pad_width, 1), dtype=dtype)
-
-
 def _pad_constant[DType: np.floating](
     ttd: TTD[DType],
     pad_width: int,
@@ -27,37 +21,62 @@ def _pad_constant[DType: np.floating](
     """Pad a TTD with constant values."""
     from wren_ttd.core import TTD
 
-    # zero pad the TTD cores
-    new_cores: list[Core[DType]] = []
-    for core in ttd.data:
-        r_left, n, r_right = core.shape
-        new_core: Core[DType] = np.zeros(
-            (r_left, pad_width + n + pad_width, r_right), dtype=ttd.dtype
+    inner = slice(pad_width, -pad_width)
+
+    if ttd.ndim == 1:
+        # pad the mode dimension of the single core
+        core = np.pad(
+            np.squeeze(ttd.data[0]),
+            pad_width,
+            constant_values=constant_value,
         )
-        new_core[:, pad_width : pad_width + n, :] = core
-        new_cores.append(new_core)
+        return TTD([np.expand_dims(core, axis=(0, 2))], dtype=ttd.dtype)
 
-    Z = TTD(new_cores, dtype=ttd.dtype)
+    last = ttd.ndim - 1
+    result_cores: list[Core[DType]] = []
 
-    if constant_value == 0 or constant_value == ttd.dtype.type(0):
-        return Z
+    for k, core in enumerate(ttd.data):
+        left, n, right = core.shape
 
-    # Build an all-ones TTD of the padded shape (rank 1)
-    ones_cores = (
-        _padded_mask_core(orig_n, pad_width, dtype=ttd.dtype) for orig_n in ttd.shape
-    )
-    ones_ttd = TTD(ones_cores, dtype=ttd.dtype)
+        # Else add 2 to all internal ranks if the constant_value is not 0.
+        if constant_value == 0:
+            extra_left = extra_right = 0
+        elif k == 0:
+            extra_left, extra_right = 0, 2
+        elif k == last:
+            extra_left, extra_right = 2, 0
+        else:
+            extra_left = extra_right = 2
 
-    # Build a rank-1 indicator TTD: 1 in the original domain, 0 in the padded region
-    indicator_cores: list[Core[DType]] = []
-    for orig_n in ttd.shape:
-        ind_core: Core[DType] = _padded_mask_core(orig_n, pad_width, dtype=ttd.dtype)
-        ind_core[0, :pad_width, 0] = 0
-        ind_core[0, pad_width + orig_n :, 0] = 0
-        indicator_cores.append(ind_core)
-    indicator_ttd = TTD(indicator_cores, dtype=ttd.dtype)
+        result = np.zeros(
+            (left + extra_left, n + 2 * pad_width, right + extra_right),
+            dtype=ttd.dtype,
+        )
+        result[:left, inner, :right] = core
 
-    return Z + constant_value * (ones_ttd - indicator_ttd)
+        if constant_value == 0:
+            result_cores.append(result)
+            continue
+
+        # First core handles the value for the padding. It essentially adds
+        # constant_value to all elements and simultaneously subtracts
+        # constant_value from just the interior elements.
+        if k == 0:
+            result[0, :, right] = constant_value
+            result[0, inner, right + 1] = -constant_value
+        # The remaining cores just allow the factor from the first core to propagate
+        # to all remaining dimensions while preventing spillover from/into the
+        # interior.
+        elif k == last:
+            result[left, :, 0] = 1
+            result[left + 1, inner, 0] = 1
+        else:
+            result[left, :, right] = 1
+            result[left + 1, inner, right + 1] = 1
+
+        result_cores.append(result)
+
+    return TTD(result_cores, dtype=ttd.dtype)
 
 
 @implements_function("pad")

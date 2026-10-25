@@ -485,3 +485,14 @@ def test_pad_constant(
     expected = np.pad(tensor, pad_width=width, mode="constant", constant_values=value)
     result = np.pad(ttd, pad_width=width, mode="constant", constant_values=value)
     assert_default_epsilon(result, expected, scale=value)
+
+
+@pytest.mark.parametrize("value", TEST_SCALARS)
+@pytest.mark.parametrize("width", [0, 1, 2, 5])
+def test_pad_constant_1d(value: float, width: int) -> None:
+    """Test that padding a 1D TTD works."""
+    tensor = np.arange(1.0, 5.0)
+    ttd = TTD.from_ndarray(tensor)
+    expected = np.pad(tensor, pad_width=width, mode="constant", constant_values=value)
+    result = np.pad(ttd, pad_width=width, mode="constant", constant_values=value)
+    assert_default_epsilon(result, expected, scale=value)
