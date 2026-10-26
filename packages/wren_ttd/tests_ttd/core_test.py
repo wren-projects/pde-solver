@@ -70,3 +70,48 @@ def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
     for i in range(tensor.shape[0]):
         for j in range(tensor.shape[1]):
             assert_default_epsilon(ttd[i, j], tensor[i, j])
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize(
+    "index",
+    [
+        0,
+        2,
+        -1,
+        slice(1, -1),
+        slice(None, None, 2),
+        slice(1, None, 2),
+        slice(None, None, -1),
+    ],
+)
+def test_setitem_zero(tensor: TestTensor, ttd: TestTTD, index: int | slice) -> None:
+    """Test zeroing a single mode addressed by an integer or a slice."""
+    for axis, length in enumerate(tensor.shape):
+        leading = (slice(None),) * axis
+        trailing = (slice(None),) * (len(tensor.shape) - axis - 1)
+        key = (*leading, index, *trailing)
+
+        expected = tensor.copy()
+        expected[key] = 0
+
+        result = ttd.copy()
+        result[key] = 0
+
+        assert_default_epsilon(result, expected)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_setitem_boundary(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test repeatedly zeroing boundary slices of a TTD."""
+    expected = tensor.copy()
+    result = ttd.copy()
+
+    for axis, length in enumerate(tensor.shape):
+        for index in (0, length - 1):
+            key: list[int | slice] = [slice(None)] * tensor.ndim
+            key[axis] = index
+            expected[tuple(key)] = 0
+            result[tuple(key)] = 0
+
+    assert_default_epsilon(result, expected)

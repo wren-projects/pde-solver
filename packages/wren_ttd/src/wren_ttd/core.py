@@ -3,7 +3,16 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
-from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
+from typing import (
+    Any,
+    Literal,
+    ParamSpec,
+    SupportsIndex,
+    cast,
+    final,
+    overload,
+    override,
+)
 
 import numpy as np
 import numpy.typing as npt
@@ -805,6 +814,48 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             return ops.get_item(self, key)
 
         raise NotImplementedError
+
+    def __setitem__(self, key: Sequence[Index1D], value: Literal[0] = 0) -> None:
+        """
+        Set a subtensor of the TTD.
+
+        Only supported indexing is targeting a single mode with either an integer
+        or a slice. The rest of the indices have to be full slices (i.e. ``:``).
+
+        Parameters
+        ----------
+        key : sequence of int or slice
+            Index for each addressed mode. A single ``int`` or ``slice``
+            addresses the first mode; a sequence addresses one mode per
+            entry. Negative indices count from the end of the mode.
+        value : int, optional
+            Value to set. Default is 0.
+
+        See Also
+        --------
+        TDD.__getitem__
+
+        """
+        if not np.equal(value, 0):
+            raise ValueError("TDD.__setitem__ only supports setting to 0")
+
+        if len(key) > self.ndim:
+            raise IndexError(f"Too many indices: {len(key)} > {self.ndim}")
+
+        only_single_concrete = (
+            sum(isinstance(k, SupportsIndex) or k != slice(None) for k in key) == 1
+        )
+
+        if not only_single_concrete:
+            raise IndexError(
+                "TDD.__setitem__ only supports indexing a single mode at a time"
+            )
+
+        for i, core in zip(key, self.data, strict=False):
+            if i == slice(None):
+                continue
+
+            core[:, i, :] = value
 
     @override
     def __len__(self) -> int:
