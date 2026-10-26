@@ -142,7 +142,7 @@ def multiply[DType: np.floating](
     from wren_ttd.core import TTD
 
     def scalar_impl(
-        ttd: TTD[DType], scalar: np.floating | float, out: TTD[DType] | None = None
+        ttd: TTD[DType], scalar: Scalar, out: TTD[DType] | None = None
     ) -> TTD[DType]:
         cores = ttd.data.copy()
 
