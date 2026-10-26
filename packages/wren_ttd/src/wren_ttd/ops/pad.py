@@ -1,7 +1,7 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from wren_common.types import Scalar, ScalarTypes
@@ -65,7 +65,7 @@ def pad[DType: np.floating](
     array: TTD[DType],
     pad_width: int,
     mode: str = "constant",
-    **kwargs: Any,
+    **kwargs: Any,  # type: ignore[reportAny]
 ) -> TTD[DType]:
     """
     Pad a TTD tensor.
@@ -92,13 +92,18 @@ def pad[DType: np.floating](
         return array
 
     if mode == "constant":
-        constant_values = kwargs.get("constant_values", 0.0)
+        constant_values: Any = kwargs.get("constant_values", 0.0)  # type: ignore[reportAny]
         if isinstance(constant_values, (list, tuple)):
             raise NotImplementedError(
                 "Per-axis constant_values are not supported, use a scalar"
             )
 
         if isinstance(constant_values, ScalarTypes):
-            return _pad_constant(array, pad_width, constant_values)
+            constant_value = cast(Scalar, constant_values)
+            return _pad_constant(array, pad_width, constant_value)
+
+        raise ValueError(
+            f"Unsupported type for constant_values: {type(constant_values)}"  # type: ignore[reportAny]
+        )
 
     return NotImplemented

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 from wren_common.types import Scalar
@@ -40,7 +40,7 @@ def _full_like[DType: np.floating](
     if not subok:
         # np.full only accepts a concrete memory order, unlike the *_like
         # functions which also accept 'K' and 'A'.
-        dense_order = "C" if order in {"K", "A"} else order
+        dense_order = cast(Literal["C", "F"], "C" if order in {"K", "A"} else order)
         return np.full(shape, fill_value, dtype=dtype, order=dense_order)
 
     return TTD.full(shape, fill_value, dtype=dtype)
