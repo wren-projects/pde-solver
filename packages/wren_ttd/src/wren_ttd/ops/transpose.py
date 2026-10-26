@@ -1,6 +1,5 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
-from wren_ttd._svd import delta_truncated_svd
 
 from collections.abc import Sequence
 from itertools import pairwise
@@ -12,8 +11,8 @@ from wren_common.math import dot_product
 
 from wren_ttd._helpers import orthogonalize_right, truncation_parameter
 from wren_ttd._numpy_api import implements_function
+from wren_ttd._svd import delta_truncated_svd
 from wren_ttd.math import DEFAULT_EPSILON
-
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD

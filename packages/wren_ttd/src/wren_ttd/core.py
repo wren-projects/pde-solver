@@ -20,6 +20,7 @@ from wren_common.types import Index1D, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
+    expand_cores,
     orthogonalize_right,
     reverse_cores,
     to_int_tuple,
@@ -407,33 +408,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "single-dimensional array."
             )
 
-        # Multiply all cores together. This is equivalent to a repeated
-        # tensordot, but faster since einsum does compute order optimizations.
-        # The generated expression looks like ABC,CDE,EFG,…, XYZ->ABCD…YZ, where
-        # A and Z are singleton dimensions (from TTD) making the final
-        # (squeezed) result BCD…Y.
-
-        summation_indices: list[Any] = [
-            item
-            for i, core in enumerate(self.data)
-            for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
-        ]
-
-        # einsum accepts besides a string, also an alternating list of indices
-        # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
-
-        result = cast(
-            NDArray[DType],
-            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
-        )
-
-        # remove first and last singleton dimensions
-        squeezed = result.squeeze((0, -1))
-
-        return squeezed if dtype is None else squeezed.astype(dtype)
-
-    def as_array(self, dtype: npt.DTypeLike | None = None) -> NDArray[DType]:
-        return self.__array__(dtype=dtype)
+        return expand_cores(self.data, dtype)
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """

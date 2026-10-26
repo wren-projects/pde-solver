@@ -1,15 +1,16 @@
 from __future__ import annotations
-from wren_ttd._svd import SVD, delta_truncated_svd
 
 import math
 from collections.abc import Iterable, Reversible
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, cast, ParamSpec, Callable, Protocol
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from wren_common.math import dot_product, scale_matrix
-from wren_common.types import Matrix, NDArray, Vector, Scalar
+from wren_common.types import Matrix, NDArray, Scalar
 
+from wren_ttd._svd import SVD
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
 
@@ -247,6 +248,36 @@ def ttsvd[DT: np.floating, **Params](
     cores.append(residue.reshape((*residue.shape, 1)))
 
     return cores
+
+
+def expand_cores[DType: np.floating](
+    cores: Iterable[Core[DType]], dtype: npt.DTypeLike | None = None
+) -> NDArray[DType]:
+    """Multiply all cores together."""
+    # Multiply all cores together. This is equivalent to a repeated
+    # tensordot, but faster since einsum does compute order optimizations.
+    # The generated expression looks like ABC,CDE,EFG,…, XYZ->ABCD…YZ, where
+    # A and Z are singleton dimensions (from TTD) making the final
+    # (squeezed) result BCD…Y.
+
+    summation_indices: list[Any] = [
+        item
+        for i, core in enumerate(cores)
+        for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
+    ]
+
+    # einsum accepts besides a string, also an alternating list of indices
+    # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
+
+    result = cast(
+        NDArray[DType],
+        np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+    )
+
+    # remove first and last singleton dimensions
+    squeezed = result.squeeze((0, -1))
+
+    return squeezed if dtype is None else squeezed.astype(dtype)
 
 
 def unfold[DT: np.floating](array: NDArray[DT], mode: int) -> Matrix[DT]:
