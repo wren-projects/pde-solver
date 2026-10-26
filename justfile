@@ -33,3 +33,6 @@ generate-pdes:
     {{ uv }} run ruff format {{ pde_file }}
 
 check: lint test typecheck
+
+generate-math-doc:
+    tectonic -Z shell-escape docs/main.tex

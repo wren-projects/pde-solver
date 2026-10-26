@@ -33,7 +33,7 @@
   \kern 3.6pt
 }
 
-% define helper command for typesetting inline code
+% define helper command For typesetting inline code
 \newcommand{\code}[1]{\texttt{#1}}
 
 \setstretch{1.125}
@@ -87,8 +87,8 @@
 \maketitle
 
 \begin{abstract}
-  This document collects definitions and core algorithms for the tensor train
-  (TT) format, basic operations in TT, and how TT representations can be used to
+  This document collects definitions and core algorithms For the tensor train
+  (TT) Format, basic operations in TT, and how TT representations can be used to
   solve higher-dimensional (4--10 dimensions) partial differential equations
   (PDEs) in Python using NumPy.
 \end{abstract}
@@ -124,7 +124,7 @@ Storing such a full tensor requires
 \]
 numbers, which grows exponentially in $d$. This phenomenon is known as the
 \textbf{curse of dimensionality} \cite{Oseledets2009TreeTucker,Oseledets2011TT}.
-Low–rank tensor formats aim to overcome this exponential growth.
+Low–rank tensor Formats aim to overcome this exponential growth.
 
 %==================================================
 \section{Tensor Definition}
@@ -141,7 +141,7 @@ Low–rank tensor formats aim to overcome this exponential growth.
   \]
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 A tensor is simply a generalization of vectors and matrices to dimensions $d >
 2$. For example, a video can be thought of as a tensor with 4 dimensions: width
@@ -163,11 +163,11 @@ In numerical computing, a tensor is typically stored as an \code{ndarray}
     \mathbb{R}^{(n_1 \cdots n_k)\times(n_{k+1}\cdots n_d)}
   \]
   obtained by reshaping the tensor so that the first $k$
-  indices form the row index and the remaining indices form
+  indices Form the row index and the remaining indices Form
   the column index.
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 Unfolding allows us to covert a tensor with arbitrary dimensions into a single
 matrix by reshaping (similarly to how a matrix can be represented by a regular
@@ -175,7 +175,7 @@ array given proper indexing). This is important because matrices can be
 approximated by low-rank factorizations using the Singular Value Decomposition
 (SVD).
 
-The SVD decomposition is of the form
+The SVD decomposition is of the Form
 \[
   A = U \Sigma V^\top,
 \]
@@ -203,13 +203,13 @@ A_k = A.reshape(
 \subsection{Definition}
 \begin{definition}[Tensor Train decomposition (TTD)]
   A tensor $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$
-  is in Tensor Train (TT) format if it can be written as
+  is in Tensor Train (TT) Format if it can be written as
   \[
     A(i_1,\dots,i_d)
     =
     G_1(i_1) G_2(i_2) \cdots G_d(i_d),
   \]
-  where for each $k$:
+  where For each $k$:
   \[
     G_k(i_k) \in \mathbb{R}^{r_{k-1} \times r_k},
   \]
@@ -231,7 +231,7 @@ A_k = A.reshape(
 \end{definition}
 
 \begin{remark}
-  The storage complexity of the TT format is
+  The storage complexity of the TT Format is
   \[
     \sum_{k=1}^d n_k r_{k-1} r_k.
   \]
@@ -241,19 +241,19 @@ A_k = A.reshape(
   \[
     \mathcal{O}(d n r^2),
   \]
-  which is linear in $d$. Thus, TT format breaks the curse of dimensionality
+  which is linear in $d$. Thus, TT Format breaks the curse of dimensionality
   when TT-ranks remain moderate.
 \end{remark}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Each index $i_k$ selects a matrix $G_k(i_k)$. Multiplying these matrices yields
 a scalar because the boundary ranks satisfy $r_0 = r_d = 1$.
 
 Thus, the tensor entry is obtained by a chain of matrix multiplications.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Instead of storing the full tensor, we store small 3D tensors called
-\textbf{cores}. Each core connects only to its neighbors, forming a chain (a
+\textbf{cores}. Each core connects only to its neighbors, Forming a chain (a
 ``train''). Instead of storing all $n^d$ elements, only approximately
 $\mathcal{O}(d n r^2)$ numbers are required when ranks $r_k$ are
 moderate\cite{Oseledets2011TT}.
@@ -275,17 +275,17 @@ G_2(i_2) \in \mathbb{R}^{r_1 \times r_2}, \quad
 G_3(i_3) \in \mathbb{R}^{r_2 \times 1}.
 \]
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 The tensor is not stored entrywise. Instead, each index selects a small matrix,
 and multiplying these matrices produces the scalar value.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 For structured tensors (such as sums of variables), small ranks $r_k$ are
 sufficient. This yields a compressed representation.
 
 \paragraph{Representation in code.}
 
-In practice, TT format is stored as a list of cores:
+In practice, TT Format is stored as a list of cores:
 
 \begin{minted}{python}
 # TT tensor represented as list of cores
@@ -306,13 +306,43 @@ Gk.shape = (r_prev, n_k, r_next)
   \]
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 The rank $r_k$ measures how strongly the first $k$ variables interact with the
 remaining $d - k$ variables. If $r_k = 1$, the first $k$ variables are
 independent of the rest.
 
 These ranks determine the minimal possible internal dimensions of any TT
 representation.
+
+%==================================================
+\subsection{Non-Negative Tensor Train Decomposition (NTTD)}
+\label{sec:nttd_definition}
+%==================================================
+
+\begin{definition}[Non-Negative Tensor Train Decomposition]
+A $d$-dimensional tensor $\mathcal{P} \in \mathbb{R}_{\ge 0}^{n_1 \times \dots \times n_d}$ is in
+Non-Negative Tensor Train (NTTD) format if it is parameterized by non-negative core tensors $G = (G_1, \dots, G_d)$, 
+where $G_1 \in \mathbb{R}_{\ge 0}^{n_1 \times r_1}$, $G_k \in \mathbb{R}_{\ge 0}^{r_{k-1} \times n_k \times r_k}$ for $k = 2, \dots, d-1$, 
+and $G_d \in \mathbb{R}_{\ge 0}^{r_{d-1} \times n_d}$, such that every entry satisfies:
+\begin{equation}
+\mathcal{P}(i_1, \dots, i_d) = \sum_{\alpha_1, \dots, \alpha_{d-1}} G_1(i_1, \alpha_1) G_2(\alpha_1, i_2, \alpha_2) \cdots G_d(\alpha_{d-1}, i_d).
+\end{equation}
+\end{definition}
+
+\paragraph{Explanation (inFormal).}
+Standard TT cores may contain both positive and negative values \cite{tang2026density}.
+This can be unsuitable for quantities such as probability densities, absolute
+temperature, or chemical concentrations, which are non-negative in their
+intended applications \cite{bhattarai2020distributed}.
+
+NTTD requires every core entry to be non-negative. Since each tensor entry is
+formed by sums and products of core entries, the represented tensor is also
+non-negative.
+
+\paragraph{Explanation (inFormal).}
+The main idea is to keep the compressed representation while enforcing the
+same non-negativity expected of the quantity being modeled. Unlike standard
+TT, NTTD restricts its core factors to the non-negative orthant.
 
 %==================================================
 \section{Basic Operations in TT Format}
@@ -347,7 +377,7 @@ At each step:
 
 This produces a quasi-optimal low-rank TT approximation.
 
-\subsubsection{Algorithm for computing a TT decomposition (TT-SVD)}
+\subsubsection{Algorithm For computing a TT decomposition (TT-SVD)}
 
 The TT-SVD algorithm constructs matrix-valued functions
 \[
@@ -418,7 +448,7 @@ by sequential low-rank approximation of unfolding matrices
   (see the TT-SVD error bound in \cite{Oseledets2011TT}).
 \end{remark}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 At step $k$ we reshape the tensor into a matrix that separates
 the first $k$ indices from the remaining $d-k$ indices.
 This matrix describes how these two groups of indices
@@ -429,12 +459,12 @@ of this matrix to obtain a low-rank approximation.
 The rank $r_k$ of this approximation determines the next
 TT-rank.
 
-The left singular vectors are reshaped into blocks that form
+The left singular vectors are reshaped into blocks that Form
 the $k$-th TT core $G_k(i_k)$.
 The remaining part of the tensor is passed to the next step,
 where the same procedure is applied again.
 
-By repeating this process for $k = 1,\dots,d-1$,
+By repeating this process For $k = 1,\dots,d-1$,
 the algorithm constructs all TT cores and determines
 the TT-ranks of the representation.
 
@@ -465,22 +495,73 @@ and set
 C = \Sigma V^\top.
 \]
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 We separate the first variable from the remaining ones and approximate their
 interaction by a low-rank matrix.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 The matrix $U$ encodes how $i_1$ interacts with the rest. The remainder $C$
 is passed to the next step.
 
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-  # TODO implemented TTD
-\end{minted}
+%==================================================
+\subsection{NTTD-SVD (Non-Negative TT-SVD)}
+\label{sec:nttd_svd}
+%==================================================
+
+Standard TT-SVD computes core tensors by sequentially reshaping unfoldings and
+applying truncated SVD \cite{Oseledets2011TT}. Singular vectors generally
+contain negative elements, so standard TT-SVD does not guarantee non-negative
+cores. NTTD-SVD adapts the decomposition using non-negative factorization or
+iterative projections.
+
+\paragraph{Sequential NMF decomposition (NTTF / nTT).}
+Instead of truncated SVD, each unfolding matrix
+$X^{(k)} \in \mathbb{R}_{\ge 0}^{(r_{k-1}n_k) \times (n_{k+1}\dots n_d)}$ is
+factored using Non-Negative Matrix Factorization (NMF):
+\begin{equation}
+X^{(k)} \approx W^{(k)} H^{(k)}, \qquad W^{(k)} \ge 0, \quad H^{(k)} \ge 0.
+\end{equation}
+The left factor $W^{(k)}$ is reshaped into the non-negative core
+$G_k \in \mathbb{R}_{\ge 0}^{r_{k-1} \times n_k \times r_k}$. The remaining
+factor $H^{(k)}$ is passed to the next mode unfolding
+\cite{shcherbakova2019nonnegative, bhattarai2020distributed}.
+
+\paragraph{Explanation (inFormal).}
+NMF keeps both factors non-negative at each decomposition step. This makes the
+resulting TT cores non-negative by construction.
+
+\paragraph{Alternating projections (NTTSVD).}
+Alternatively, NTTSVD uses SVD for rank truncation and then enforces
+non-negativity through iterative projections between the low-rank TT manifold
+$\mathcal{M}_{\text{TT} \le \mathbf{r}}$ and the non-negative orthant
+$\mathbb{R}_{\ge 0}^{n_1 \times \dots \times n_d}$
+\cite{sultonov2023nonnegative}:
+
+\begin{algorithm}[H]
+  \caption{NTTSVD via Alternating Projections}
+  \begin{algorithmic}[1]
+    \Require Data tensor $\mathcal{X}$, target rank $\mathbf{r}$, iterations $s$
+    \Ensure Non-negative cores $G_1, \dots, G_d$
+    
+    \State $\mathcal{X}^{(0)} \leftarrow \mathcal{X}$
+    \For{$i = 1$ to $s$}
+        \State $\mathcal{X}^{(i)} \leftarrow \max\left(\mathcal{X}^{(i-1)}, 0\right)$ \Comment{Projection onto non-negative orthant}
+        \State $[G_1, \dots, G_d] \leftarrow \text{TTSVD}(\mathcal{X}^{(i)}, \mathbf{r})$ \Comment{TT-SVD truncation}
+        \State $\mathcal{X}^{(i)} \leftarrow \text{Evaluate}(G_1, \dots, G_d)$
+    \EndFor
+    \State \Return $G_1, \dots, G_d$
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explanation (inFormal).}
+Each iteration removes negative entries, compresses the result to the target TT
+ranks, and evaluates the compressed representation again. Repeating these
+steps seeks a tensor that satisfies both the rank constraint and
+non-negativity.
 
 \subsection{Rounding}
 
-\subsubsection{Algorithm for rounding (rank truncation / recompression)}
+\subsubsection{Algorithm For rounding (rank truncation / recompression)}
 
 Rounding (also called recompression) reduces inflated TT-ranks after operations
 (addition, etc.) while controlling the approximation error. The standard
@@ -602,11 +683,11 @@ After rounding:
 r^C \rightarrow (1,3,3,1).
 \]
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Basic operations increase TT-ranks. This leads to higher storage and
 computational cost.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Rounding reduces ranks while controlling the approximation error. It restores
 a compact representation.
 
@@ -614,14 +695,53 @@ a compact representation.
 The Frobenius norm satisfies $\|A\|_F = \sqrt{\langle A,A\rangle}$, so it
 reduces to an inner product computation (see \cref{sec:inner_product}).
 
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-# TODO implemented rounding
-\end{minted}
+%==================================================
+\subsubsection{NTTD Rounding (Recompression)}
+\label{sec:nttd_rounding}
+%==================================================
+
+Standard TT rounding (Algorithm~\ref{alg:rounding}) uses an orthogonalization
+sweep via thin QR factorization followed by truncated SVD recompression
+\cite{Oseledets2011TT}. In the non-negative setting, QR sweeps can destroy
+core non-negativity because orthogonal rotations may introduce negative
+entries.
+
+\paragraph{Explanation (inFormal).}
+Ordinary TT rounding cannot be applied unchanged when the core entries must
+remain non-negative. Recompression must reduce ranks without losing that
+constraint.
+
+\paragraph{NMF-based sweep rounding.}
+The SVD truncation step in standard rounding is replaced with NMF
+recompression. Instead of QR orthogonalization, cores are normalized using
+non-negative diagonal scaling matrices $D_k > 0$:
+\begin{equation}
+G_k \leftarrow G_k D_k^{-1}, \qquad G_{k+1} \leftarrow D_k G_{k+1},
+\end{equation}
+which preserves exact entrywise non-negativity while controlling core scaling.
+
+\paragraph{Explanation (inFormal).}
+Diagonal rescaling transfers magnitude between neighboring cores without
+changing the represented tensor or introducing negative core entries.
+
+\paragraph{Barrier-penalty recompression (optimization-based rounding).}
+Given an uncompressed or high-rank TT/NTT input tensor
+$\widetilde{\mathcal{P}}$, an optimized rounded NTTD representation $P_G$ with
+target ranks $\boldsymbol{\rho} \le \mathbf{r}$ is obtained by minimizing the
+Frobenius loss regularized with log-barrier functions \cite{tang2026density}:
+\begin{equation}
+\min_{G \ge 0} \mathcal{L}(G) = \|P_G - \widetilde{\mathcal{P}}\|_F^2 - \sum_{k=1}^d \mu_k \sum_{\text{indices}} \log\left(G_k(\dots)\right),
+\end{equation}
+where $\mu_k > 0$ strictly enforces entrywise positivity $G_k > 0$ throughout the recompression sweeps.
+
+\paragraph{Explanation (inFormal).}
+This approach searches directly for lower-rank non-negative cores while
+penalizing entries that approach zero. The data-fit term controls the
+approximation error, and the barrier term maintains positive core entries.
 
 \subsection{Addition}
 
-Given $A$ and $B$ in TT format, a standard construction forms a TT
+Given $A$ and $B$ in TT Format, a standard construction Forms a TT
 representation of
 $C=A+B$ by stacking cores blockwise; ranks add (then we round).
 
@@ -657,11 +777,6 @@ define cores of $C$:
 This yields ranks $r_k^C = r_k^A + r_k^B$. The procedure is finalized by
 rounding $C$ (\cref{alg:rounding}).
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# then call tt_round(...)
-\end{minted}
-
 \paragraph{Scalar multiplication.}
 For $c\in\mathbb{R}$ and TT tensor $A$ with cores $G^{(k)}$, one may
 scale a single core:
@@ -669,24 +784,14 @@ scale a single core:
   (cA)\ \text{can be represented by cores}\ (c\,G^{(1)}),G^{(2)},\dots,G^{(d)}.
 \]
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# - scalar multiply: scale G[0] *= c
-\end{minted}
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-  # TODO implemented proper norm_F
-\end{minted}
-
 % TODO: Norm computation via contractions; mention orthogonalization.
 
 \subsection{Inner products}
 \label{sec:inner_product}
 
-\begin{definition}[Inner product in TT format]
+\begin{definition}[Inner product in TT Format]
 
-  Let $A$ and $B$ be two tensors in TT format with
+  Let $A$ and $B$ be two tensors in TT Format with
   matrix-valued cores
 
   \[
@@ -727,7 +832,7 @@ scale a single core:
   \]
 
   \begin{algorithm}[t]
-    \caption{Inner product in TT format}
+    \caption{Inner product in TT Format}
     \label{alg:inner_product}
     \begin{algorithmic}[1]
       \Require Matrix-valued functions $G_1,\dots,G_d$
@@ -748,7 +853,7 @@ scale a single core:
   \end{algorithm}
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Instead of summing over all $n_1\cdots n_d$ tensor entries,
 we contract the tensor cores one dimension at a time.
 
@@ -763,15 +868,10 @@ complexity.
 If $n_k \le n$ and all TT-ranks are bounded by $r$, the computational complexity
 reduces from exponential $\mathcal{O}(n^d)$ to polynomial $\mathcal{O}(dnr^3)$.
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-  # inner product
-\end{minted}
-
 \subsection{Flipping an axis}
 
 \paragraph{Definition (axis flip).}
-Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be in TT format with cores
+Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be in TT Format with cores
 \[
 G_k \in \mathbb{R}^{r_{k-1} \times n_k \times r_k}.
 \]
@@ -783,11 +883,11 @@ Flipping axis $k$ produces a tensor $\tilde{A}$ such that
 A(i_1,\dots,n_k - i_k + 1,\dots,i_d).
 \]
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 Flipping an axis corresponds to reversing the ordering of indices along that
 dimension.
 
-Since each dimension is represented independently in TT format, the operation
+Since each dimension is represented independently in TT Format, the operation
 affects only a single core.
 
 \paragraph{Construction.}
@@ -806,11 +906,6 @@ The TT-ranks are unchanged by this operation.
 
 \paragraph{Complexity.}
 The operation requires $\mathcal{O}(r_{k-1} n_k r_k)$ operations.
-
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-#TODO implement
-\end{minted}
 
 %==================================================
 \subsection{Element access}
@@ -843,7 +938,7 @@ A(i_1,\dots,i_d) = v_d.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 Instead of reconstructing the full tensor, we select one slice from each core
 and multiply them from left to right.
@@ -858,20 +953,15 @@ If TT-ranks are bounded by $r$, the cost is
 \mathcal{O}(d r^2).
 \]
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: element access
-\end{minted}
-
 %==================================================
 \subsection{Mode permutation (transpose)}
 \label{sec:mode-permutation}
 %==================================================
 
-\begin{definition}[Mode permutation in TT format]
+\begin{definition}[Mode permutation in TT Format]
 
 Let $A \in \mathbb{R}^{n_1 \times \cdots \times n_d}$ be represented
-in TT format with cores $G_1,\dots,G_d$.
+in TT Format with cores $G_1,\dots,G_d$.
 
 Given a permutation
 \[
@@ -886,14 +976,14 @@ A(i_{\sigma(1)},\dots,i_{\sigma(d)}).
 
 A TT representation of $\widetilde{A}$ is obtained by
 reordering and recompressing the TT cores such that the
-tensor remains in TT format.
+tensor remains in TT Format.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 Unlike basic operations such as scaling or axis flipping,
-a general permutation cannot be performed by simply reordering
+a general permutation cannot be perFormed by simply reordering
 the TT cores.
 
 This is because each core encodes dependencies between
@@ -936,8 +1026,8 @@ To swap dimensions $k$ and $k+1$:
 
 \paragraph{Remark.}
 
-Mode permutation generally increases TT-ranks before truncation.
-Therefore, rounding (\cref{alg:rounding}) is required to maintain
+Mode permutation generally increases TT-ranks beFore truncation.
+ThereFore, rounding (\cref{alg:rounding}) is required to maintain
 a compact representation.
 
 \paragraph{Complexity.}
@@ -949,17 +1039,11 @@ A single adjacent swap has complexity
 
 A general permutation requires $\mathcal{O}(d^2)$ such swaps.
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: implement adjacent swap of TT cores
-# then compose swaps to achieve general permutation
-\end{minted}
-
 %==================================================
 \subsection{Tensor contraction (tensordot)}
 %==================================================
 
-\begin{definition}[Tensor contraction in TT format]
+\begin{definition}[Tensor contraction in TT Format]
 
 Let $A$ and $B$ be TT tensors.
 
@@ -978,8 +1062,8 @@ A(i_1,\dots,i_d)\,B(i_1,\dots,i_d).
 
 \paragraph{Remark (ordering of contracted modes).}
 
-Efficient contraction in TT format requires the contracted modes
-to form a contiguous block of TT cores.
+Efficient contraction in TT Format requires the contracted modes
+to Form a contiguous block of TT cores.
 
 More precisely, the contracted cores should appear consecutively
 and include a boundary core:
@@ -990,11 +1074,11 @@ and include a boundary core:
 
 If the required contraction does not satisfy this ordering,
 the TT cores must first be permuted (see \cref{sec:mode-permutation})
-before performing the contraction.
+beFore perForming the contraction.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
-The contraction is performed sequentially across dimensions.
+The contraction is perFormed sequentially across dimensions.
 
 At each dimension $k$, we combine slices of $A$ and $B$,
 sum over the contracted index, and propagate a small matrix
@@ -1002,7 +1086,7 @@ that carries the accumulated interaction between all previously
 contracted dimensions.
 
 More precisely, if $M_{k-1}$ denotes the propagated matrix from
-the previous step, the next contraction has the form
+the previous step, the next contraction has the Form
 \[
 M_k
 =
@@ -1014,12 +1098,12 @@ H_k(i_k),
 which reduces the contribution of dimension $k$ into a new
 small matrix $M_k$.
 
-This avoids forming the full tensors explicitly.
+This avoids Forming the full tensors explicitly.
 
 \paragraph{Important note.}
 
-General contractions increase TT-ranks. This is mostly due to the fact that we need to permutate the cores before performing the tensordot.
-Therefore, rounding (\cref{alg:rounding}) is applied afterward.
+General contractions increase TT-ranks. This is mostly due to the fact that we need to permutate the cores beFore perForming the tensordot.
+ThereFore, rounding (\cref{alg:rounding}) is applied afterward.
 
 \paragraph{Complexity.}
 
@@ -1027,11 +1111,6 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 \[
 \mathcal{O}(d n r^3).
 \]
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: tensordot / contraction
-\end{minted}
 
 %==================================================
 \subsection{Differential Operators}
@@ -1051,7 +1130,7 @@ representations and operates directly on the TTD cores.
 \label{sec:gradient_ttd}
 %==================================================
 
-\begin{definition}[Gradient in TTD format]
+\begin{definition}[Gradient in TTD Format]
 
 Let
 \[
@@ -1059,7 +1138,7 @@ A(i_1,\dots,i_d)
 =
 G_1(i_1)\cdots G_d(i_d)
 \]
-be a tensor represented in TT format.
+be a tensor represented in TT Format.
 
 In our implementation, the partial derivative along axis $k$
 is approximated by applying a finite-difference rule directly
@@ -1087,7 +1166,7 @@ along the physical index of the core.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 The TT representation stores each spatial dimension in the physical
 index of a separate core. This locality allows directional derivatives
@@ -1110,7 +1189,7 @@ For a selected axis $k$:
 \end{enumerate}
 
 If derivatives are requested along multiple axes,
-the procedure is repeated independently for each axis.
+the procedure is repeated independently For each axis.
 
 \paragraph{Numerical note.}
 
@@ -1123,7 +1202,7 @@ is replaced by zero to avoid amplification of numerical noise.
 If a single axis is specified, the result is a single TTD.
 
 If multiple axes are specified, the result is a tuple
-containing one TTD for each derivative direction.
+containing one TTD For each derivative direction.
 
 %==================================================
 \subsubsection{Divergence}
@@ -1136,7 +1215,7 @@ Let
 \[
 F = (F_1,\dots,F_d)
 \]
-be a vector field whose components are represented in TTD format.
+be a vector field whose components are represented in TTD Format.
 
 The divergence is defined as
 \[
@@ -1151,7 +1230,7 @@ and the resulting TTD tensors are added together.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 The divergence is computed by differentiating each vector-field component
 along its matching coordinate direction and summing the results.
@@ -1163,14 +1242,6 @@ No explicit differential operator is assembled.
 In our implementation, the divergence is obtained by computing the
 gradient of the vector field and extracting the trace of the resulting
 Jacobian tensor.
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: divergence in TTD
-# - compute gradient of component F_k along axis k
-# - sum all derivative TTDs
-# - round if needed
-\end{minted} 
 
 %==================================================
 \subsubsection{Laplace operator}
@@ -1188,31 +1259,23 @@ For a scalar tensor $A$, the Laplace operator is computed as
 \frac{\partial^2 A}{\partial x_k^2}.
 \]
 
-In TTD format, this is obtained by applying the gradient operation twice:
+In TTD Format, this is obtained by applying the gradient operation twice:
 first to compute directional derivatives, then again to differentiate each
 directional derivative along the same axis.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 The Laplace operator is implemented as divergence of the gradient.
 
 \paragraph{Important note.}
 
 The summation of the second-derivative TTDs may increase TT-ranks.
-Therefore, rounding should be applied after the sum.
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: Laplace in TTD
-# - compute gradient(A)
-# - compute divergence(gradient(A))
-# - round result
-\end{minted}
+ThereFore, rounding should be applied after the sum.
 
 %==================================================
-\section{PDEs and Using TT format to solve them}
+\section{PDEs and Using TT Format to solve them}
 %==================================================
 
 \subsection{Definition of PDE}
@@ -1220,7 +1283,7 @@ Therefore, rounding should be applied after the sum.
 \begin{definition}[Partial Differential Equation]
 
   Let $\Omega \subset \mathbb{R}^d$.
-  A partial differential equation (PDE) has the form
+  A partial differential equation (PDE) has the Form
 
   \[
     \mathcal{L} u(x_1,\dots,x_d) = f(x_1,\dots,x_d),
@@ -1244,7 +1307,7 @@ Therefore, rounding should be applied after the sum.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 A PDE describes how a function of several variables changes in space.
 
@@ -1252,11 +1315,11 @@ For example, the Poisson equation models heat distribution, electrostatics, or
 diffusion.
 
 In low dimensions ($d=1,2,3$), standard numerical methods work well.
-However, when $d$ becomes large (for example $d=6,8,10$), the computational cost
+However, when $d$ becomes large (For example $d=6,8,10$), the computational cost
 grows rapidly.
 
 Tensor Train methods allow us to represent the solution $u$ in compressed
-TT form, while differential operations are approximated directly on the TT
+TT Form, while differential operations are approximated directly on the TT
 cores.
 
 \subsection{Discretization and the Curse of Dimensionality}
@@ -1286,12 +1349,12 @@ cores.
 
 \end{definition}
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 After discretization, solving a PDE means solving a linear system. If each
 dimension has $n$ grid points, the number of unknowns is $n^d$.
 
-Even for moderate values, for example $n=50$ and $d=8$, the system has $50^8
+Even For moderate values, For example $n=50$ and $d=8$, the system has $50^8
 \approx 4 \times 10^{13}$ unknowns — far beyond what can be stored. This
 exponential growth is the result of the curse of dimensionality.
 
@@ -1299,7 +1362,7 @@ exponential growth is the result of the curse of dimensionality.
 \begin{definition}[Constant-coefficient PDE]
 
   A linear second-order elliptic PDE has constant coefficients
-  if it can be written in the form
+  if it can be written in the Form
 
   \[
     -\sum_{k=1}^d c_k \frac{\partial^2 u}{\partial x_k^2}
@@ -1309,7 +1372,7 @@ exponential growth is the result of the curse of dimensionality.
   where the coefficients $c_k \in \mathbb{R}$ are constants (independent of
   $x$).
 
-  In the special case $c_k = 1$ for all $k$, this reduces to the Poisson
+  In the special case $c_k = 1$ For all $k$, this reduces to the Poisson
   equation
 
   \[
@@ -1317,7 +1380,7 @@ exponential growth is the result of the curse of dimensionality.
   \]
 
 \end{definition}
-\paragraph{Discretized form.}
+\paragraph{Discretized Form.}
 
 After discretization on a tensor grid with $n$ points per dimension,
 the PDE becomes a linear system
@@ -1344,7 +1407,7 @@ and $L \in \mathbb{R}^{n \times n}$ is the one-dimensional discrete Laplacian.
 The differential operators are applied using the TTD-based
 procedures described in \cref{sec:differential_operators}.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 When coefficients are constant, each spatial direction contributes the same type
 of operator.
@@ -1355,7 +1418,7 @@ As a result:
 
 \begin{itemize}
   \item $A$ has low TT-rank,
-  \item it can be stored efficiently in TT format,
+  \item it can be stored efficiently in TT Format,
   \item high-dimensional problems become tractable.
 \end{itemize}
 
@@ -1365,7 +1428,7 @@ this strong separability.
 \subsection{PDEs with Variable Coefficients}
 \begin{definition}[Variable-coefficient PDE]
 
-  A second-order elliptic PDE has variable coefficients if it has the form
+  A second-order elliptic PDE has variable coefficients if it has the Form
 
   \[
     -\nabla \cdot (a(x)\nabla u(x)) = f(x),
@@ -1379,7 +1442,7 @@ this strong separability.
 
   depends on the spatial variables.
 \end{definition}
-\paragraph{Discretized form.}
+\paragraph{Discretized Form.}
 
 After discretization, we again obtain a linear system
 
@@ -1389,11 +1452,11 @@ After discretization, we again obtain a linear system
 
 but the matrix $A(a)$ now depends on the spatially varying coefficient.
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 When $a(x)$ varies in space, the operator is no longer a simple Kronecker sum.
 
-However, if the coefficient function admits a low-rank tensor approximation, for
+However, if the coefficient function admits a low-rank tensor approximation, For
 example
 
 \[
@@ -1403,7 +1466,7 @@ example
   a_1(x_1)\cdots a_d(x_d),
 \]
 
-then the discretized operator $A(a)$ can still be approximated in TT format.
+then the discretized operator $A(a)$ can still be approximated in TT Format.
 
 Thus, TT methods extend beyond constant-coefficient problems.
 
@@ -1449,23 +1512,23 @@ We can organize PDEs by increasing structural complexity:
 \text{fully variable coefficients}.
 \]
 
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 A PDE is not just ``one object'' — it is composed of several building blocks:
-diffusion, transport, reaction, and forcing.
+diffusion, transport, reaction, and Forcing.
 
 Each of these components can vary in complexity. This naturally induces a
 \emph{hierarchy (lattice)} of PDE classes.
 
 %==================================================
-\section{Implicit Methods for Solving PDE}
+\section{Implicit Methods For Solving PDE}
 %==================================================
 
 \subsection{Implicit Method}
 
 \begin{definition}[Implicit time discretization]
 
-  Consider a time-dependent PDE of the form
+  Consider a time-dependent PDE of the Form
 
   \[
     \frac{\partial u}{\partial t} = \mathcal{L} u + f,
@@ -1481,7 +1544,7 @@ Each of these components can vary in complexity. This naturally induces a
     \Phi(u^{n+1}, u^n) = 0.
   \]
 
-  In general form:
+  In general Form:
 
   \[
     u^{n+1}
@@ -1494,7 +1557,7 @@ Each of these components can vary in complexity. This naturally induces a
   \]
 
 \end{definition}
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 In an implicit method, the new solution $u^{n+1}$ appears on both sides of the
 equation. This means we must solve a system of equations at every time step.
@@ -1502,9 +1565,9 @@ equation. This means we must solve a system of equations at every time step.
 Advantages:
 
 \begin{itemize}
-  \item Stable for large time steps
+  \item Stable For large time steps
   \item Often unconditionally stable
-  \item Suitable for stiff PDEs
+  \item Suitable For stiff PDEs
 \end{itemize}
 
 Disadvantages:
@@ -1517,7 +1580,7 @@ Disadvantages:
 \subsection{Method A}
 
 %==================================================
-\section{Explicit Methods for Solving PDE}
+\section{Explicit Methods For Solving PDE}
 %==================================================
 \subsection{Explicit Method}
 
@@ -1537,7 +1600,7 @@ Disadvantages:
   \]
 
 \end{definition}
-\paragraph{Explanation (informal).}
+\paragraph{Explanation (inFormal).}
 
 In an explicit method,
 the new value $u^{n+1}$ is computed directly
@@ -1564,8 +1627,8 @@ Disadvantages:
 
 \paragraph{Applicable PDEs.}
 
-This method is intended for homogeneous advection--diffusion equations
-with constant coefficients that can be written in the form
+This method is intended For homogeneous advection--diffusion equations
+with constant coefficients that can be written in the Form
 \[
 u_t
 +
@@ -1683,7 +1746,7 @@ u_t
 -(\alpha+\beta).
 \]
 
-The Forward Euler update is therefore
+The Forward Euler update is thereFore
 
 \[
 u^{n+1}
@@ -1751,6 +1814,209 @@ decrease quadratically with the spatial resolution.
 
 In practice, the time step must satisfy a suitable CFL-type
 stability condition.
+
+The explicit finite-difference method approximates the time derivative
+using a Forward Euler discretization
+\cite{LeVeque2007}.
+
+
+%==================================================
+\section{Validation}
+%==================================================
+
+The implemented numerical methods are verified using analytical
+solutions of the governing partial differential equations and
+convergence studies based on step-size halving.
+
+Analytical solutions provide an exact reference against which the
+numerical approximation can be compared, while step-size halving
+verifies that the implemented method exhibits the expected order of
+convergence. Together, these tests provide evidence For both the
+correctness of the implementation and the consistency of the numerical
+discretization \cite{LeVeque2007}.
+
+%==================================================
+\subsection{Validation using analytical solutions}
+%==================================================
+
+The primary verification procedure compares the numerical solution
+against an analytical solution of the three-dimensional heat equation.
+The analytical solution used in the test cases is taken from Herman
+\cite{HermanPDE} and corresponds to the homogeneous heat equation
+
+\[
+u_t
+=
+\alpha
+\left(
+u_{xx}
++
+u_{yy}
++
+u_{zz}
+\right),
+\]
+
+posed on the unit cube with homogeneous Dirichlet boundary conditions.
+
+The analytical solution has the Form
+
+\[
+u(x,y,z,t)
+=
+\sin(l\pi x)
+\sin(m\pi y)
+\sin(n\pi z)
+\exp\!\left(
+-\alpha\pi^2
+(l^2+m^2+n^2)t
+\right),
+\]
+
+where $l$, $m$ and $n$ denote the spatial modes.
+
+For each test case, the numerical solution is evolved to a prescribed
+time and compared with the corresponding analytical solution. The
+difference between the two solutions provides a direct measure of the
+accuracy of the implemented numerical method.
+
+%==================================================
+\subsection{Convergence study using step-size halving}
+%==================================================
+
+In addition to comparison with analytical solutions, the implemented
+methods are verified using a convergence study based on step-size
+halving.
+
+The same problem is solved repeatedly while reducing the spatial and/or
+temporal discretization by a factor of two. For a numerical method of
+order $p$, the discretization error satisfies
+
+\[
+E(h)
+=
+Ch^p
++
+\mathcal{O}(h^{p+1}),
+\]
+
+where $h$ denotes the discretization size and $C$ is independent of
+$h$ \cite{LeVeque2007}.
+
+Consequently,
+
+\[
+\frac{E(h)}
+     {E(h/2)}
+\approx
+2^p,
+\]
+
+which allows the observed convergence order to be estimated as
+
+\[
+p
+\approx
+\log_2
+\left(
+\frac{E(h)}
+     {E(h/2)}
+\right).
+\]
+
+Agreement between the observed and theoretical convergence orders
+provides additional verification that the numerical implementation is
+consistent with the underlying finite-difference discretization.
+
+%==================================================
+\subsection{Comparison of Full-Grid and TTD Solvers}
+\label{sec:solver_comparison}
+%==================================================
+
+\paragraph{Purpose of the comparison.}
+In addition to analytical solutions and step-size convergence studies, we
+compare the full-grid explicit finite-difference solver with the TTD
+compressed solver for high-dimensional advection-diffusion PDEs. The
+comparison evaluates accuracy, computational scaling, and performance.
+
+\paragraph{Explanation (inFormal).}
+The full-grid solver provides a reference for the compressed solver. Comparing
+their results and resource use helps show when the TT representation is
+accurate and computationally useful.
+
+\paragraph{Benchmark setup.}
+Both solvers target advection-diffusion-reaction equations on the
+$d$-dimensional domain $\Omega = [0, 1]^d$.
+
+\paragraph{Full-grid solver.}
+The full-grid solver evolves dense tensors
+$U \in \mathbb{R}^{n_1 \times \dots \times n_d}$ using explicit
+finite-difference stencils. Each time step requires $\mathcal{O}(n^d)$
+operations, so its cost grows exponentially with the dimension $d$.
+
+\paragraph{Explanation (inFormal).}
+The full-grid method stores every value on the tensor grid. It provides a
+direct reference solution for comparison, but its storage and computation
+become expensive as the number of dimensions increases.
+
+\paragraph{TTD compressed solver.}
+The TTD solver represents the solution using cores
+$(G_1, \dots, G_d)$ with TT-ranks $\mathbf{r} = (r_1, \dots, r_{d-1})$.
+Directional derivatives, divergence, and the Laplacian are computed directly
+on the cores without expanding the full array
+(\cref{sec:differential_operators}). TT rounding controls rank growth after
+operations (\cref{alg:rounding}); with ranks bounded by $r$, the stated step
+complexity is $\mathcal{O}(d n r^3)$.
+
+\paragraph{Explanation (inFormal).}
+The compressed solver stores the solution through its TT cores rather than
+storing every grid value. Its efficiency depends on the TT-ranks remaining
+moderate, and its approximation accuracy is assessed against the full-grid
+reference.
+
+\paragraph{Evaluation metrics.}
+The benchmark compares execution time, speedup, solution error, and storage
+requirements.
+
+\paragraph{Wall-clock execution time.}
+The total computation time is recorded over $N_{\text{steps}}$ time iterations
+for each solver, giving $T_{\text{full}}$ and $T_{\text{TTD}}$.
+
+\paragraph{Speedup factor.}
+The speedup is the ratio of full-grid execution time to TTD execution time:
+$S = \dfrac{T_{\text{full}}}{T_{\text{TTD}}}$.
+
+\paragraph{Relative solution errors.}
+At the final simulation time $T_{\text{final}}$, the TT representation is
+evaluated as $\widehat{U}_{\text{TTD}} = \text{TT-Evaluate}(G_1, \dots, G_d)$
+and compared with the full-grid reference $U_{\text{full}}$:
+\[
+\begin{aligned}
+E_{L_2} &= \frac{\|U_{\text{full}} - \widehat{U}_{\text{TTD}}\|_F}
+         {\|U_{\text{full}}\|_F}, \\
+E_{\infty} &= \frac{\|U_{\text{full}} - \widehat{U}_{\text{TTD}}\|_\infty}
+          {\|U_{\text{full}}\|_\infty}.
+\end{aligned}
+\]
+
+\paragraph{Memory storage footprint.}
+The full-grid representation stores $\mathcal{O}(n^d)$ entries, while the TT
+representation stores $\mathcal{O}(d n r^2)$ entries when the ranks are bounded
+by $r$.
+
+\begin{table}[ht]
+\centering
+\caption{Systematic comparison between Full-Grid and TTD Solvers.}
+\label{tab:solver_comparison}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Feature / Metric} & \textbf{Full-Grid (NDArray) Solver} & \textbf{TTD Compressed Solver} \\ \hline
+Memory Complexity & $\mathcal{O}(n^d)$ & $\mathcal{O}(d n r^2)$ \\ \hline
+Time Step Complexity & $\mathcal{O}(n^d)$ & $\mathcal{O}(d n r^3)$ \\ \hline
+Curse of Dimensionality & Present & Mitigated (for moderate rank $r$) \\ \hline
+Rank Compression & N/A & Preserves ranks $r_k \le r_{\max}$ via TT Rounding \\ \hline
+\end{tabular}
+\end{table}
 
 %==================================================
 \section{Conclusion and Further Reading}
