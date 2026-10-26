@@ -1,7 +1,7 @@
 import numpy as np
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
-from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
+from wren_pde_solver.boundary import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
 from wren_pde_solver.pde_types import DType, NDArray, Vector
 from wren_pde_solver.solution_builder import EMPTY_SOLUTION_BUILDER

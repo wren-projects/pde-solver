@@ -1,5 +1,5 @@
 import numpy as np
-from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
+from wren_pde_solver.boundary import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionNoDiffusionPDE
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
 

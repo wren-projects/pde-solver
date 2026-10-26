@@ -2,10 +2,13 @@ from collections.abc import Callable
 
 import numpy as np
 import numpy.typing as npt
+from numpy.lib.mixins import NDArrayOperatorsMixin
 
 DType = np.float64
 
 type NDArray = npt.NDArray[DType]
+
+type NDArray_like = NDArrayOperatorsMixin | NDArray
 
 type Scalar = DType
 type Vector = np.ndarray[tuple[int], np.dtype[DType]]

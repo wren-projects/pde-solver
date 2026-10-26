@@ -1,4 +1,4 @@
-from wren_pde_solver import boundary_conditions
+from wren_pde_solver import boundary
 from wren_pde_solver import pde as partial_differential_equations
 from wren_pde_solver.abc import PDE, BoundaryCondition, Solver
 from wren_pde_solver.solution_builder import (
@@ -14,6 +14,6 @@ __all__ = [
     "CompleteSolutionBuilder",
     "SolutionBuilder",
     "Solver",
-    "boundary_conditions",
+    "boundary",
     "partial_differential_equations",
 ]

@@ -8,7 +8,7 @@ from wren_common.tests import (
     tensor_boundary,
     tensor_interior,
 )
-from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
+from wren_pde_solver.boundary import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde_types import NDArray
 
 
