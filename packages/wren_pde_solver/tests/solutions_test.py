@@ -4,12 +4,11 @@ from typing import cast
 
 import numpy as np
 import pytest
-from wren_common.types import NDArray, Vector
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
 from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
-from wren_pde_solver.pde_types import DType, Scalar
+from wren_pde_solver.pde_types import DType, NDArray, Scalar, Vector
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
 
 DEFAULT_K = DType(1.0)
@@ -24,8 +23,8 @@ class PDETestCase[T: PDE]:
     name: str
     pde: T
     boundary_condition: BoundaryCondition
-    initial_condition: NDArray[DType]
-    expected_solution: Callable[[float], NDArray[DType]]
+    initial_condition: NDArray
+    expected_solution: Callable[[float], NDArray]
     delta_time: Scalar
     steps: int
     atol: float = DEFAULT_ATOL
@@ -34,7 +33,7 @@ class PDETestCase[T: PDE]:
 
 def _make_unit_cube_grid(
     shape: tuple[int, int, int],
-) -> tuple[NDArray[DType], NDArray[DType], NDArray[DType]]:
+) -> tuple[NDArray, NDArray, NDArray]:
     """
     Create interior grid points on the unit cube.
 
@@ -50,7 +49,7 @@ def _make_unit_cube_grid(
     return np.meshgrid(x, y, z, indexing="ij")
 
 
-def _make_spacial_step(shape: tuple[int, ...]) -> Vector[DType]:
+def _make_spacial_step(shape: tuple[int, ...]) -> Vector:
     """Compute grid spacing for an interior grid on the unit cube."""
     return 1.0 / (np.array(shape) + 1)
 
@@ -90,7 +89,7 @@ def make_heat_3d_mode_111_case(
     x, y, z = _make_unit_cube_grid(shape)
     decay_rate = 3 * np.pi**2 * DEFAULT_K
 
-    def exact_solution(time: float) -> NDArray[DType]:
+    def exact_solution(time: float) -> NDArray:
         """
         Analytical solution of the benchmark problem.
 
@@ -98,7 +97,7 @@ def make_heat_3d_mode_111_case(
             = sin(πx) sin(πy) sin(πz) exp(-3π²kt)
         """
         return cast(
-            NDArray[DType],
+            NDArray,
             (
                 np.sin(np.pi * x)
                 * np.sin(np.pi * y)
@@ -136,7 +135,7 @@ PDE_TEST_CASES = [
 
 def _advance_case(
     case: PDETestCase[HomogeneousNoAdvectionScalarDiffusionPDE],
-) -> NDArray[DType]:
+) -> NDArray:
     """Run finite differences through the public solver interface."""
     solver = FiniteDifferences()
 
