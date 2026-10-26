@@ -1,8 +1,15 @@
+from typing import cast
+
 import numpy as np
+from numpy._typing import NDArray
 from wren_pde_solver import PDE, CompleteSolutionBuilder
+from wren_pde_solver.pde_types import DType
+from wren_ttd import TTD
 
 
-def compute_spacial_order[T: PDE](solver_builder: CompleteSolutionBuilder[T]) -> float:
+def compute_spacial_order[T: PDE, S: NDArray[DType] | TTD[DType]](
+    solver_builder: CompleteSolutionBuilder[T, S],
+) -> float:
     """
     Compute the order of a given solver in a given problem using step doubling.
 
@@ -29,21 +36,28 @@ def compute_spacial_order[T: PDE](solver_builder: CompleteSolutionBuilder[T]) ->
     """
     dims = solver_builder.initial_condition.ndim
 
-    assert all(n % 4 == 1 for n in solver_builder.initial_condition.shape)  # pyright: ignore[reportAny]
+    assert all(n % 4 == 1 for n in solver_builder.initial_condition.shape)
 
     # We now need to gather the different computations at the same points
     # (i.e. at the grid points the least-fine solver uses)
-    solutionA = solver_builder.compute()[(np.s_[::4],) * dims]
+    solutionA = cast(S, solver_builder.compute()[(np.s_[::4],) * dims])
 
     solver_builder = solver_builder.with_spatial_step(
         solver_builder.spatial_step * 2
-    ).with_initial_condition(solver_builder.initial_condition[(np.s_[::2],) * dims])
+    ).with_initial_condition(
+        cast(S, solver_builder.initial_condition[(np.s_[::2],) * dims])
+    )
 
-    solutionB = (solver_builder.compute())[(np.s_[::2],) * dims]
+    solutionB = cast(S, (solver_builder.compute())[(np.s_[::2],) * dims])
 
     solver_builder = solver_builder.with_spatial_step(
         solver_builder.spatial_step * 2
-    ).with_initial_condition(solver_builder.initial_condition[(np.s_[::2],) * dims])
+    ).with_initial_condition(
+        cast(
+            S,
+            solver_builder.initial_condition[(np.s_[::2],) * dims],
+        )
+    )
 
     solutionC = solver_builder.compute()
 
@@ -53,4 +67,4 @@ def compute_spacial_order[T: PDE](solver_builder: CompleteSolutionBuilder[T]) ->
     b = solutionB[(np.s_[BORDER_SIZE:-BORDER_SIZE],) * dims]
     c = solutionC[(np.s_[BORDER_SIZE:-BORDER_SIZE],) * dims]
 
-    return -np.log2(np.linalg.norm(a - b) / np.linalg.norm(b - c))
+    return cast(float, -np.log2(np.linalg.norm(a - b) / np.linalg.norm(b - c)))

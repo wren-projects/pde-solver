@@ -137,7 +137,7 @@ def get_vector_interior(tensor: NDArray, order: int = 1) -> NDArray:
     """Return the interior of the tensor (a vector function)."""
     slices = (None, *tuple(slice(order, -order) for _ in range(tensor.ndim - 1)))
 
-    return tensor[slices]  # pyright: ignore[reportCallIssue, reportArgumentType, reportUnknownVariableType]
+    return tensor[slices]
 
 
 @pytest.mark.parametrize(

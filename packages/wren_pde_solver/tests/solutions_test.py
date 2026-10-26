@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
-from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
+from wren_pde_solver.boundary import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionScalarDiffusionPDE
 from wren_pde_solver.pde_types import DType, NDArray, Scalar, Vector
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
