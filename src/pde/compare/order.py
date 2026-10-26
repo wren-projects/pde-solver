@@ -1,8 +1,8 @@
 import numpy as np
-from wren_pde_solver import PDE, SolverBuilderReady
+from wren_pde_solver import PDE, CompleteSolutionBuilder
 
 
-def compute_spacial_order[T: PDE](solver_builder: SolverBuilderReady[T]) -> float:
+def compute_spacial_order[T: PDE](solver_builder: CompleteSolutionBuilder[T]) -> float:
     """
     Compute the order of a given solver in a given problem using step doubling.
 
@@ -27,33 +27,30 @@ def compute_spacial_order[T: PDE](solver_builder: SolverBuilderReady[T]) -> floa
     the spacial order of f.
 
     """
-    dims = solver_builder.get_initial_condition().ndim
+    dims = solver_builder.initial_condition.ndim
 
-    assert all(n % 4 == 1 for n in solver_builder.get_initial_condition().shape)  # pyright: ignore[reportAny]
+    assert all(n % 4 == 1 for n in solver_builder.initial_condition.shape)  # pyright: ignore[reportAny]
 
     # We now need to gather the different computations at the same points
     # (i.e. at the grid points the least-fine solver uses)
     solutionA = solver_builder.compute()[(np.s_[::4],) * dims]
 
-    solver_builder = solver_builder.set_spatial_step(
-        solver_builder.get_spatial_step() * 2
-    ).set_initial_condition(
-        solver_builder.get_initial_condition()[(np.s_[::2],) * dims]
-    )
+    solver_builder = solver_builder.with_spatial_step(
+        solver_builder.spatial_step * 2
+    ).with_initial_condition(solver_builder.initial_condition[(np.s_[::2],) * dims])
 
     solutionB = (solver_builder.compute())[(np.s_[::2],) * dims]
 
-    solver_builder = solver_builder.set_spatial_step(
-        solver_builder.get_spatial_step() * 2
-    ).set_initial_condition(
-        solver_builder.get_initial_condition()[(np.s_[::2],) * dims]
-    )
+    solver_builder = solver_builder.with_spatial_step(
+        solver_builder.spatial_step * 2
+    ).with_initial_condition(solver_builder.initial_condition[(np.s_[::2],) * dims])
 
     solutionC = solver_builder.compute()
 
     # don't forget to remove boundaries cause they can be very messy
-    point_wise_orders = -np.log2(
-        np.abs((solutionA - solutionB) / (solutionB - solutionC))
-    )[(np.s_[3:-3],) * dims]
-    # print(point_wise_orders)
-    return np.average(point_wise_orders)  # pyright: ignore[reportAny]
+    BORDER_SIZE = 3
+    a = solutionA[(np.s_[BORDER_SIZE:-BORDER_SIZE],) * dims]
+    b = solutionB[(np.s_[BORDER_SIZE:-BORDER_SIZE],) * dims]
+    c = solutionC[(np.s_[BORDER_SIZE:-BORDER_SIZE],) * dims]
+
+    return -np.log2(np.linalg.norm(a - b) / np.linalg.norm(b - c))

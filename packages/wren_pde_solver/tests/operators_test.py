@@ -79,14 +79,14 @@ def _autocompute_laplace(function: sp.Expr) -> sp.Expr:
 
 def _sample_vector_function(
     function: list[sp.Expr],
-) -> np.ndarray:
+) -> NDArray:
     return np.array([_sample_function(fce, arg_num=len(function)) for fce in function])
 
 
 def _sample_function(
     function: sp.Expr,
     arg_num: int | None = None,
-) -> np.ndarray:
+) -> NDArray:
     args = _infer_args(function) if arg_num is None else VARIABLES[:arg_num]
 
     grids = np.meshgrid(*([GRID_1D] * len(args)), indexing="ij")
@@ -133,17 +133,17 @@ TEST_LAPLACES = [
 
 # we define this function here as it is highly specific and unlikely to be useful
 # elsewhere
-def get_vector_interior(tensor: np.ndarray, order: int = 1) -> np.ndarray:
+def get_vector_interior(tensor: NDArray, order: int = 1) -> NDArray:
     """Return the interior of the tensor (a vector function)."""
     slices = (None, *tuple(slice(order, -order) for _ in range(tensor.ndim - 1)))
 
-    return tensor[slices]
+    return tensor[slices]  # pyright: ignore[reportCallIssue, reportArgumentType, reportUnknownVariableType]
 
 
 @pytest.mark.parametrize(
     ("tensor", "grad"), zip(TEST_TENSORS, TEST_GRADIENTS, strict=True)
 )
-def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
+def test_gradient(tensor: NDArray, grad: np.ndarray) -> None:
     """Test numerical gradient is close to the analytical one."""
     got = gradient(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
 
@@ -153,7 +153,7 @@ def test_gradient(tensor: np.ndarray, grad: np.ndarray) -> None:
 @pytest.mark.parametrize(
     ("tensor", "div"), zip(TEST_VECTOR_TENSORS, TEST_DIVERGENCES, strict=True)
 )
-def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
+def test_divergence(tensor: NDArray, div: np.ndarray) -> None:
     """Test numerical divergence is close to the analytical one."""
     got = divergence(tensor, np.array([SPACIAL_STEP] * (tensor.ndim - 1)))
     np.testing.assert_allclose(tensor_interior(got), tensor_interior(div))
@@ -162,7 +162,7 @@ def test_divergence(tensor: np.ndarray, div: np.ndarray) -> None:
 @pytest.mark.parametrize(
     ("tensor", "lap"), zip(TEST_TENSORS, TEST_LAPLACES, strict=True)
 )
-def test_laplace(tensor: np.ndarray, lap: np.ndarray) -> None:
+def test_laplace(tensor: NDArray, lap: np.ndarray) -> None:
     """Test numerical Laplace is close to the analytical one."""
     got = laplace(tensor, np.array([SPACIAL_STEP] * tensor.ndim))
     np.testing.assert_allclose(
