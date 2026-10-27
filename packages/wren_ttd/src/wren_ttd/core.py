@@ -851,11 +851,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "TDD.__setitem__ only supports indexing a single mode at a time"
             )
 
-        for i, core in zip(key, self.data, strict=False):
+        for axis, (i, core) in enumerate(zip(key, self.data, strict=False)):
             if i == slice(None):
                 continue
 
-            core[:, i, :] = value
+            # copy before writing: the core may share memory with the caller's array
+            updated = core.copy()
+            updated[:, i, :] = value
+            self.data[axis] = updated
 
     @override
     def __len__(self) -> int:
