@@ -815,7 +815,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         raise NotImplementedError
 
-    def __setitem__(self, key: Sequence[Index1D], value: Literal[0] = 0) -> None:
+    def __setitem__(self, key: Sequence[Index1D], value: Scalar) -> None:
         """
         Set a subtensor of the TTD.
 
@@ -828,8 +828,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             Index for each addressed mode. A single ``int`` or ``slice``
             addresses the first mode; a sequence addresses one mode per
             entry. Negative indices count from the end of the mode.
-        value : int, optional
-            Value to set. Default is 0.
+        value : Scalar
+            Value to set.
 
         See Also
         --------
@@ -852,6 +852,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "slice, with all other modes set to ':'"
             )
 
+        only_zero = np.equal(value, 0)
+
+        if not only_zero:
+            ops.subtract(self, value, out=self)
+
         for axis, (i, core) in enumerate(zip(key, self.data, strict=False)):
             if i == slice(None):
                 continue
@@ -860,6 +865,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             updated = core.copy()
             updated[:, i, :] = value
             self.data[axis] = updated
+
+        if not only_zero:
+            ops.add(self, value, out=self)
 
     @override
     def __len__(self) -> int:
