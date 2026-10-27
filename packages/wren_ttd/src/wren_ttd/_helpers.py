@@ -88,9 +88,9 @@ def contract_cores[DType: np.floating](
 
     Parameters
     ----------
-    a_cores : Iterable[Core[DType]]
+    a_cores : Sequence[Core[DType]]
         The cores of the first tensor.
-    b_cores : Iterable[Core[DType]]
+    b_cores : Sequence[Core[DType]]
         The cores of the second tensor.
     dtype : np.dtype[DType]
         The dtype of the resulting matrix. Should match the dtype of the cores.
