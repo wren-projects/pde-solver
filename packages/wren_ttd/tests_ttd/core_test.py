@@ -87,7 +87,7 @@ def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
 )
 def test_setitem_zero(tensor: TestTensor, ttd: TestTTD, index: int | slice) -> None:
     """Test zeroing a single mode addressed by an integer or a slice."""
-    for axis, length in enumerate(tensor.shape):
+    for axis, _ in enumerate(tensor.shape):
         leading = (slice(None),) * axis
         trailing = (slice(None),) * (len(tensor.shape) - axis - 1)
         key = (*leading, index, *trailing)
