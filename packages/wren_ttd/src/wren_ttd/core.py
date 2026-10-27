@@ -821,8 +821,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Only supported indexing is targeting a single mode with either an integer
         or a slice. The rest of the indices have to be full slices (i.e. ``:``).
 
-        Performance is poor for nonzero values as two TTD additions are
-        performed. Note that this also inflates the ranks of the TTD by 2.
+        Note that for nonzero values this performs TTD addition twice which may
+        be slow and also inflates the ranks of the TTD by 2.
 
         Parameters
         ----------
