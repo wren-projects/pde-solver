@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
+from wren_common.tests import TEST_SCALARS
 
 from .common import TEST_TTD, TestTensor, TestTTD, assert_default_epsilon
 
@@ -85,7 +86,8 @@ def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
         slice(None, None, -1),
     ],
 )
-def test_setitem_zero(tensor: TestTensor, ttd: TestTTD, index: int | slice) -> None:
+@pytest.mark.parametrize("value", TEST_SCALARS)
+def test_setitem(tensor: TestTensor, ttd: TestTTD, index: int | slice, value) -> None:
     """Test zeroing a single mode addressed by an integer or a slice."""
     for axis, _ in enumerate(tensor.shape):
         leading = (slice(None),) * axis
@@ -93,12 +95,12 @@ def test_setitem_zero(tensor: TestTensor, ttd: TestTTD, index: int | slice) -> N
         key = (*leading, index, *trailing)
 
         expected = tensor.copy()
-        expected[key] = 0
+        expected[key] = value
 
         result = ttd.copy()
-        result[key] = 0
+        result[key] = value
 
-        assert_default_epsilon(result, expected)
+        assert_default_epsilon(result, expected, scale=value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))

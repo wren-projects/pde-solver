@@ -836,9 +836,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TDD.__getitem__
 
         """
-        if not np.equal(value, 0):
-            raise ValueError("TDD.__setitem__ only supports setting to 0")
-
         if len(key) > self.ndim:
             raise IndexError(f"Too many indices: {len(key)} > {self.ndim}")
 
@@ -863,7 +860,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
             # copy before writing: the core may share memory with the caller's array
             updated = core.copy()
-            updated[:, i, :] = value
+            updated[:, i, :] = 0
             self.data[axis] = updated
 
         if not only_zero:
