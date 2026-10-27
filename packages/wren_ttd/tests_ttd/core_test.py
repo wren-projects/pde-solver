@@ -3,7 +3,7 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from wren_common.tests import TestTensor, TEST_SCALARS
+from wren_common.tests import TEST_SCALARS, TestTensor
 from wren_common.types import Scalar
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
