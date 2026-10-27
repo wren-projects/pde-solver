@@ -848,7 +848,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         if not only_single_concrete:
             raise IndexError(
-                "TDD.__setitem__ only supports indexing a single mode at a time"
+                "TTD.__setitem__ requires exactly one mode indexed by an int or "
+                "slice, with all other modes set to ':'"
             )
 
         for axis, (i, core) in enumerate(zip(key, self.data, strict=False)):
