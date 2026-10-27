@@ -5,7 +5,6 @@ from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
 from typing import (
     Any,
-    Literal,
     ParamSpec,
     SupportsIndex,
     cast,
