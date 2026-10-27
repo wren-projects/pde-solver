@@ -1,7 +1,6 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from copy import deepcopy
-from typing import cast
 
 import numpy as np
 import pytest
@@ -379,7 +378,7 @@ def test_stack_single(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test that TTD stack works with single tensor."""
     assert_default_epsilon(
         np.stack(ttd),
-        np.stack(cast(Sequence[TestTensor], tensor)),
+        np.stack(list(tensor)),
     )
 
 
