@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 from wren_common.tests import (
     TEST_PAIR_TENSORS,
@@ -20,7 +22,7 @@ TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
 ]
 
 
-type EpsilonComparable = NDArray | TTD | Scalar
+type EpsilonComparable = NDArray[Any] | TTD[Any] | Scalar
 
 
 def assert_default_epsilon(
