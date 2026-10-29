@@ -443,30 +443,36 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "single-dimensional array."
             )
 
-        # Multiply all cores together. This is equivalent to a repeated
-        # tensordot, but faster since einsum does compute order optimizations.
-        # The generated expression looks like ABC,CDE,EFG,…, XYZ->ABCD…YZ, where
-        # A and Z are singleton dimensions (from TTD) making the final
-        # (squeezed) result BCD…Y.
+        if any(mode == 0 for mode in self.shape):
+            return np.empty((0,), dtype=dtype).reshape(self.shape)
 
-        summation_indices: list[Any] = [
-            item
-            for i, core in enumerate(self.data)
-            for item in (core, (2 * i, 2 * i + 1, 2 * i + 2))
-        ]
-
-        # einsum accepts besides a string, also an alternating list of indices
-        # and tensors, e.g., (0,1), A, (2,3), B, (4,5), C, …
-
-        result = cast(
-            NDArray[DType],
-            np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+        intermediate_sizes: npt.NDArray[np.int64] = np.cumprod(self.shape)
+        intermediate_rank_sizes: npt.NDArray[np.int64] = intermediate_sizes * np.array(
+            (*self.ranks, 1)
         )
 
-        # remove first and last singleton dimensions
-        squeezed = result.squeeze((0, -1))
+        largest_buffer_size: np.int64 = max(
+            intermediate_sizes.max(), intermediate_rank_sizes.max()
+        )
 
-        return squeezed if dtype is None else squeezed.astype(dtype)
+        buffer_a = np.empty(largest_buffer_size, dtype=self.dtype)
+        buffer_b = np.empty(largest_buffer_size, dtype=self.dtype)
+
+        intermediate = np.ones((1, 1), dtype=self.dtype)
+
+        for size, core in zip(intermediate_rank_sizes, self.data, strict=True):
+            l, n, r = core.shape
+            intermediate: Matrix[DType] = np.matmul(
+                intermediate,
+                core.reshape(l, -1),
+                out=buffer_a[:size].reshape(-1, n * r),
+                dtype=self.dtype,
+            ).reshape(-1, r)
+            buffer_a, buffer_b = buffer_b, buffer_a
+
+        result = intermediate.reshape(self.shape)
+
+        return result if dtype is None else result.astype(dtype)
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
