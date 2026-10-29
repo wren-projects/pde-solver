@@ -35,5 +35,14 @@ generate-pdes:
 
 check +files=code_folders: (lint files) test (typecheck files)
 
+bench *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks {{ args }}
+
+bench-ttd *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks/bench_ttd.py {{ args }}
+
+bench-dense *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks/bench_dense.py {{ args }}
+
 generate-math-doc:
     tectonic -Z shell-escape docs/main.tex
