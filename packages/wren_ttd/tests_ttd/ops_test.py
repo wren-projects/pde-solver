@@ -1,4 +1,5 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
+import importlib
 from collections.abc import Callable
 from copy import deepcopy
 
@@ -10,7 +11,7 @@ from wren_common.tests import (
     TestTensor,
     TestTensorPair,
 )
-from wren_ttd import TTD
+from wren_ttd import TTD, ops
 
 from .common import (
     TEST_PAIR_TTD,
@@ -253,6 +254,32 @@ def test_multiplication(tensors: TestTensorPair, ttds: TestTTDPair) -> None:
     ttd_copy = ttd_a.copy()
     ttd_copy *= ttd_b
     assert_default_epsilon(ttd_copy, tensor_product)
+
+
+def test_multiplication_parallel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that the parallel Hadamard product matches the sequential one."""
+    tensor_a = np.arange(24, dtype=np.float64).reshape(2, 3, 4)
+    ttd_a = TTD.from_ndarray(tensor_a)
+    ttd_b = TTD.from_ndarray(tensor_a + 1.0)
+
+    monkeypatch.setenv("WREN_TTD_NUM_THREADS", "1")
+    sequential = np.multiply(ttd_a, ttd_b)
+
+    # Force the parallel branch even for this tiny tensor. Note that
+    # ``wren_ttd.ops.multiply`` resolves to the function, not the module.
+    multiply_module = importlib.import_module("wren_ttd.ops.multiply")
+    monkeypatch.setattr(multiply_module, "_PARALLEL_MIN_BYTES", 0)
+    monkeypatch.setenv("WREN_TTD_NUM_THREADS", "3")
+    parallel = np.multiply(ttd_a, ttd_b)
+
+    for actual, expected in zip(parallel.data, sequential.data, strict=True):
+        np.testing.assert_array_equal(actual, expected)
+
+    out = TTD.zeros(ttd_a.shape, dtype=ttd_a.dtype)
+    result = ops.multiply(ttd_a, ttd_b, out=out)
+    assert result is out
+    for actual, expected in zip(out.data, sequential.data, strict=True):
+        np.testing.assert_array_equal(actual, expected)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
