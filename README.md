@@ -22,6 +22,7 @@ just typecheck
 just format
 just test
 just coverage
+just bench
 ```
 
 The project also makes use of script-generated code for the structure of PDEs.

@@ -17,6 +17,7 @@ dev = [
   "pytest~=9.0",
   "pytest-cov~=7.1",
   "pytest-xdist~=3.8",
+  "pytest-benchmark~=5.2",
 ]
 
 [build-system]

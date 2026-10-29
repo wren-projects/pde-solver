@@ -32,4 +32,13 @@ generate-pdes:
     {{ uv }} run ruff check {{ pde_file }} --fix
     {{ uv }} run ruff format {{ pde_file }}
 
+bench *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks {{ args }}
+
+bench-ttd *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks/bench_ttd.py {{ args }}
+
+bench-dense *args:
+    {{ uv }} run pytest packages/wren_ttd/benchmarks/bench_dense.py {{ args }}
+
 check: lint test typecheck
