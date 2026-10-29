@@ -23,6 +23,7 @@ from wren_ttd import ops
 from wren_ttd._helpers import (
     orthogonalize_right,
     reverse_cores,
+    smallest_core,
     to_int_tuple,
     truncation_parameter,
 )
@@ -71,17 +72,20 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         super().__init__()
 
-        if dtype is not None:
-            self.dtype = dtype
-            self.data = [core.astype(self.dtype) for core in data]
-        else:
-            self.data = list(data)
-            self.dtype = self.data[0].dtype
-            if not all(core.dtype == self.dtype for core in self.data):
-                raise ValueError("All cores must have the same dtype")
+        self.data = list(data)
 
         if not self.data:
             raise ValueError("TTD must have at least one core")
+
+        if dtype is None:
+            self.dtype = self.data[0].dtype
+            if not all(core.dtype == self.dtype for core in self.data):
+                raise ValueError("All cores must have the same dtype")
+        else:
+            self.dtype = dtype
+            # Avoid copying cores that already have the requested dtype.
+            if any(core.dtype != dtype for core in self.data):
+                self.data = [core.astype(dtype, copy=False) for core in self.data]
 
         for a, b in zip(self.data, self.data[1:], strict=False):
             if a.shape[2] != b.shape[0]:
@@ -196,7 +200,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
-        return TTD(cores, dtype=dtype)
+        return TTD(cores)
 
     @staticmethod
     def zeros[DT: np.floating](
@@ -286,7 +290,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [10., 10.]])
 
         """
-        return TTD.ones(shape, dtype=dtype) * fill_value
+        if fill_value == 0:
+            return TTD.zeros(shape, dtype=dtype)
+
+        if fill_value == 1:
+            return TTD.ones(shape, dtype=dtype)
+
+        # directly scale the smallest core
+        base = TTD.ones(shape, dtype=dtype)
+        core, _ = smallest_core(base.data)
+        core *= fill_value
+        return base
 
     @override
     def __repr__(self) -> str:
@@ -466,7 +480,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         # remove first and last singleton dimensions
         squeezed = result.squeeze((0, -1))
 
-        return squeezed if dtype is None else squeezed.astype(dtype)
+        return squeezed if dtype is None else squeezed.astype(dtype, copy=False)
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
@@ -636,7 +650,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [1., 1.]])
 
         """
-        return self.__class__((a.copy() for a in self.data), dtype=self.dtype)
+        return self.__class__(a.copy() for a in self.data)
 
     def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
         """
@@ -741,7 +755,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         (4, 3, 2)
 
         """
-        return TTD(reverse_cores(self.data), dtype=self.dtype)
+        return TTD(reverse_cores(self.data))
 
     @overload
     def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
