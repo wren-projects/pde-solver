@@ -21,7 +21,7 @@ from .transpose import transpose
 def tensordot[DType: np.floating](
     a: TTD[DType],
     b: TTD[DType],
-    axes: int | tuple[Sequence[int], Sequence[int]] = 2,
+    axes: int | tuple[int, int] | tuple[Sequence[int], Sequence[int]] = 2,
 ) -> TTD[DType] | DType:
     """
     Compute the tensor dot product of two TTDs along the specified axes.
