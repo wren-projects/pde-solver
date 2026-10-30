@@ -127,15 +127,16 @@ def test_tensordot_last_axis(ttd: TTD[np.float64], benchmark: BenchmarkFixture) 
 
 
 def test_round(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
-    """
-    Benchmark one full rounding sweep.
+    """Benchmark one full rounding sweep."""
 
-    The truncation tolerance is set to zero so that the random, full-rank
-    cores are not collapsed to rank one and the cost of the QR/SVD sweeps is
-    measured instead of just the cost of a single truncation.
+    def setup() -> tuple[tuple[TTD[np.float64]], dict[str, object]]:
+        return (ttd.copy(),), {}
 
-    """
-    benchmark.pedantic(ttd.round, kwargs={"epsilon": 0.0}, rounds=3)
+    benchmark.pedantic(
+        lambda x: x.round(epsilon=0.0),
+        setup=setup,
+        rounds=3,
+    )
 
 
 def test_neg(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
@@ -161,24 +162,52 @@ def test_swapaxes(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
 
 def test_setitem_zero(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
     """Benchmark setting a single entry to zero."""
-    benchmark(ttd.__setitem__, (0,), 0.0)
+
+    def setup() -> tuple[tuple[TTD[np.float64]], dict[str, object]]:
+        return (ttd.copy(),), {}
+
+    benchmark.pedantic(
+        lambda x: x.__setitem__((0,), 0.0),
+        setup=setup,
+    )
 
 
 def test_setitem_zero_slice(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
     """Benchmark zeroing a slice of the first mode."""
-    benchmark(ttd.__setitem__, (slice(1, -1),), 0.0)
+
+    def setup() -> tuple[tuple[TTD[np.float64]], dict[str, object]]:
+        return (ttd.copy(),), {}
+
+    benchmark.pedantic(
+        lambda x: x.__setitem__((slice(1, -1),), 0.0),
+        setup=setup,
+    )
 
 
 def test_setitem_nonzero(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
     """Benchmark setting a single entry to a nonzero value."""
-    benchmark(ttd.__setitem__, (0,), 1.0)
+
+    def setup() -> tuple[tuple[TTD[np.float64]], dict[str, object]]:
+        return (ttd.copy(),), {}
+
+    benchmark.pedantic(
+        lambda x: x.__setitem__((0,), 1.0),
+        setup=setup,
+    )
 
 
 def test_setitem_nonzero_slice(
     ttd: TTD[np.float64], benchmark: BenchmarkFixture
 ) -> None:
     """Benchmark setting a slice of the first mode to a nonzero value."""
-    benchmark(ttd.__setitem__, (slice(1, -1),), 1.0)
+
+    def setup() -> tuple[tuple[TTD[np.float64]], dict[str, object]]:
+        return (ttd.copy(),), {}
+
+    benchmark.pedantic(
+        lambda x: x.__setitem__((slice(1, -1),), 1.0),
+        setup=setup,
+    )
 
 
 def test_zeros_like(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
