@@ -91,7 +91,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             bl, _, _ = b.shape
             if ar != bl:
                 raise ValueError(
-                    f"Missmatch in adjacent core ranks: {ar} does not match {bl}"
+                    f"Mismatch in adjacent core ranks: {ar} does not match {bl}"
                 )
 
         if not (self.data[0].shape[0] == self.data[-1].shape[2] == 1):

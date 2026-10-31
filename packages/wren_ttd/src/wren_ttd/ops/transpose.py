@@ -146,9 +146,9 @@ def transpose[DType: np.floating](
     return TTD(cores, dtype=ttd.dtype)
 
 
-def _is_identity_transpose(permutations: Iterable[int]) -> bool:
-    return all(p == i for i, p in enumerate(permutations))
+def _is_identity_transpose(permutation: Iterable[int]) -> bool:
+    return all(p == i for i, p in enumerate(permutation))
 
 
-def _is_full_transpose(permutations: Sequence[int]) -> bool:
-    return _is_identity_transpose(reversed(permutations))
+def _is_full_transpose(permutation: Sequence[int]) -> bool:
+    return _is_identity_transpose(reversed(permutation))
