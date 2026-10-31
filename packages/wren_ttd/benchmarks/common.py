@@ -14,9 +14,12 @@ type Float = np.float64
 DTYPE = np.dtype(np.float64)
 
 # Tensor grids for benchmarks that stay in the compressed TTD representation.
-TT_DIMS = (3, 6, 10)
-TT_MODES = (16, 128)  # , 1024, 4096
-TT_RANKS = (2, 8)  # , 24, 64
+TT_DIMS = (
+    3,
+    6,
+)
+TT_MODES = (1024, 4096)
+TT_RANKS = (64,)
 
 # Tensor grids for benchmarks that need a dense array. The dense shape grows
 # as mode ** dims, so only a much smaller set of modes is feasible.
@@ -28,7 +31,7 @@ DENSE_RANKS = TT_RANKS
 # several copies of the data (the dense array, the TTD cores, SVD workspace,
 # and the result), which keeps the peak memory of each dense benchmark within
 # roughly 8 GiB.
-DENSE_MAX_TENSOR_BYTES = 2 * 1024**3
+DENSE_MAX_TENSOR_BYTES = 4 * 1024**3
 
 
 @dataclass(frozen=True, slots=True)
