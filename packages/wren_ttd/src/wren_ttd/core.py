@@ -456,20 +456,17 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             np.max(intermediate_sizes), np.max(intermediate_rank_sizes)
         )
 
-        buffer_a = np.empty(largest_buffer_size, dtype=self.dtype)
-        buffer_b = np.empty(largest_buffer_size, dtype=self.dtype)
+        buffer = np.empty(largest_buffer_size, dtype=self.dtype)
 
-        intermediate = np.ones((1, 1), dtype=self.dtype)
+        intermediate: Matrix[DType] = np.ones((1, 1), dtype=self.dtype)
 
         for size, core in zip(intermediate_rank_sizes, self.data, strict=True):
             left, mode, right = core.shape
-            intermediate: Matrix[DType] = np.matmul(
+            intermediate = np.matmul(
                 intermediate,
                 core.reshape(left, -1),
-                out=buffer_a[:size].reshape(-1, mode * right),
-                dtype=self.dtype,
+                out=buffer[:size].reshape(-1, mode * right),
             ).reshape(-1, right)
-            buffer_a, buffer_b = buffer_b, buffer_a
 
         result = intermediate.reshape(self.shape)
 
