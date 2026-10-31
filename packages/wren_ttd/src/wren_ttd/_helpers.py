@@ -6,7 +6,6 @@ from itertools import pairwise
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from wren_common.math import dot_product
 from wren_common.types import Matrix, NDArray, Scalar
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
@@ -188,6 +187,11 @@ def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
     """Orthogonalize the cores in place using a right-to-left QR sweep."""
+    # Reuse a single buffer for the QR propagation. Each result is consumed by
+    # the next QR decomposition before the buffer is overwritten.
+    max_core_size = max(core.size for core in cores)
+    buffer = np.empty(max_core_size, dtype=cores[0].dtype)
+
     for k in range(len(cores), 1, -1):  # for k = d to 2 step -1
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
         # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
@@ -199,7 +203,15 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
         cores[k - 1] = q.reshape((-1, i_k, beta_k))
         # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
         # NOTE: there is a typo in the TTD paper: it incorrectly says 𝐆ₖ ×₃ 𝐑
-        cores[k - 2] = dot_product(cores[k - 2], r)
+        previous = cores[k - 2]
+        alpha_k2, i_k2, _ = previous.shape
+        rows = alpha_k2 * i_k2
+        columns = r.shape[1]
+        cores[k - 2] = apply_right_message(
+            previous,
+            r,
+            out=buffer[: rows * columns].reshape((rows, columns)),
+        )
 
 
 def contract_cores[DType: np.floating](
