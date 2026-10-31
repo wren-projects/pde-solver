@@ -461,18 +461,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         intermediate = np.ones((1, 1), dtype=self.dtype)
 
         for size, core in zip(intermediate_rank_sizes, self.data, strict=True):
-            l, n, r = core.shape
+            left, mode, right = core.shape
             intermediate: Matrix[DType] = np.matmul(
                 intermediate,
-                core.reshape(l, -1),
-                out=buffer_a[:size].reshape(-1, n * r),
+                core.reshape(left, -1),
+                out=buffer_a[:size].reshape(-1, mode * right),
                 dtype=self.dtype,
-            ).reshape(-1, r)
+            ).reshape(-1, right)
             buffer_a, buffer_b = buffer_b, buffer_a
 
         result = intermediate.reshape(self.shape)
 
-        return result if dtype is None else result.astype(dtype)
+        return result if dtype is None else result.astype(dtype, copy=False)
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
