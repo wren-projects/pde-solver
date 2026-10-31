@@ -6,9 +6,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_tuple
-from wren_common.math import dot_product
 
-from wren_ttd._helpers import contract_cores, reverse_cores
+from wren_ttd._helpers import (
+    apply_left_message,
+    apply_right_message,
+    contract_cores,
+    reverse_cores,
+)
 from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
@@ -142,20 +146,20 @@ def _tensordot_transposed[DType: np.floating](
     a_free, a_contr = a.data[:-k], a.data[-k:]
     b_contr, b_free = b.data[:k], b.data[k:]
 
-    message_matrix = contract_cores(list(reverse_cores(a_contr)), b_contr, dtype=dtype)
+    message = contract_cores(list(reverse_cores(a_contr)), b_contr, dtype=dtype)
 
     # complete contraction -> scalar
     if a.ndim == k and b.ndim == k:
-        assert message_matrix.size == 1
-        return dtype.type(message_matrix.squeeze())
+        assert message.size == 1
+        return dtype.type(message.squeeze())
 
     out_cores = a_free + b_free
 
     # multiply the message_matrix into either the first free b core or the last
     # free a core
     if b_free:
-        out_cores[len(a_free)] = dot_product(message_matrix, b_free[0])
+        out_cores[len(a_free)] = apply_left_message(message, b_free[0])
     else:
-        out_cores[-1] = dot_product(a_free[-1], message_matrix)
+        out_cores[-1] = apply_right_message(a_free[-1], message)
 
     return TTD(out_cores, dtype=dtype)
