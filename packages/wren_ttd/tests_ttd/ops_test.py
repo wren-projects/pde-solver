@@ -131,6 +131,15 @@ def test_like_numpy_arguments(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(result, np.zeros_like(tensor, order="F"))
 
 
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_random(shape: tuple[int, ...]) -> None:
+    """Test randomly generated TTD."""
+    ranks = (2, 3, 4, 5, 6, 5, 4, 3, 2, 4, 7, 5, 3)[: len(shape) - 1]
+    ttd = TTD.random(shape, ranks)
+    assert ttd.shape == shape
+    assert ttd.ranks == ranks
+
+
 def test_ranks() -> None:
     """Test ranks."""
     ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
