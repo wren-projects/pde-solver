@@ -322,8 +322,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Create a TTD representing a random tensor of a given shape.
 
         Creates the cores directly, without compression or expansion to dense
-        tensors. Uses the same random number engine as :func:`numpy.random`
-        unless user supplies other generator.
+        tensors. Uses :func:`numpy.random.default_rng` (PCG64) unless the user
+        supplies another generator.
 
         Parameters
         ----------
@@ -335,11 +335,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         dtype : data-type
             The desired data-type of the tensor, e.g. ``numpy.float64``.
         seed : int, optional
-            Seed for the random number generator. If not provided, uses the
-            NumPy's default seed.
+            Seed for a new random number generator. If neither ``seed`` nor
+            ``rng`` is provided, the generator is seeded from OS entropy and
+            results are not reproducible. Cannot be combined with ``rng``.
         rng : np.random.Generator, optional
-            Random number generator to use. If not provided, uses the default
-            NumPy's random number generator.
+            Random number generator to use. Cannot be combined with ``seed``.
 
         Returns
         -------
@@ -355,7 +355,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         elif len(inner_ranks) != d - 1:
             raise ValueError(f"Expected {d - 1} inner ranks, got {len(inner_ranks)}")
 
+        if any(r < 1 for r in inner_ranks):
+            raise ValueError(f"Inner ranks must be positive, got {inner_ranks}")
+
         ranks = (1, *inner_ranks, 1)
+
+        if seed is not None and rng is not None:
+            raise ValueError("Specify either `seed` or `rng`, not both")
 
         rng = np.random.default_rng(seed) if rng is None else rng
         cores = [
