@@ -17,11 +17,12 @@ from typing import (
 import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
-from wren_common.math import dot_product, scale_matrix
+from wren_common.math import scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
+    apply_left_message,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
@@ -153,7 +154,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             r = new_core.shape[2]
 
             # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t)
+            residue = scale_matrix(s, v_t, out=v_t)
 
         cores.append(residue.reshape((*residue.shape, 1)))
 
@@ -533,7 +534,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
             cores[k - 1] = u.reshape((beta_k1, i_k, -1))
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
-            cores[k] = dot_product(scale_matrix(s, v_t), cores[k])
+            cores[k] = apply_left_message(scale_matrix(s, v_t, out=v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
