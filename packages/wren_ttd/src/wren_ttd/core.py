@@ -34,6 +34,9 @@ from wren_ttd.types import Core
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
+DEFAULT_DTYPE = np.dtype(np.float64)
+type DefaultDType = np.float64
+
 
 @final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
@@ -291,30 +294,30 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @overload
     @staticmethod
-    def random[DT: np.floating](
+    def random[DT: np.float32 | np.float64](
         shape: int | Sequence[int],
         inner_ranks: int | Sequence[int] = 2,
         *,
-        dtype: np.dtype[DT],
+        dtype: np.dtype[DT] | None = None,
         seed: int | None = None,
     ) -> TTD[DT]: ...
 
     @overload
     @staticmethod
-    def random[DT: np.floating](
+    def random[DT: np.float32 | np.float64](
         shape: int | Sequence[int],
         inner_ranks: int | Sequence[int] = 2,
         *,
-        dtype: np.dtype[DT],
+        dtype: np.dtype[DT] | None = None,
         rng: np.random.Generator | None = None,
     ) -> TTD[DT]: ...
 
     @staticmethod
-    def random[DT: np.floating](
+    def random[DT: np.float32 | np.float64 = DefaultDType](
         shape: int | Sequence[int],
         inner_ranks: int | Sequence[int] = 2,
         *,
-        dtype: np.dtype[DT],
+        dtype: np.dtype[DT] | None = None,
         seed: int | None = None,
         rng: np.random.Generator | None = None,
     ) -> TTD[DT]:
