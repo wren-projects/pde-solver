@@ -289,22 +289,75 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         return TTD.ones(shape, dtype=dtype) * fill_value
 
+    @overload
     @staticmethod
     def random[DT: np.floating](
         shape: int | Sequence[int],
-        ranks: int | Sequence[int] = 2,
+        inner_ranks: int | Sequence[int] = 2,
         *,
         dtype: np.dtype[DT],
+        seed: int | None = None,
+    ) -> TTD[DT]: ...
+
+    @overload
+    @staticmethod
+    def random[DT: np.floating](
+        shape: int | Sequence[int],
+        inner_ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT],
+        rng: np.random.Generator | None = None,
+    ) -> TTD[DT]: ...
+
+    @staticmethod
+    def random[DT: np.floating](
+        shape: int | Sequence[int],
+        inner_ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT],
+        seed: int | None = None,
+        rng: np.random.Generator | None = None,
     ) -> TTD[DT]:
-        """Create a TTD representing a random tensor."""
+        """
+        Create a TTD representing a random tensor of a given shape.
+
+        Creates the cores directly, without compression or expansion to dense
+        tensors. Uses the same random number engine as :func:`numpy.random`
+        unless user supplies other generator.
+
+        Parameters
+        ----------
+        shape : int or sequence of ints
+            Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
+        inner_ranks : int or sequence of ints, optional
+            Inner ranks of the TTD, e.g. ``2`` or ``(2, 2)``. The default is
+            ``2``. Boundary ranks are always 1.
+        dtype : data-type
+            The desired data-type of the tensor, e.g. ``numpy.float64``.
+        seed : int, optional
+            Seed for the random number generator. If not provided, uses the
+            NumPy's default seed.
+        rng : np.random.Generator, optional
+            Random number generator to use. If not provided, uses the default
+            NumPy's random number generator.
+
+        Returns
+        -------
+        TTD
+            Tensor of random values, with the given shape and dtype.
+
+        """
         shape = to_int_tuple(shape)
         d = len(shape)
 
-        ranks = (
-            (1, *((ranks,) * (d - 1)), 1) if isinstance(ranks, int) else tuple(ranks)
-        )
+        if isinstance(inner_ranks, int):
+            inner_ranks = (inner_ranks,) * (d - 1)
+        elif len(inner_ranks) != d - 1:
+            raise ValueError(f"Expected {d - 1} inner ranks, got {len(inner_ranks)}")
 
-        rng = np.random.default_rng()
+        ranks = (1, *inner_ranks, 1)
+
+        rng = np.random.default_rng(seed) if rng is None else rng
         cores = [
             cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
             for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
