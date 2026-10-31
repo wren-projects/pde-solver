@@ -91,7 +91,8 @@ def transpose[DType: np.floating](
         raise ValueError("axes must have length equal to a.ndim")
 
     if d <= 1 or _is_identity_transpose(permutation):
-        return ttd
+        # return a shallow copy
+        return TTD(ttd.data.copy(), dtype=ttd.dtype)
 
     if _is_full_transpose(permutation):
         return ttd.T
