@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Sequence
+from itertools import pairwise
 from types import EllipsisType
 from typing import (
     Any,
@@ -32,6 +33,9 @@ from wren_ttd.types import Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
+
+DEFAULT_DTYPE = np.dtype(np.float64)
+type DefaultDType = np.float64
 
 
 @final
@@ -287,6 +291,88 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         return TTD.ones(shape, dtype=dtype) * fill_value
+
+    @overload
+    @staticmethod
+    def random[DT: np.float32 | np.float64](
+        shape: int | Sequence[int],
+        inner_ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT] | None = None,
+        seed: int | None = None,
+    ) -> TTD[DT]: ...
+
+    @overload
+    @staticmethod
+    def random[DT: np.float32 | np.float64](
+        shape: int | Sequence[int],
+        inner_ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT] | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> TTD[DT]: ...
+
+    @staticmethod
+    def random[DT: np.float32 | np.float64 = DefaultDType](
+        shape: int | Sequence[int],
+        inner_ranks: int | Sequence[int] = 2,
+        *,
+        dtype: np.dtype[DT] | None = None,
+        seed: int | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> TTD[DT]:
+        """
+        Create a TTD representing a random tensor of a given shape.
+
+        Creates the cores directly, without compression or expansion to dense
+        tensors. Uses :func:`numpy.random.default_rng` (PCG64) unless the user
+        supplies another generator.
+
+        Parameters
+        ----------
+        shape : int or sequence of ints
+            Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
+        inner_ranks : int or sequence of ints, optional
+            Inner ranks of the TTD, e.g. ``2`` or ``(2, 2)``. The default is
+            ``2``. Boundary ranks are always 1.
+        dtype : data-type
+            The desired data-type of the tensor, e.g. ``numpy.float64``.
+        seed : int, optional
+            Seed for a new random number generator. If neither ``seed`` nor
+            ``rng`` is provided, the generator is seeded from OS entropy and
+            results are not reproducible. Cannot be combined with ``rng``.
+        rng : np.random.Generator, optional
+            Random number generator to use. Cannot be combined with ``seed``.
+
+        Returns
+        -------
+        TTD
+            Tensor of random values, with the given shape and dtype.
+
+        """
+        shape = to_int_tuple(shape)
+        d = len(shape)
+
+        if isinstance(inner_ranks, int):
+            inner_ranks = (inner_ranks,) * (d - 1)
+        elif len(inner_ranks) != d - 1:
+            raise ValueError(f"Expected {d - 1} inner ranks, got {len(inner_ranks)}")
+
+        if any(r < 1 for r in inner_ranks):
+            raise ValueError(f"Inner ranks must be positive, got {inner_ranks}")
+
+        ranks = (1, *inner_ranks, 1)
+
+        if seed is not None and rng is not None:
+            raise ValueError("Specify either `seed` or `rng`, not both")
+
+        rng = np.random.default_rng(seed) if rng is None else rng
+        cores = [
+            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
+            for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
+        ]
+
+        return TTD(cores, dtype=dtype)
 
     @override
     def __repr__(self) -> str:
