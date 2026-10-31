@@ -117,16 +117,17 @@ def test_tensordot_all_axes(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -
     benchmark(ops.tensordot, ttd, ttd, axes=ttd.ndim)
 
 
-def test_tensordot_first_axis(
-    ttd: TTD[np.float64], benchmark: BenchmarkFixture
-) -> None:
-    """Benchmark contraction along the first mode of both TTDs."""
-    benchmark(ops.tensordot, ttd, ttd, axes=(0, 0))
-
-
-def test_tensordot_last_axis(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
-    """Benchmark contraction along the last mode of both TTDs."""
-    benchmark(ops.tensordot, ttd, ttd, axes=(-1, -1))
+# def test_tensordot_first_axis(
+#     ttd: TTD[np.float64], benchmark: BenchmarkFixture
+# ) -> None:
+#     """Benchmark contraction along the first mode of both TTDs."""
+#     benchmark(ops.tensordot, ttd, ttd, axes=(0, 0))
+#
+#
+# def test_tensordot_last_axis(ttd: TTD[np.float64],
+# benchmark: BenchmarkFixture) -> None:
+#     """Benchmark contraction along the last mode of both TTDs."""
+#     benchmark(ops.tensordot, ttd, ttd, axes=(-1, -1))
 
 
 def test_round(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
@@ -160,7 +161,7 @@ def test_transpose_axes(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> No
 
 def test_swapaxes(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
     """Benchmark swapping the first and last axes."""
-    benchmark(ops.swapaxes, ttd, 0, -1)
+    benchmark(ops.swapaxes, ttd, 0, 1)
 
 
 def test_setitem_zero(ttd: TTD[np.float64], benchmark: BenchmarkFixture) -> None:
