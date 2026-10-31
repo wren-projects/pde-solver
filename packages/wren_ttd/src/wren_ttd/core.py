@@ -449,9 +449,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         intermediate_sizes = np.cumprod(self.shape)
         intermediate_rank_sizes = cast(
             np.ndarray[tuple[int], np.dtype[np.int64]],
-            np.multiply(
-                np.asarray([*self.ranks, 1], dtype=int), intermediate_sizes, dtype=int
-            ),
+            np.multiply(np.asarray((*self.ranks, 1)), intermediate_sizes),
         )
 
         largest_buffer_size = max(
