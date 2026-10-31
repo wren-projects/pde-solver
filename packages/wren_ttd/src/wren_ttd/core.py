@@ -3,7 +3,15 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterable, Sequence
 from types import EllipsisType
-from typing import Any, ParamSpec, SupportsIndex, cast, final, overload, override
+from typing import (
+    Any,
+    ParamSpec,
+    SupportsIndex,
+    cast,
+    final,
+    overload,
+    override,
+)
 
 import numpy as np
 import numpy.typing as npt
@@ -805,6 +813,60 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             return ops.get_item(self, key)
 
         raise NotImplementedError
+
+    def __setitem__(self, key: Sequence[Index1D], value: Scalar) -> None:
+        """
+        Set a subtensor of the TTD.
+
+        Only supported indexing is targeting a single mode with either an integer
+        or a slice. The rest of the indices have to be full slices (i.e. ``:``).
+
+        Note that for nonzero values this performs TTD addition twice which may
+        be slow and also inflates the ranks of the TTD by 2.
+
+        Parameters
+        ----------
+        key : sequence of int or slice
+            Index for each addressed mode. A single ``int`` or ``slice``
+            addresses the first mode; a sequence addresses one mode per
+            entry. Negative indices count from the end of the mode.
+        value : Scalar
+            Value to set.
+
+        See Also
+        --------
+        TDD.__getitem__
+
+        """
+        if len(key) > self.ndim:
+            raise IndexError(f"Too many indices: {len(key)} > {self.ndim}")
+
+        only_single_concrete = (
+            sum(isinstance(k, SupportsIndex) or k != slice(None) for k in key) == 1
+        )
+
+        if not only_single_concrete:
+            raise IndexError(
+                "TTD.__setitem__ requires exactly one mode indexed by an int or "
+                "slice, with all other modes set to ':'"
+            )
+
+        only_zero = cast(bool, np.equal(value, 0))
+
+        if not only_zero:
+            _ = ops.subtract(self, value, out=self)
+
+        for axis, (i, core) in enumerate(zip(key, self.data, strict=False)):
+            if i == slice(None):
+                continue
+
+            # copy before writing: the core may share memory with the caller's array
+            updated = core.copy()
+            updated[:, i, :] = 0
+            self.data[axis] = updated
+
+        if not only_zero:
+            _ = ops.add(self, value, out=self)
 
     @override
     def __len__(self) -> int:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Reversible
+from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from wren_common.math import dot_product
-from wren_common.types import Matrix, NDArray
+from wren_common.types import Matrix, NDArray, Scalar
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
@@ -76,9 +76,9 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
 
 
 def contract_cores[DType: np.floating](
-    a_cores: Iterable[Core[DType]],
-    b_cores: Iterable[Core[DType]],
-    n: int,
+    a_cores: Sequence[Core[DType]],
+    b_cores: Sequence[Core[DType]],
+    dtype: np.dtype[DType],
 ) -> Matrix[DType]:
     """
     Contract two matching core sequences pairwise into a single matrix.
@@ -88,12 +88,12 @@ def contract_cores[DType: np.floating](
 
     Parameters
     ----------
-    a_cores : Iterable[Core[DType]]
+    a_cores : Sequence[Core[DType]]
         The cores of the first tensor.
-    b_cores : Iterable[Core[DType]]
+    b_cores : Sequence[Core[DType]]
         The cores of the second tensor.
-    n : int
-        The number of cores in each sequence.
+    dtype : np.dtype[DType]
+        The dtype of the resulting matrix. Should match the dtype of the cores.
 
     Returns
     -------
@@ -101,36 +101,45 @@ def contract_cores[DType: np.floating](
         The resulting matrix.
 
     """
-    # ‌The generated einsum expression is in the form ABC,GBI,CDE,IDK->AEGK. ABC
-    # is the first core of A, GBI is the first core of B, CDE is the second core
-    # of A, …. Consequently, it first sums the matching cores along the second
-    # (rank) axis (ABC,GBI->ACGI / CDE,IDK->CEIK), then sums the results along
-    # all axes except the first and the last of a and b each (ACGI,CEIK->AEGK).
-
-    # NOTE: See `TTD.__array__` for the general generated einsum index idea.
-
-    summation_indices: list[Any] = [
-        item
-        for i, (a_core, b_core) in enumerate(zip(a_cores, b_cores, strict=True))
-        for item in [
-            a_core,
-            (2 * i + 0, 2 * i + 1, 2 * i + 2),
-            b_core,
-            (2 * (n + i + 1) + 0, 2 * i + 1, 2 * (n + i + 1) + 2),
-        ]
-    ]
-
-    result = cast(
-        Matrix[DType],
-        np.einsum(*summation_indices, optimize=True),  # pyright: ignore[reportAny]
+    # Determine the maximum needed buffer sizes
+    max_arank, max_brank = (
+        max(core.shape[axis] for core in cores for axis in (0, 2))
+        for cores in (a_cores, b_cores)
     )
+    max_alnrank = max(core.shape[1] * core.shape[2] for core in a_cores)
 
-    # assumes, that both sequences started from the boundary core -> |A| = |G| = 1
-    return result.squeeze((0, 2))
+    # Allocate buffers so that they can be reused in all iterations
+    scratch_buffer = np.empty((max_brank, max_alnrank), dtype=dtype)
+    result_buffer = np.empty((max_brank, max_arank), dtype=dtype)
+
+    # result = 1 × 1
+    result = np.ones((1, 1), dtype=dtype)
+
+    for a_core, b_core in zip(a_cores, b_cores, strict=True):
+        ar, n, al = a_core.shape
+        br, _, bl = b_core.shape
+        result = np.matmul(
+            # br × ar
+            result,
+            # ar × n × al -> ar × (n × al)
+            a_core.reshape(ar, -1),
+            # -> br × (n × al)
+            out=scratch_buffer[:br, : n * al],
+        )
+        result = np.matmul(
+            # br × n × bl -> (br × n) × bl -> bl × (br × n)
+            b_core.reshape(-1, bl).T,
+            # br × (n × al) -> (br × n) × al
+            result.reshape(-1, al),
+            # -> bl × al
+            out=result_buffer[:bl, :al],
+        )
+
+    return result.T
 
 
 def truncation_parameter[DT: np.floating](
-    tensor: NDArray[DT] | TTD[DT], epsilon: np.floating | float = DEFAULT_EPSILON
+    tensor: NDArray[DT] | TTD[DT], epsilon: Scalar = DEFAULT_EPSILON
 ) -> DT:
     """
     Compute the per-SVD truncation tolerance δ = (ε / √(d - 1)) ⋅ ‖A‖ᶠ.
