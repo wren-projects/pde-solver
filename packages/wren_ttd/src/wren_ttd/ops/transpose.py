@@ -107,7 +107,7 @@ def transpose[DType: np.floating](
 
     orthogonalize_right(cores)
 
-    sorted_prefix = 0
+    center = 0
     while True:
         # Find a pair of cores that's not yet transposed
         try:
@@ -117,7 +117,7 @@ def transpose[DType: np.floating](
             break
 
         # Move orthogonal center to k
-        for i in range(sorted_prefix, k):
+        for i in range(center, k):
             core = cores[i]
             r0, n1, r1 = core.shape
             q, r = np.linalg.qr(core.reshape((r0 * n1, r1)))
@@ -141,7 +141,7 @@ def transpose[DType: np.floating](
 
         target[k], target[k + 1] = target[k + 1], target[k]
 
-        sorted_prefix = max(k - 1, 0)
+        center = k
 
     return TTD(cores, dtype=ttd.dtype)
 
