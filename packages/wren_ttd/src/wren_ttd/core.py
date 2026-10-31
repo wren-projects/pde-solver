@@ -444,7 +444,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             )
 
         if any(mode == 0 for mode in self.shape):
-            return np.empty((0,), dtype=dtype).reshape(self.shape)
+            return np.empty(self.shape, dtype=self.dtype if dtype is None else dtype)
 
         intermediate_sizes = np.cumprod(self.shape)
         intermediate_rank_sizes = cast(
