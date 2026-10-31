@@ -537,7 +537,7 @@ $\mathcal{M}_{\text{TT} \le \mathbf{r}}$ and the non-negative orthant
 $\mathbb{R}_{\ge 0}^{n_1 \times \dots \times n_d}$
 \cite{sultonov2023nonnegative}:
 
-\begin{algorithm}[H]
+\begin{algorithm}[H]State
   \caption{NTTSVD via Alternating Projections}
   \begin{algorithmic}[1]
     \Require Data tensor $\mathcal{X}$, target rank $\mathbf{r}$, iterations $s$
@@ -582,7 +582,7 @@ procedure is to orthogonalize (QR sweep) and then truncate (SVD sweep)
 
     \For{$k=1$ to $d-1$}
 
-    \State form matrix
+    \State Form matrix
     \[
       M_k :=
       \begin{bmatrix}
@@ -614,7 +614,7 @@ procedure is to orthogonalize (QR sweep) and then truncate (SVD sweep)
 
     \For{$k=d$ down to $2$}
 
-    \State form matrix
+    \State Form matrix
     \[
       N_k :=
       \begin{bmatrix}
@@ -751,12 +751,12 @@ and $B$ has $G_B^{(k)} \in \mathbb{R}^{r_{k-1}^B \times n_k \times r_k^B}$,
 define cores of $C$:
 
 \begin{itemize}[leftmargin=2em]
-  \item for $k=1$: concatenate along the last (right-rank) index:
+  \item For $k=1$: concatenate along the last (right-rank) index:
     \[
       G_C^{(1)}(1,i_1,:) = \big[\,G_A^{(1)}(1,i_1,:)
       \ \ \ G_B^{(1)}(1,i_1,:)\,\big]
     \]
-  \item for $1<k<d$: block-diagonal stacking:
+  \item For $1<k<d$: block-diagonal stacking:
     \[
       G_C^{(k)}(:,i_k,:) =
       \begin{bmatrix}
@@ -764,7 +764,7 @@ define cores of $C$:
         0 & G_B^{(k)}(:,i_k,:)
       \end{bmatrix}
     \]
-  \item for $k=d$: concatenate along the first (left-rank) index:
+  \item For $k=d$: concatenate along the first (left-rank) index:
     \[
       G_C^{(d)}(:,i_d,1) =
       \begin{bmatrix}
@@ -1656,7 +1656,7 @@ vector-advection matrix-diffusion PDE.
 
 \paragraph{Method.}
 
-Using forward Euler time integration,
+Using Forward Euler time integration,
 \[
 u^{n+1}
 =
@@ -1746,7 +1746,7 @@ u_t
 -(\alpha+\beta).
 \]
 
-The forward Euler update is therefore
+The Forward Euler update is therefore
 
 \[
 u^{n+1}
@@ -1807,7 +1807,7 @@ u^n
 
 \paragraph{Stability remark.}
 
-The forward Euler method is conditionally stable.
+The Forward Euler method is conditionally stable.
 The admissible time step depends on the spatial discretization,
 the advection velocity, and the diffusion coefficients. For diffusion-dominated problems, the allowable time step may
 decrease quadratically with the spatial resolution.
@@ -1816,7 +1816,7 @@ In practice, the time step must satisfy a suitable CFL-type
 stability condition.
 
 The explicit finite-difference method approximates the time derivative
-using a forward Euler discretization
+using a Forward Euler discretization
 \cite{LeVeque2007}.
 
 
