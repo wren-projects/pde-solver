@@ -201,7 +201,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
-        return TTD(cores)
+        return TTD(cores, dtype=dtype)
 
     @staticmethod
     def zeros[DT: np.floating](
@@ -756,7 +756,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         (4, 3, 2)
 
         """
-        return TTD(reverse_cores(self.data))
+        return TTD(reverse_cores(self.data), dtype=self.dtype)
 
     @overload
     def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
