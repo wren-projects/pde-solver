@@ -131,13 +131,86 @@ def test_like_numpy_arguments(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(result, np.zeros_like(tensor, order="F"))
 
 
+TEST_RANKS: tuple[int, ...] = (2, 3, 4, 5, 6, 5, 4, 3, 2, 4, 7, 5, 3)
+
+
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
-def test_random(shape: tuple[int, ...]) -> None:
-    """Test randomly generated TTD."""
-    ranks = (2, 3, 4, 5, 6, 5, 4, 3, 2, 4, 7, 5, 3)[: len(shape) - 1]
-    ttd = TTD.random(shape, ranks)
+@pytest.mark.parametrize("rank", [1, 3])
+@pytest.mark.parametrize("dtype", [np.dtype(np.float64), np.dtype(np.float32)])
+def test_random_scalar_ranks(
+    shape: tuple[int, ...],
+    rank: int,
+    dtype: np.dtype[np.float32 | np.float64],
+) -> None:
+    """Test randomly generated TTD with scalar inner ranks."""
+    ttd = TTD.random(shape, rank, dtype=dtype)
+
+    assert ttd.shape == shape
+    assert ttd.ranks == (rank,) * (len(shape) - 1)
+    assert ttd.dtype == dtype
+    assert len(ttd.data) == len(shape)
+    assert all(core.min() >= 0 for core in ttd.data)
+    assert all(core.max() < 1 for core in ttd.data)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+@pytest.mark.parametrize("dtype", [np.dtype(np.float64), np.dtype(np.float32)])
+def test_random_tuple_ranks(
+    shape: tuple[int, ...],
+    dtype: np.dtype[np.float32 | np.float64],
+) -> None:
+    """Test randomly generated TTD with explicit inner ranks."""
+    ranks = TEST_RANKS[: len(shape) - 1]
+    ttd = TTD.random(shape, ranks, dtype=dtype)
+
     assert ttd.shape == shape
     assert ttd.ranks == ranks
+    assert ttd.dtype == dtype
+    assert len(ttd.data) == len(shape)
+
+
+def test_random_defaults() -> None:
+    """Test the default inner rank and dtype."""
+    ttd = TTD.random((3, 4))
+    assert ttd.shape == (3, 4)
+    assert ttd.ranks == (2,)
+    assert ttd.dtype == np.dtype(np.float64)
+
+    vector = TTD.random(3)
+    assert vector.shape == (3,)
+    assert vector.ranks == ()
+
+
+def test_random_seed() -> None:
+    """Test that the same seed produces the same tensor."""
+    shape, ranks = (2, 3, 4), (2, 3)
+    ttd = TTD.random(shape, ranks, seed=42)
+    same = TTD.random(shape, ranks, seed=42)
+    different = TTD.random(shape, ranks, seed=43)
+
+    np.testing.assert_array_equal(np.asarray(ttd), np.asarray(same))
+    assert not np.array_equal(np.asarray(ttd), np.asarray(different))
+
+
+def test_random_rng() -> None:
+    """Test that a supplied generator is used and advanced."""
+    shape, ranks = (2, 3, 4), (2, 3)
+    seed = 42
+    # Philox is not the default PCG64 bit generator.
+    ttd = TTD.random(shape, ranks, rng=np.random.Generator(np.random.Philox(seed)))
+    same = TTD.random(shape, ranks, rng=np.random.Generator(np.random.Philox(seed)))
+    seeded = TTD.random(shape, ranks, seed=seed)
+
+    # A non-default generator is reproducible...
+    np.testing.assert_array_equal(np.asarray(ttd), np.asarray(same))
+    # ...but draws a different sequence than the default engine.
+    assert not np.array_equal(np.asarray(ttd), np.asarray(seeded))
+
+    # Reusing the same generator draws new values.
+    rng = np.random.Generator(np.random.Philox(seed))
+    first = TTD.random(shape, ranks, rng=rng)
+    second = TTD.random(shape, ranks, rng=rng)
+    assert not np.array_equal(np.asarray(first), np.asarray(second))
 
 
 def test_ranks() -> None:

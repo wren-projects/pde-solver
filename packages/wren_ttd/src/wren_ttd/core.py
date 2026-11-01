@@ -35,7 +35,6 @@ from wren_ttd.types import Core
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
-DEFAULT_DTYPE = np.dtype(np.float64)
 type DefaultDType = np.float64
 
 
@@ -308,7 +307,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @overload
     @staticmethod
-    def random[DT: np.float32 | np.float64](
+    def random[DT: np.float32 | np.float64 = DefaultDType](
         shape: int | Sequence[int],
         inner_ranks: int | Sequence[int] = 2,
         *,
@@ -318,7 +317,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @overload
     @staticmethod
-    def random[DT: np.float32 | np.float64](
+    def random[DT: np.float32 | np.float64 = DefaultDType](
         shape: int | Sequence[int],
         inner_ranks: int | Sequence[int] = 2,
         *,
@@ -381,8 +380,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             raise ValueError("Specify either `seed` or `rng`, not both")
 
         rng = np.random.default_rng(seed) if rng is None else rng
+        # NumPy's stubs only accept a concrete float32/float64 dtype, but ours is
+        # generic over both. At runtime `None` means float64, same as the stubs.
+        random_core = cast(Callable[..., Core[DT]], rng.random)
         cores = [
-            cast(Core[DT], rng.random((r1, n, r2), dtype=dtype))
+            random_core((r1, n, r2), dtype=dtype)
             for n, (r1, r2) in zip(shape, pairwise(ranks), strict=True)
         ]
 
