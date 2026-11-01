@@ -33,14 +33,11 @@ def delta_truncated_svd[DT: np.floating](
     """
     u, s, v_t = np.linalg.svd(matrix, full_matrices=False)
 
-    # Keep only singular values >= delta
-    mask = s >= delta
+    # Keep only singular values >= delta. SVD orders them in descending order,
+    # so the kept ones are a prefix and can be simply sliced off.
+    rank = max(int(np.count_nonzero(s >= delta)), 1)  # always keep at least one
 
-    # Always keep at least one singular value
-    if not np.any(mask):
-        return u[:, :1], s[:1], v_t[:1, :]
-
-    return u[:, mask], s[mask], v_t[mask, :]
+    return u[:, :rank], s[:rank], v_t[:rank, :]
 
 
 def qr_rows[DT: np.floating](matrix: Matrix[DT]) -> tuple[Matrix[DT], Matrix[DT]]:
