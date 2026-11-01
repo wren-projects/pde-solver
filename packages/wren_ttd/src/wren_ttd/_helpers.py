@@ -16,6 +16,112 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
+def apply_left_message[DType: np.floating](
+    message: Matrix[DType],
+    core: Core[DType],
+    *,
+    out: NDArray[DType] | None = None,
+) -> Core[DType]:
+    """
+    Contract a message matrix into the left rank of a core.
+
+    Computes ``𝐌 ⋅ 𝐆``, i.e. the mode-1 product ``𝐆 ×₁ 𝐌``, where ``𝐆`` is a
+    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(m, α)``) whose number of
+    columns matches ``α``.
+
+    Parameters
+    ----------
+    message : Matrix[DType]
+        The message matrix.
+    core : Core[DType]
+        The core to apply the message to.
+    out : NDArray[DType] | None, optional
+        Buffer of shape ``(m, i ⋅ β)``, to write the result into, by default
+        None (allocate a new array).
+
+    Returns
+    -------
+    Core[DType]
+        The contracted core of shape ``(m, i, β)``.
+
+    """
+    left, mode, right = core.shape
+    msg_rows, msg_cols = message.shape
+    assert msg_cols == left, "core and message must be compatible"
+    return np.matmul(message, core.reshape(left, -1), out=out).reshape(
+        msg_rows, mode, right
+    )
+
+
+def apply_right_message[DType: np.floating](
+    core: Core[DType],
+    message: Matrix[DType],
+    *,
+    out: NDArray[DType] | None = None,
+) -> Core[DType]:
+    """
+    Contract a message matrix into the right rank of a core.
+
+    Computes ``𝐆 ⋅ 𝐌``, i.e. the mode-3 product ``𝐆 ×₃ 𝐌``, where ``𝐆`` is a
+    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(α, n)``) whose number of rows
+    matches ``β``.
+
+    Parameters
+    ----------
+    core : Core[DType]
+        The core to apply the message to.
+    message : Matrix[DType]
+        The message matrix.
+    out : NDArray[DType] | None, optional
+        Buffer of shape ``(α ⋅ i, n)``, to write the result into, by default
+        None (allocate a new array).
+
+    Returns
+    -------
+    Core[DType]
+        The contracted core of shape ``(α, i, n)``.
+
+    """
+    left, mode, right = core.shape
+    msg_rows, msg_cols = message.shape
+    assert msg_rows == right, "core and message must be compatible"
+    return np.matmul(core.reshape(-1, right), message, out=out).reshape(
+        left, mode, msg_cols
+    )
+
+
+def contract_pair[DType: np.floating](
+    a: Core[DType],
+    b: Core[DType],
+) -> Matrix[DType]:
+    """
+    Contract the right rank of one core with the left rank of another.
+
+    Computes ``𝐀 ⋅ 𝐁`` over the shared rank, where ``𝐀`` is ``(α, i, r)`` and
+    ``𝐁`` is ``(r, j, β)``. Equivalent to :func:`numpy.tensordot` with
+    ``axes=1``, but uses :func:`numpy.matmul` to go through BLAS directly.
+
+    Parameters
+    ----------
+    a : Core[DType]
+        The left core.
+    b : Core[DType]
+        The right core.
+
+    Returns
+    -------
+    Matrix[DType]
+        The contracted matrix of shape ``(α ⋅ i, j ⋅ β)``.
+
+    """
+    _, _, rank = a.shape
+    assert rank == b.shape[0], "cores must have matching ranks"
+    return cast(
+        Matrix[DType],
+        np.matmul(a.reshape(-1, rank), b.reshape(rank, -1)),
+    )
+
+
 def smallest_core[DType: np.floating](
     cores: Iterable[Core[DType]],
 ) -> tuple[Core[DType], int]:
