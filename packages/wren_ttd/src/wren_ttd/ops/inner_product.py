@@ -60,9 +60,7 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     if a.dtype != b.dtype:
         raise ValueError("TTD objects must have the same dtype")
 
-    n = len(a.data)
-
-    contracted = contract_cores(a.data, b.data, n)
+    contracted = contract_cores(a.data, b.data, dtype=a.dtype)
 
     assert contracted.size == 1
 

@@ -142,7 +142,7 @@ def _tensordot_transposed[DType: np.floating](
     a_free, a_contr = a.data[:-k], a.data[-k:]
     b_contr, b_free = b.data[:k], b.data[k:]
 
-    message_matrix = contract_cores(reverse_cores(a_contr), b_contr, k)
+    message_matrix = contract_cores(list(reverse_cores(a_contr)), b_contr, dtype=dtype)
 
     # complete contraction -> scalar
     if a.ndim == k and b.ndim == k:

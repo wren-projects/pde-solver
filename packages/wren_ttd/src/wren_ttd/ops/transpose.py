@@ -1,7 +1,7 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from itertools import pairwise
 from typing import TYPE_CHECKING
 
@@ -85,27 +85,26 @@ def transpose[DType: np.floating](
     if axes is None:
         return ttd.T
 
-    perm = normalize_axis_tuple(axes, d)
+    permutation = normalize_axis_tuple(axes, d)
 
-    if len(perm) != d:
+    if len(permutation) != d:
         raise ValueError("axes must have length equal to a.ndim")
 
-    if d <= 1 or perm == tuple(range(d)):
-        return ttd.copy()
+    if d <= 1 or _is_identity_transpose(permutation):
+        # return a shallow copy
+        return TTD(ttd.data.copy(), dtype=ttd.dtype)
 
-    if perm == tuple(reversed(range(d))):
+    if _is_full_transpose(permutation):
         return ttd.T
 
-    order = list(range(d))
-
-    if sorted(perm) != order:
+    if any(i != j for i, j in zip(sorted(permutation), range(d), strict=False)):
         raise ValueError("axes must be a permutation of range(a.ndim)")
 
     delta = truncation_parameter(ttd, epsilon)
     cores = ttd.data.copy()
 
     # list of target positions of each core
-    target = [perm.index(i) for i in range(d)]
+    target = [permutation.index(i) for i in range(d)]
 
     orthogonalize_right(cores)
 
@@ -146,3 +145,11 @@ def transpose[DType: np.floating](
         sorted_prefix = max(k - 1, 0)
 
     return TTD(cores, dtype=ttd.dtype)
+
+
+def _is_identity_transpose(permutation: Iterable[int]) -> bool:
+    return all(p == i for i, p in enumerate(permutation))
+
+
+def _is_full_transpose(permutation: Sequence[int]) -> bool:
+    return _is_identity_transpose(reversed(permutation))
