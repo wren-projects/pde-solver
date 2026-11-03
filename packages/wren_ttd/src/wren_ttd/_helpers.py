@@ -6,7 +6,7 @@ from itertools import pairwise
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from wren_common.types import Matrix, NDArray, Scalar
+from wren_common.types import Matrix, NDArray, Scalar, Vector
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
@@ -15,11 +15,97 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
+def fold_right[DType: np.floating](array: NDArray[DType]) -> Matrix[DType]:
+    """
+    Flatten all but the first dimension of an array.
+
+    Parameters
+    ----------
+    array : NDArray[DType]
+        The array to flatten in shape ``(α, β₂, β₃, …)``.
+
+    Returns
+    -------
+    Matrix[DType]
+        The flattened array in shape ``(α, β₂ ⋅ β₃ ⋅ …)``.
+
+    """
+    return array.reshape(array.shape[0], -1)
+
+
+def unfold_right[DType: np.floating, Shape: tuple[int, ...]](
+    matrix: Matrix[DType], original_shape: Shape
+) -> np.ndarray[Shape, np.dtype[DType]]:
+    """
+    Restore all but the first dimension to the original shape of a right-folded array.
+
+    This is the inverse of :func:`fold_right`.
+
+    Parameters
+    ----------
+    matrix : Matrix[DType]
+        The flattened array in shape ``(α₁, β₂ ⋅ β₃ ⋅ …)``.
+    original_shape : Shape
+        The original shape of the array ``(β₁, β₂, β₃, …)``.
+
+    Returns
+    -------
+    np.ndarray[Shape, np.dtype[DType]]
+        The unfolded array in the shape ``(α₁, β₂, β₃, …)``.
+
+    """
+    shape = (-1, *original_shape[1:])
+    return cast(np.ndarray[Shape, np.dtype[DType]], matrix.reshape(shape))
+
+
+def fold_left[DType: np.floating](array: NDArray[DType]) -> Matrix[DType]:
+    """
+    Flatten all but the last dimension of an array.
+
+    Parameters
+    ----------
+    array : NDArray[DType]
+        The array to flatten in shape ``(β₁, β₂, …, α)``.
+
+    Returns
+    -------
+    Matrix[DType]
+        The flattened array in shape ``(β₁ ⋅ β₂ ⋅ …, α)``.
+
+    """
+    return array.reshape(-1, array.shape[-1])
+
+
+def unfold_left[DType: np.floating, Shape: tuple[int, ...]](
+    matrix: Matrix[DType], original_shape: Shape
+) -> np.ndarray[Shape, np.dtype[DType]]:
+    """
+    Restore all but the last dimension to the original shape of a left-folded array.
+
+    This is the inverse of :func:`fold_left`.
+
+    Parameters
+    ----------
+    matrix : Matrix[DType]
+        The flattened array in shape ``(β₁ ⋅ β₂ ⋅ …, α)``.
+    original_shape : Shape
+        The original shape of the array ``(β₁, β₂, …, βₙ)``.
+
+    Returns
+    -------
+    np.ndarray[Shape, np.dtype[DType]]
+        The unfolded array in the shape ``(β₁, β₂, …, α)``.
+
+    """
+    shape = (*original_shape[:-1], -1)
+    return cast(np.ndarray[Shape, np.dtype[DType]], matrix.reshape(shape))
+
+
 def apply_left_message[DType: np.floating](
     message: Matrix[DType],
     core: Core[DType],
     *,
-    out: NDArray[DType] | None = None,
+    buffer: Vector[DType] | None = None,
 ) -> Core[DType]:
     """
     Contract a message matrix into the left rank of a core.
@@ -34,8 +120,8 @@ def apply_left_message[DType: np.floating](
         The message matrix.
     core : Core[DType]
         The core to apply the message to.
-    out : NDArray[DType] | None, optional
-        Buffer of shape ``(m, i ⋅ β)``, to write the result into, by default
+    buffer : Vector[DType] | None, optional
+        Buffer of shape ``m ⋅ i ⋅ β``, to write the result into, by default
         None (allocate a new array).
 
     Returns
@@ -47,7 +133,19 @@ def apply_left_message[DType: np.floating](
     left, mode, right = core.shape
     msg_rows, msg_cols = message.shape
     assert msg_cols == left, "core and message must be compatible"
-    return np.matmul(message, core.reshape(left, -1), out=out).reshape(
+
+    if buffer is not None:
+        columns = mode * right
+        assert buffer.ndim == 1, "Buffer should be a 1D array"
+        if buffer.size < msg_rows * columns:
+            raise ValueError(
+                f"Buffer must be at least {msg_rows * columns} elements long"
+            )
+        matrix_buffer = buffer[: msg_rows * columns].reshape(msg_rows, columns)
+    else:
+        matrix_buffer = np.empty((msg_rows, mode * right), dtype=core.dtype)
+
+    return np.matmul(message, fold_right(core), out=matrix_buffer).reshape(
         msg_rows, mode, right
     )
 
@@ -56,7 +154,7 @@ def apply_right_message[DType: np.floating](
     core: Core[DType],
     message: Matrix[DType],
     *,
-    out: NDArray[DType] | None = None,
+    buffer: Vector[DType] | None = None,
 ) -> Core[DType]:
     """
     Contract a message matrix into the right rank of a core.
@@ -71,8 +169,8 @@ def apply_right_message[DType: np.floating](
         The core to apply the message to.
     message : Matrix[DType]
         The message matrix.
-    out : NDArray[DType] | None, optional
-        Buffer of shape ``(α ⋅ i, n)``, to write the result into, by default
+    buffer : Vector[DType] | None, optional
+        Buffer of size ``α ⋅ i ⋅ n``, to write the result into, by default
         None (allocate a new array).
 
     Returns
@@ -84,7 +182,17 @@ def apply_right_message[DType: np.floating](
     left, mode, right = core.shape
     msg_rows, msg_cols = message.shape
     assert msg_rows == right, "core and message must be compatible"
-    return np.matmul(core.reshape(-1, right), message, out=out).reshape(
+
+    if buffer is not None:
+        rows = left * mode
+        assert buffer.ndim == 1, "Buffer should be a 1D array"
+        if buffer.size < rows * msg_cols:
+            raise ValueError(f"Buffer must be at least {rows * msg_cols} elements long")
+        matrix_buffer = buffer[: rows * msg_cols].reshape((rows, msg_cols))
+    else:
+        matrix_buffer = np.empty((left * mode, msg_cols), dtype=core.dtype)
+
+    return np.matmul(fold_left(core), message, out=matrix_buffer).reshape(
         left, mode, msg_cols
     )
 
@@ -196,22 +304,12 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
         # [𝐆ₖ(βₖ₋₁; iₖβₖ), R(αₖ₋₁, βₖ₋₁)] := QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
         # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
         core = cores[k - 1]
-        alpha_k1, i_k, beta_k = core.shape
-        # 𝐐, 𝐑 = QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ)) = QR(𝐆ₖ(αₖ₋₁; iₖβₖ)ᵀ)ᵀ
-        q, r = qr_rows(core.reshape((alpha_k1, i_k * beta_k)))
+        # 𝐐, 𝐑 = QR_rows(𝐆ₖ(αₖ₋₁; iₖβₖ))
+        q, r = qr_rows(fold_right(core))
         # 𝐆ₖ(βₖ₋₁; iₖβₖ) = 𝐐
-        cores[k - 1] = q.reshape((-1, i_k, beta_k))
+        cores[k - 1] = unfold_right(q, core.shape)
         # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
-        # NOTE: there is a typo in the TTD paper: it incorrectly says 𝐆ₖ ×₃ 𝐑
-        previous = cores[k - 2]
-        alpha_k2, i_k2, _ = previous.shape
-        rows = alpha_k2 * i_k2
-        columns = r.shape[1]
-        cores[k - 2] = apply_right_message(
-            previous,
-            r,
-            out=buffer[: rows * columns].reshape((rows, columns)),
-        )
+        cores[k - 2] = apply_right_message(cores[k - 2], r, buffer=buffer)
 
 
 def contract_cores[DType: np.floating](
@@ -248,28 +346,24 @@ def contract_cores[DType: np.floating](
     max_alnrank = max(core.shape[1] * core.shape[2] for core in a_cores)
 
     # Allocate buffers so that they can be reused in all iterations
-    scratch_buffer = np.empty((max_brank, max_alnrank), dtype=dtype)
-    result_buffer = np.empty((max_brank, max_arank), dtype=dtype)
+    scratch_buffer: Vector[DType] = np.empty(max_brank * max_alnrank, dtype=dtype)
+    result_buffer: Matrix[DType] = np.empty((max_brank, max_arank), dtype=dtype)
 
     # result = 1 × 1
     result = np.ones((1, 1), dtype=dtype)
 
+    # ar × n × al, br × n × bl
     for a_core, b_core in zip(a_cores, b_cores, strict=True):
-        ar, n, al = a_core.shape
-        br, _, bl = b_core.shape
-        result = np.matmul(
-            # br × ar
-            result,
-            # ar × n × al -> ar × (n × al)
-            a_core.reshape(ar, -1),
-            # -> br × (n × al)
-            out=scratch_buffer[:br, : n * al],
-        )
+        _, _, al = a_core.shape
+        _, _, bl = b_core.shape
+        # br × ar, ar × n × al -> br × n × al
+        result = apply_left_message(result, a_core, buffer=scratch_buffer)
+
         result = np.matmul(
             # br × n × bl -> (br × n) × bl -> bl × (br × n)
-            b_core.reshape(-1, bl).T,
-            # br × (n × al) -> (br × n) × al
-            result.reshape(-1, al),
+            fold_left(b_core).T,
+            # br × n × al -> (br × n) × al
+            fold_left(result),
             # -> bl × al
             out=result_buffer[:bl, :al],
         )
