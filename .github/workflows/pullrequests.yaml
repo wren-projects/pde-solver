@@ -43,6 +43,7 @@ jobs:
     name: Ensure pde.py were not manually altered
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-env
 
       - name: Backup original
