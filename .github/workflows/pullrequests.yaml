@@ -5,55 +5,45 @@ on:
     branches: ["**"]
 
 jobs:
-  check_formatter:
+  check_lint:
     name: Check formatter doesn't change code
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run ruff
-        run: uv run ruff format --check
+      - uses: ./.github/actions/setup-env
+      - run: just lint
 
-  run_linter:
+  run_test:
     name: Lint Code
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run Ruff
-        run: uv run ruff check .
+      - uses: ./.github/actions/setup-env
+      - run: just test 
 
   check_types:
     name: Check typing
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run basedpyright
-        run: uv run basedpyright
+      - uses: ./.github/actions/setup-env
+      - run: just typecheck
 
   run_coverage:
     name: Run tests and check coverage
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run Pytest with Coverage
-        run: |
+      - uses: ./.github/actions/setup-env
+      - run: |
           uv run pytest --cov=src --cov=packages \
               --cov-fail-under=${{ vars.MINIMAL_TEST_COVERAGE }}
 
   check_pdes_is_build:
     name: Ensure pde.py were not manually altered
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup just
-        uses: extractions/setup-just@v4
+      - uses: ./.github/actions/setup-env
 
       - name: Backup original
         run: cp -a packages/ backup/
