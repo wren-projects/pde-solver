@@ -315,7 +315,37 @@ These ranks determine the minimal possible internal dimensions of any TT
 representation.
 
 %==================================================
-\section{Basic Operations in TT Format}
+\subsection{Non-Negative Tensor Train Decomposition (NTTD)}
+\label{sec:nttd_definition}
+%==================================================
+
+\begin{definition}[Non-Negative Tensor Train Decomposition]
+A $d$-dimensional tensor $\mathcal{P} \in \mathbb{R}_{\ge 0}^{n_1 \times \dots \times n_d}$ is in
+Non-Negative Tensor Train (NTTD) format if it is parameterized by non-negative core tensors $G = (G_1, \dots, G_d)$, 
+where $G_1 \in \mathbb{R}_{\ge 0}^{n_1 \times r_1}$, $G_k \in \mathbb{R}_{\ge 0}^{r_{k-1} \times n_k \times r_k}$ for $k = 2, \dots, d-1$, 
+and $G_d \in \mathbb{R}_{\ge 0}^{r_{d-1} \times n_d}$, such that every entry satisfies:
+\begin{equation}
+\mathcal{P}(i_1, \dots, i_d) = \sum_{\alpha_1, \dots, \alpha_{d-1}} G_1(i_1, \alpha_1) G_2(\alpha_1, i_2, \alpha_2) \cdots G_d(\alpha_{d-1}, i_d).
+\end{equation}
+\end{definition}
+
+\paragraph{Explanation (informal).}
+Standard TT cores may contain both positive and negative values \cite{tang2026density}.
+This can be unsuitable for quantities such as probability densities, absolute
+temperature, or chemical concentrations, which are non-negative in their
+intended applications \cite{bhattarai2020distributed}.
+
+NTTD requires every core entry to be non-negative. Since each tensor entry is
+formed by sums and products of core entries, the represented tensor is also
+non-negative.
+
+\paragraph{Explanation (informal).}
+The main idea is to keep the compressed representation while enforcing the
+same non-negativity expected of the quantity being modeled. Unlike standard
+TT, NTTD restricts its core factors to the non-negative orthant.
+
+%==================================================
+\section{Basic Operations in TT format}
 %==================================================
 
 \subsection{Computing TTD}
@@ -473,10 +503,61 @@ interaction by a low-rank matrix.
 The matrix $U$ encodes how $i_1$ interacts with the rest. The remainder $C$
 is passed to the next step.
 
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-  # TODO implemented TTD
-\end{minted}
+%==================================================
+\subsection{NTTD-SVD (Non-Negative TT-SVD)}
+\label{sec:nttd_svd}
+%==================================================
+
+Standard TT-SVD computes core tensors by sequentially reshaping unfoldings and
+applying truncated SVD \cite{Oseledets2011TT}. Singular vectors generally
+contain negative elements, so standard TT-SVD does not guarantee non-negative
+cores. NTTD-SVD adapts the decomposition using non-negative factorization or
+iterative projections.
+
+\paragraph{Sequential NMF decomposition (NTTF / nTT).}
+Instead of truncated SVD, each unfolding matrix
+$X^{(k)} \in \mathbb{R}_{\ge 0}^{(r_{k-1}n_k) \times (n_{k+1}\dots n_d)}$ is
+factored using Non-Negative Matrix Factorization (NMF):
+\begin{equation}
+X^{(k)} \approx W^{(k)} H^{(k)}, \qquad W^{(k)} \ge 0, \quad H^{(k)} \ge 0.
+\end{equation}
+The left factor $W^{(k)}$ is reshaped into the non-negative core
+$G_k \in \mathbb{R}_{\ge 0}^{r_{k-1} \times n_k \times r_k}$. The remaining
+factor $H^{(k)}$ is passed to the next mode unfolding
+\cite{shcherbakova2019nonnegative, bhattarai2020distributed}.
+
+\paragraph{Explanation (informal).}
+NMF keeps both factors non-negative at each decomposition step. This makes the
+resulting TT cores non-negative by construction.
+
+\paragraph{Alternating projections (NTTSVD).}
+Alternatively, NTTSVD uses SVD for rank truncation and then enforces
+non-negativity through iterative projections between the low-rank TT manifold
+$\mathcal{M}_{\text{TT} \le \mathbf{r}}$ and the non-negative orthant
+$\mathbb{R}_{\ge 0}^{n_1 \times \dots \times n_d}$
+\cite{sultonov2023nonnegative}:
+
+\begin{algorithm}[H]State
+  \caption{NTTSVD via Alternating Projections}
+  \begin{algorithmic}[1]
+    \Require Data tensor $\mathcal{X}$, target rank $\mathbf{r}$, iterations $s$
+    \Ensure Non-negative cores $G_1, \dots, G_d$
+    
+    \State $\mathcal{X}^{(0)} \leftarrow \mathcal{X}$
+    \For{$i = 1$ to $s$}
+        \State $\mathcal{X}^{(i)} \leftarrow \max\left(\mathcal{X}^{(i-1)}, 0\right)$ \Comment{Projection onto non-negative orthant}
+        \State $[G_1, \dots, G_d] \leftarrow \text{TTSVD}(\mathcal{X}^{(i)}, \mathbf{r})$ \Comment{TT-SVD truncation}
+        \State $\mathcal{X}^{(i)} \leftarrow \text{Evaluate}(G_1, \dots, G_d)$
+    \EndFor
+    \State \Return $G_1, \dots, G_d$
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explanation (informal).}
+Each iteration removes negative entries, compresses the result to the target TT
+ranks, and evaluates the compressed representation again. Repeating these
+steps seeks a tensor that satisfies both the rank constraint and
+non-negativity.
 
 \subsection{Rounding}
 
@@ -614,10 +695,49 @@ a compact representation.
 The Frobenius norm satisfies $\|A\|_F = \sqrt{\langle A,A\rangle}$, so it
 reduces to an inner product computation (see \cref{sec:inner_product}).
 
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-# TODO implemented rounding
-\end{minted}
+%==================================================
+\subsubsection{NTTD Rounding (Recompression)}
+\label{sec:nttd_rounding}
+%==================================================
+
+Standard TT rounding (Algorithm~\ref{alg:rounding}) uses an orthogonalization
+sweep via thin QR factorization followed by truncated SVD recompression
+\cite{Oseledets2011TT}. In the non-negative setting, QR sweeps can destroy
+core non-negativity because orthogonal rotations may introduce negative
+entries.
+
+\paragraph{Explanation (informal).}
+Ordinary TT rounding cannot be applied unchanged when the core entries must
+remain non-negative. Recompression must reduce ranks without losing that
+constraint.
+
+\paragraph{NMF-based sweep rounding.}
+The SVD truncation step in standard rounding is replaced with NMF
+recompression. Instead of QR orthogonalization, cores are normalized using
+non-negative diagonal scaling matrices $D_k > 0$:
+\begin{equation}
+G_k \leftarrow G_k D_k^{-1}, \qquad G_{k+1} \leftarrow D_k G_{k+1},
+\end{equation}
+which preserves exact entrywise non-negativity while controlling core scaling.
+
+\paragraph{Explanation (informal).}
+Diagonal rescaling transfers magnitude between neighboring cores without
+changing the represented tensor or introducing negative core entries.
+
+\paragraph{Barrier-penalty recompression (optimization-based rounding).}
+Given an uncompressed or high-rank TT/NTT input tensor
+$\widetilde{\mathcal{P}}$, an optimized rounded NTTD representation $P_G$ with
+target ranks $\boldsymbol{\rho} \le \mathbf{r}$ is obtained by minimizing the
+Frobenius loss regularized with log-barrier functions \cite{tang2026density}:
+\begin{equation}
+\min_{G \ge 0} \mathcal{L}(G) = \|P_G - \widetilde{\mathcal{P}}\|_F^2 - \sum_{k=1}^d \mu_k \sum_{\text{indices}} \log\left(G_k(\dots)\right),
+\end{equation}
+where $\mu_k > 0$ strictly enforces entrywise positivity $G_k > 0$ throughout the recompression sweeps.
+
+\paragraph{Explanation (informal).}
+This approach searches directly for lower-rank non-negative cores while
+penalizing entries that approach zero. The data-fit term controls the
+approximation error, and the barrier term maintains positive core entries.
 
 \subsection{Addition}
 
@@ -657,27 +777,12 @@ define cores of $C$:
 This yields ranks $r_k^C = r_k^A + r_k^B$. The procedure is finalized by
 rounding $C$ (\cref{alg:rounding}).
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# then call tt_round(...)
-\end{minted}
-
 \paragraph{Scalar multiplication.}
 For $c\in\mathbb{R}$ and TT tensor $A$ with cores $G^{(k)}$, one may
 scale a single core:
 \[
   (cA)\ \text{can be represented by cores}\ (c\,G^{(1)}),G^{(2)},\dots,G^{(d)}.
 \]
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# - scalar multiply: scale G[0] *= c
-\end{minted}
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-  # TODO implemented proper norm_F
-\end{minted}
 
 % TODO: Norm computation via contractions; mention orthogonalization.
 
@@ -763,11 +868,6 @@ complexity.
 If $n_k \le n$ and all TT-ranks are bounded by $r$, the computational complexity
 reduces from exponential $\mathcal{O}(n^d)$ to polynomial $\mathcal{O}(dnr^3)$.
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-  # inner product
-\end{minted}
-
 \subsection{Flipping an axis}
 
 \paragraph{Definition (axis flip).}
@@ -806,11 +906,6 @@ The TT-ranks are unchanged by this operation.
 
 \paragraph{Complexity.}
 The operation requires $\mathcal{O}(r_{k-1} n_k r_k)$ operations.
-
-\paragraph{Code slot (NumPy).}
-\begin{minted}{python}
-#TODO implement
-\end{minted}
 
 %==================================================
 \subsection{Element access}
@@ -857,11 +952,6 @@ If TT-ranks are bounded by $r$, the cost is
 \[
 \mathcal{O}(d r^2).
 \]
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: element access
-\end{minted}
 
 %==================================================
 \subsection{Mode permutation (transpose)}
@@ -949,12 +1039,6 @@ A single adjacent swap has complexity
 
 A general permutation requires $\mathcal{O}(d^2)$ such swaps.
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: implement adjacent swap of TT cores
-# then compose swaps to achieve general permutation
-\end{minted}
-
 %==================================================
 \subsection{Tensor contraction (tensordot)}
 %==================================================
@@ -1027,11 +1111,6 @@ If $n_k \le n$ and ranks are bounded by $r$, the cost is
 \[
 \mathcal{O}(d n r^3).
 \]
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: tensordot / contraction
-\end{minted}
 
 %==================================================
 \subsection{Differential Operators}
@@ -1164,14 +1243,6 @@ In our implementation, the divergence is obtained by computing the
 gradient of the vector field and extracting the trace of the resulting
 Jacobian tensor.
 
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: divergence in TTD
-# - compute gradient of component F_k along axis k
-# - sum all derivative TTDs
-# - round if needed
-\end{minted} 
-
 %==================================================
 \subsubsection{Laplace operator}
 %==================================================
@@ -1202,14 +1273,6 @@ The Laplace operator is implemented as divergence of the gradient.
 
 The summation of the second-derivative TTDs may increase TT-ranks.
 Therefore, rounding should be applied after the sum.
-
-\paragraph{Code slot.}
-\begin{minted}{python}
-# TODO: Laplace in TTD
-# - compute gradient(A)
-# - compute divergence(gradient(A))
-# - round result
-\end{minted}
 
 %==================================================
 \section{PDEs and Using TT format to solve them}
@@ -1751,6 +1814,209 @@ decrease quadratically with the spatial resolution.
 
 In practice, the time step must satisfy a suitable CFL-type
 stability condition.
+
+The explicit finite-difference method approximates the time derivative
+using a Forward Euler discretization
+\cite{LeVeque2007}.
+
+
+%==================================================
+\section{Validation}
+%==================================================
+
+The implemented numerical methods are verified using analytical
+solutions of the governing partial differential equations and
+convergence studies based on step-size halving.
+
+Analytical solutions provide an exact reference against which the
+numerical approximation can be compared, while step-size halving
+verifies that the implemented method exhibits the expected order of
+convergence. Together, these tests provide evidence for both the
+correctness of the implementation and the consistency of the numerical
+discretization \cite{LeVeque2007}.
+
+%==================================================
+\subsection{Validation using analytical solutions}
+%==================================================
+
+The primary verification procedure compares the numerical solution
+against an analytical solution of the three-dimensional heat equation.
+The analytical solution used in the test cases is taken from Herman
+\cite{HermanPDE} and corresponds to the homogeneous heat equation
+
+\[
+u_t
+=
+\alpha
+\left(
+u_{xx}
++
+u_{yy}
++
+u_{zz}
+\right),
+\]
+
+posed on the unit cube with homogeneous Dirichlet boundary conditions.
+
+The analytical solution has the form
+
+\[
+u(x,y,z,t)
+=
+\sin(l\pi x)
+\sin(m\pi y)
+\sin(n\pi z)
+\exp\!\left(
+-\alpha\pi^2
+(l^2+m^2+n^2)t
+\right),
+\]
+
+where $l$, $m$ and $n$ denote the spatial modes.
+
+For each test case, the numerical solution is evolved to a prescribed
+time and compared with the corresponding analytical solution. The
+difference between the two solutions provides a direct measure of the
+accuracy of the implemented numerical method.
+
+%==================================================
+\subsection{Convergence study using step-size halving}
+%==================================================
+
+In addition to comparison with analytical solutions, the implemented
+methods are verified using a convergence study based on step-size
+halving.
+
+The same problem is solved repeatedly while reducing the spatial and/or
+temporal discretization by a factor of two. For a numerical method of
+order $p$, the discretization error satisfies
+
+\[
+E(h)
+=
+Ch^p
++
+\mathcal{O}(h^{p+1}),
+\]
+
+where $h$ denotes the discretization size and $C$ is independent of
+$h$ \cite{LeVeque2007}.
+
+Consequently,
+
+\[
+\frac{E(h)}
+     {E(h/2)}
+\approx
+2^p,
+\]
+
+which allows the observed convergence order to be estimated as
+
+\[
+p
+\approx
+\log_2
+\left(
+\frac{E(h)}
+     {E(h/2)}
+\right).
+\]
+
+Agreement between the observed and theoretical convergence orders
+provides additional verification that the numerical implementation is
+consistent with the underlying finite-difference discretization.
+
+%==================================================
+\subsection{Comparison of Full-Grid and TTD Solvers}
+\label{sec:solver_comparison}
+%==================================================
+
+\paragraph{Purpose of the comparison.}
+In addition to analytical solutions and step-size convergence studies, we
+compare the full-grid explicit finite-difference solver with the TTD
+compressed solver for high-dimensional advection-diffusion PDEs. The
+comparison evaluates accuracy, computational scaling, and performance.
+
+\paragraph{Explanation (informal).}
+The full-grid solver provides a reference for the compressed solver. Comparing
+their results and resource use helps show when the TT representation is
+accurate and computationally useful.
+
+\paragraph{Benchmark setup.}
+Both solvers target advection-diffusion-reaction equations on the
+$d$-dimensional domain $\Omega = [0, 1]^d$.
+
+\paragraph{Full-grid solver.}
+The full-grid solver evolves dense tensors
+$U \in \mathbb{R}^{n_1 \times \dots \times n_d}$ using explicit
+finite-difference stencils. Each time step requires $\mathcal{O}(n^d)$
+operations, so its cost grows exponentially with the dimension $d$.
+
+\paragraph{Explanation (informal).}
+The full-grid method stores every value on the tensor grid. It provides a
+direct reference solution for comparison, but its storage and computation
+become expensive as the number of dimensions increases.
+
+\paragraph{TTD compressed solver.}
+The TTD solver represents the solution using cores
+$(G_1, \dots, G_d)$ with TT-ranks $\mathbf{r} = (r_1, \dots, r_{d-1})$.
+Directional derivatives, divergence, and the Laplacian are computed directly
+on the cores without expanding the full array
+(\cref{sec:differential_operators}). TT rounding controls rank growth after
+operations (\cref{alg:rounding}); with ranks bounded by $r$, the stated step
+complexity is $\mathcal{O}(d n r^3)$.
+
+\paragraph{Explanation (informal).}
+The compressed solver stores the solution through its TT cores rather than
+storing every grid value. Its efficiency depends on the TT-ranks remaining
+moderate, and its approximation accuracy is assessed against the full-grid
+reference.
+
+\paragraph{Evaluation metrics.}
+The benchmark compares execution time, speedup, solution error, and storage
+requirements.
+
+\paragraph{Wall-clock execution time.}
+The total computation time is recorded over $N_{\text{steps}}$ time iterations
+for each solver, giving $T_{\text{full}}$ and $T_{\text{TTD}}$.
+
+\paragraph{Speedup factor.}
+The speedup is the ratio of full-grid execution time to TTD execution time:
+$S = \dfrac{T_{\text{full}}}{T_{\text{TTD}}}$.
+
+\paragraph{Relative solution errors.}
+At the final simulation time $T_{\text{final}}$, the TT representation is
+evaluated as $\widehat{U}_{\text{TTD}} = \text{TT-Evaluate}(G_1, \dots, G_d)$
+and compared with the full-grid reference $U_{\text{full}}$:
+\[
+\begin{aligned}
+E_{L_2} &= \frac{\|U_{\text{full}} - \widehat{U}_{\text{TTD}}\|_F}
+         {\|U_{\text{full}}\|_F}, \\
+E_{\infty} &= \frac{\|U_{\text{full}} - \widehat{U}_{\text{TTD}}\|_\infty}
+          {\|U_{\text{full}}\|_\infty}.
+\end{aligned}
+\]
+
+\paragraph{Memory storage footprint.}
+The full-grid representation stores $\mathcal{O}(n^d)$ entries, while the TT
+representation stores $\mathcal{O}(d n r^2)$ entries when the ranks are bounded
+by $r$.
+
+\begin{table}[ht]
+\centering
+\caption{Systematic comparison between Full-Grid and TTD Solvers.}
+\label{tab:solver_comparison}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Feature / Metric} & \textbf{Full-Grid (NDArray) Solver} & \textbf{TTD Compressed Solver} \\ \hline
+Memory Complexity & $\mathcal{O}(n^d)$ & $\mathcal{O}(d n r^2)$ \\ \hline
+Time Step Complexity & $\mathcal{O}(n^d)$ & $\mathcal{O}(d n r^3)$ \\ \hline
+Curse of Dimensionality & Present & Mitigated (for moderate rank $r$) \\ \hline
+Rank Compression & N/A & Preserves ranks $r_k \le r_{\max}$ via TT Rounding \\ \hline
+\end{tabular}
+\end{table}
 
 %==================================================
 \section{Conclusion and Further Reading}
