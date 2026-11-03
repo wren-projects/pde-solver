@@ -160,7 +160,7 @@ def apply_right_message[DType: np.floating](
     Contract a message matrix into the right rank of a core.
 
     Computes ``𝐆 ⋅ 𝐌``, i.e. the mode-3 product ``𝐆 ×₃ 𝐌``, where ``𝐆`` is a
-    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(α, n)``) whose number of rows
+    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(β, n)``) whose number of rows
     matches ``β``.
 
     Parameters
