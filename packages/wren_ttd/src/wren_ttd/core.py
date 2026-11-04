@@ -127,7 +127,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         d = array.ndim
 
         if d == 1:
-            return TTD([array.reshape((1, len(array), 1))])
+            return TTD([np.expand_dims(array, (0, 2))])
 
         delta = truncation_parameter(array, epsilon)
 
@@ -158,7 +158,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐂 = 𝐒𝐕ᵀ
             residue = scale_matrix(s, v_t, out=v_t)
 
-        cores.append(residue.reshape((*residue.shape, 1)))
+        cores.append(np.expand_dims(residue, axis=2))
 
         return TTD(cores)
 
@@ -452,8 +452,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         # 1D TTD
         if len(self.data) == 1:
             core = self.data[0]
-            reshaped = core.reshape((core.shape[1],))
-            return np.asarray(reshaped, dtype=dtype, copy=copy)
+            squeezed = core.squeeze((0, 2))
+            return np.asarray(squeezed, dtype=dtype, copy=copy)
 
         if copy is False:
             raise ValueError(
