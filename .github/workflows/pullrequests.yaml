@@ -6,7 +6,7 @@ on:
 
 jobs:
   check_lint:
-    name: Check formatter doesn't change code
+    name: Lint the code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,7 +14,7 @@ jobs:
       - run: just lint
 
   run_test:
-    name: Lint Code
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +30,7 @@ jobs:
       - run: just typecheck
 
   run_coverage:
-    name: Run tests and check coverage
+    name: Check coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
