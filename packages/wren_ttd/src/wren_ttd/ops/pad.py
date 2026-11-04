@@ -29,14 +29,13 @@ def _pad_constant[DType: np.complexfloating](
     from wren_ttd.core import TTD
 
     # zero pad the TTD cores
-    new_cores: list[Core[DType]] = []
-    for core in ttd.data:
-        r_left, n, r_right = core.shape
-        new_core: Core[DType] = np.zeros(
-            (r_left, pad_width + n + pad_width, r_right), dtype=ttd.dtype
+    new_cores: list[Core[DType]] = [
+        cast(
+            Core[DType],
+            np.pad(core, ((0, 0), (pad_width, pad_width), (0, 0))),
         )
-        new_core[:, pad_width : pad_width + n, :] = core
-        new_cores.append(new_core)
+        for core in ttd.data
+    ]
 
     Z = TTD(new_cores, dtype=ttd.dtype)
 
@@ -44,19 +43,16 @@ def _pad_constant[DType: np.complexfloating](
         return Z
 
     # Build an all-ones TTD of the padded shape (rank 1)
-    ones_cores = (
-        _padded_mask_core(orig_n, pad_width, dtype=ttd.dtype) for orig_n in ttd.shape
-    )
-    ones_ttd = TTD(ones_cores, dtype=ttd.dtype)
+    padded_shape = tuple((pad_width + n + pad_width) for n in ttd.shape)
+    ones_ttd = TTD.ones(padded_shape, dtype=ttd.dtype)
 
     # Build a rank-1 indicator TTD: 1 in the original domain, 0 in the padded region
-    indicator_cores: list[Core[DType]] = []
-    for orig_n in ttd.shape:
-        ind_core: Core[DType] = _padded_mask_core(orig_n, pad_width, dtype=ttd.dtype)
+    indicator_ttd = ones_ttd.copy()
+
+    indicator_cores: list[Core[DType]] = indicator_ttd.data
+    for ind_core in indicator_cores:
         ind_core[0, :pad_width, 0] = 0
-        ind_core[0, pad_width + orig_n :, 0] = 0
-        indicator_cores.append(ind_core)
-    indicator_ttd = TTD(indicator_cores, dtype=ttd.dtype)
+        ind_core[0, -pad_width:, 0] = 0
 
     return Z + constant_value * (ones_ttd - indicator_ttd)
 
