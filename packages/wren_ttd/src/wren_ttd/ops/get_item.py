@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, SupportsIndex, cast
 import numpy as np
 from wren_common.types import Index1D, Matrix
 
-from wren_ttd._helpers import apply_left_message, apply_right_message
+from wren_ttd._helpers import mode_1_product, mode_3_product
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -92,7 +92,7 @@ def get_item[DType: np.floating](
             # no message to apply, keep the slice unchanged
             cores.append(sliced)
         else:
-            cores.append(apply_left_message(message, sliced))
+            cores.append(mode_1_product(message, sliced))
         # continue with a clean new message matrix
         message = None
 
@@ -107,10 +107,10 @@ def get_item[DType: np.floating](
     # preserved core
     if remaining:
         if message is not None:
-            remaining[0] = apply_left_message(message, remaining[0])
+            remaining[0] = mode_1_product(message, remaining[0])
 
         cores.extend(remaining)
     elif message is not None:
-        cores[-1] = apply_right_message(cores[-1], message)
+        cores[-1] = mode_3_product(cores[-1], message)
 
     return TTD(cores, dtype=ttd.dtype)

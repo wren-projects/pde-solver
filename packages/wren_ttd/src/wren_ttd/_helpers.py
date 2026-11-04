@@ -101,26 +101,26 @@ def unfold_left[DType: np.floating, Shape: tuple[int, ...]](
     return cast(np.ndarray[Shape, np.dtype[DType]], matrix.reshape(shape))
 
 
-def apply_left_message[DType: np.floating](
-    message: Matrix[DType],
+def mode_1_product[DType: np.floating](
+    matrix: Matrix[DType],
     core: Core[DType],
     *,
     buffer: Vector[DType] | None = None,
 ) -> Core[DType]:
     """
-    Contract a message matrix into the left rank of a core.
+    Contract a matrix into the left rank of a core.
 
-    Computes ``𝐌 ⋅ 𝐆``, i.e. the mode-1 product ``𝐆 ×₁ 𝐌``, where ``𝐆`` is a
-    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(m, α)``).
+    Computes ``𝐆 ×₁ 𝐌``, where ``𝐆`` is a core ``(α, i, β)`` and ``𝐌`` is a
+    matrix (``(m, α)``).
 
     Parameters
     ----------
-    message : Matrix[DType]
-        The message matrix.
+    matrix : Matrix[DType]
+        The matrix.
     core : Core[DType]
-        The core to apply the message to.
+        The core to apply the matrix to.
     buffer : Vector[DType] | None, optional
-        Buffer of shape ``m ⋅ i ⋅ β``, to write the result into, by default
+        Buffer of size ``m ⋅ i ⋅ β``, to write the result into, by default
         None (allocate a new array).
 
     Returns
@@ -130,43 +130,42 @@ def apply_left_message[DType: np.floating](
 
     """
     left, mode, right = core.shape
-    msg_rows, msg_cols = message.shape
-    assert msg_cols == left, "core and message must be compatible"
+    mat_rows, mat_cols = matrix.shape
+    assert mat_cols == left, "core and matrix must be compatible"
 
     if buffer is not None:
         columns = mode * right
+        size = mat_rows * columns
         assert buffer.ndim == 1, "Buffer should be a 1D array"
-        if buffer.size < msg_rows * columns:
-            raise ValueError(
-                f"Buffer must be at least {msg_rows * columns} elements long"
-            )
-        matrix_buffer = buffer[: msg_rows * columns].reshape(msg_rows, columns)
+        if buffer.size < size:
+            raise ValueError(f"Buffer must be at least {size} elements long")
+        matrix_buffer = buffer[:size].reshape(mat_rows, columns)
     else:
-        matrix_buffer = np.empty((msg_rows, mode * right), dtype=core.dtype)
+        matrix_buffer = None
 
-    return np.matmul(message, fold_right(core), out=matrix_buffer).reshape(
-        msg_rows, mode, right
+    return np.matmul(matrix, fold_right(core), out=matrix_buffer).reshape(
+        mat_rows, mode, right
     )
 
 
-def apply_right_message[DType: np.floating](
+def mode_3_product[DType: np.floating](
     core: Core[DType],
-    message: Matrix[DType],
+    matrix: Matrix[DType],
     *,
     buffer: Vector[DType] | None = None,
 ) -> Core[DType]:
     """
-    Contract a message matrix into the right rank of a core.
+    Contract a matrix into the right rank of a core.
 
-    Computes ``𝐆 ⋅ 𝐌``, i.e. the mode-3 product ``𝐆 ×₃ 𝐌``, where ``𝐆`` is a
-    core ``(α, i, β)`` and ``𝐌`` is a matrix (``(β, n)``).
+    Computes ``𝐆 ×₃ 𝐌``, where ``𝐆`` is a core ``(α, i, β)`` and ``𝐌`` is a
+    matrix (``(β, n)``).
 
     Parameters
     ----------
     core : Core[DType]
-        The core to apply the message to.
-    message : Matrix[DType]
-        The message matrix.
+        The core to apply the matrix to.
+    matrix : Matrix[DType]
+        The matrix.
     buffer : Vector[DType] | None, optional
         Buffer of size ``α ⋅ i ⋅ n``, to write the result into, by default
         None (allocate a new array).
@@ -178,20 +177,21 @@ def apply_right_message[DType: np.floating](
 
     """
     left, mode, right = core.shape
-    msg_rows, msg_cols = message.shape
-    assert msg_rows == right, "core and message must be compatible"
+    mat_rows, mat_cols = matrix.shape
+    assert right == mat_rows, "core and matrix must be compatible"
 
     if buffer is not None:
         rows = left * mode
+        size = rows * mat_cols
         assert buffer.ndim == 1, "Buffer should be a 1D array"
-        if buffer.size < rows * msg_cols:
-            raise ValueError(f"Buffer must be at least {rows * msg_cols} elements long")
-        matrix_buffer = buffer[: rows * msg_cols].reshape((rows, msg_cols))
+        if buffer.size < size:
+            raise ValueError(f"Buffer must be at least {size} elements long")
+        matrix_buffer = buffer[:size].reshape(rows, mat_cols)
     else:
-        matrix_buffer = np.empty((left * mode, msg_cols), dtype=core.dtype)
+        matrix_buffer = None
 
-    return np.matmul(fold_left(core), message, out=matrix_buffer).reshape(
-        left, mode, msg_cols
+    return np.matmul(fold_left(core), matrix, out=matrix_buffer).reshape(
+        left, mode, mat_cols
     )
 
 
@@ -307,7 +307,7 @@ def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
         # 𝐆ₖ(βₖ₋₁; iₖβₖ) = 𝐐
         cores[k - 1] = unfold_right(q, core.shape)
         # 𝐆ₖ₋₁ := 𝐆ₖ₋₁ ×₃ 𝐑
-        cores[k - 2] = apply_right_message(cores[k - 2], r, buffer=buffer)
+        cores[k - 2] = mode_3_product(cores[k - 2], r, buffer=buffer)
 
 
 def contract_cores[DType: np.floating](
@@ -355,7 +355,7 @@ def contract_cores[DType: np.floating](
         _, _, al = a_core.shape
         _, _, bl = b_core.shape
         # br × ar, ar × n × al -> br × n × al
-        result = apply_left_message(result, a_core, buffer=scratch_buffer)
+        result = mode_1_product(result, a_core, buffer=scratch_buffer)
 
         result = np.matmul(
             # br × n × bl -> (br × n) × bl -> bl × (br × n)

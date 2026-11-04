@@ -22,8 +22,8 @@ from wren_common.types import Index1D, Matrix, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
-    apply_left_message,
     fold_left,
+    mode_1_product,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
@@ -535,7 +535,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
             cores[k - 1] = unfold_left(u, core.shape)
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
-            cores[k] = apply_left_message(scale_matrix(s, v_t, out=v_t), cores[k])
+            cores[k] = mode_1_product(scale_matrix(s, v_t, out=v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""

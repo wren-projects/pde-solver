@@ -9,9 +9,9 @@ import numpy as np
 from numpy.lib.array_utils import normalize_axis_tuple
 
 from wren_ttd._helpers import (
-    apply_left_message,
     contract_pair,
     fold_left,
+    mode_1_product,
     orthogonalize_right,
     truncation_parameter,
     unfold_left,
@@ -128,7 +128,7 @@ def transpose[DType: np.floating](
             core = cores[i]
             q, r = np.linalg.qr(fold_left(core))
             cores[i] = unfold_left(q, core.shape)
-            cores[i + 1] = apply_left_message(r, cores[i + 1])
+            cores[i + 1] = mode_1_product(r, cores[i + 1])
 
         # Swap cores
         core_0 = cores[k]

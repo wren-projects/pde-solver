@@ -8,9 +8,9 @@ import numpy as np
 from numpy.lib.array_utils import normalize_axis_tuple
 
 from wren_ttd._helpers import (
-    apply_left_message,
-    apply_right_message,
     contract_cores,
+    mode_1_product,
+    mode_3_product,
     reverse_cores,
 )
 from wren_ttd._numpy_api import implements_function
@@ -158,8 +158,8 @@ def _tensordot_transposed[DType: np.floating](
     # multiply the message_matrix into either the first free b core or the last
     # free a core
     if b_free:
-        out_cores[len(a_free)] = apply_left_message(message, b_free[0])
+        out_cores[len(a_free)] = mode_1_product(message, b_free[0])
     else:
-        out_cores[-1] = apply_right_message(a_free[-1], message)
+        out_cores[-1] = mode_3_product(a_free[-1], message)
 
     return TTD(out_cores, dtype=dtype)
