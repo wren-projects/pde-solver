@@ -1,10 +1,12 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 import pytest
 from wren_common.tests import TEST_SCALARS, TestTensor
 from wren_common.types import Scalar
+from wren_ttd import TTD
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -15,6 +17,63 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     # the compression is done in TEST_TTD and the decompression is done
     # implicitly inside assert_default_epsilon
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_construct_from_ndarray(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test construction from an ndarray."""
+    result = TTD(tensor)
+
+    assert result.dtype == tensor.dtype
+    assert_default_epsilon(result, tensor)
+    assert_default_epsilon(result, ttd)
+
+
+@pytest.mark.parametrize(
+    "tensor", [np.arange(1, 6, dtype=np.float64), np.zeros(4), np.ones(3)]
+)
+def test_construct_from_1d_ndarray(tensor: TestTensor) -> None:
+    """Test construction from a one-dimensional ndarray."""
+    result = TTD(tensor)
+
+    assert result.ndim == 1
+    assert_default_epsilon(result, tensor)
+
+
+def test_construct_from_ndarray_preserves_dtype() -> None:
+    """Test construction from an ndarray preserves the dtype."""
+    tensor = np.ones((2, 3, 4), dtype=np.float32)
+    result = TTD(tensor)
+
+    assert result.dtype == np.float32
+    assert_default_epsilon(result, tensor, epsilon=1e-5)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_construct_from_ttd(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test construction from another TTD shallow-copies its data."""
+    result = TTD(ttd)
+
+    assert result.dtype == ttd.dtype
+    assert result.data is not ttd.data
+    assert all(a is b for a, b in zip(result.data, ttd.data, strict=True))
+    assert_default_epsilon(result, tensor)
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_construct_from_cores(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test construction from an iterable of cores."""
+    result = TTD(iter(ttd.data))
+
+    assert result.dtype == ttd.dtype
+    assert_default_epsilon(result, tensor)
+
+
+@pytest.mark.parametrize("data", [42, 3.14, None, object()])
+def test_construct_invalid_type(data: Any) -> None:
+    """Test construction from an unsupported type raises an error."""
+    with pytest.raises(TypeError):
+        _ = TTD(data)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
