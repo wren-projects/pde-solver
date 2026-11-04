@@ -11,8 +11,10 @@ from numpy.lib.array_utils import normalize_axis_tuple
 from wren_ttd._helpers import (
     apply_left_message,
     contract_pair,
+    fold_left,
     orthogonalize_right,
     truncation_parameter,
+    unfold_left,
 )
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.math import (
@@ -124,9 +126,8 @@ def transpose[DType: np.floating](
         # Move orthogonal center to k
         for i in range(sorted_prefix, k):
             core = cores[i]
-            r0, n1, r1 = core.shape
-            q, r = np.linalg.qr(core.reshape((r0 * n1, r1)))
-            cores[i] = q.reshape((r0, n1, -1))
+            q, r = np.linalg.qr(fold_left(core))
+            cores[i] = unfold_left(q, core.shape)
             cores[i + 1] = apply_left_message(r, cores[i + 1])
 
         # Swap cores

@@ -23,11 +23,13 @@ from wren_common.types import Index1D, Matrix, NDArray, Scalar
 from wren_ttd import ops
 from wren_ttd._helpers import (
     apply_left_message,
+    fold_left,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
     to_int_tuple,
     truncation_parameter,
+    unfold_left,
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
@@ -130,7 +132,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         delta = truncation_parameter(array, epsilon)
 
         # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = array.reshape((array.shape[0], -1))
+        residue: Matrix[DT] = fold_left(array)
 
         # r₀ = 1
         r = 1
@@ -528,11 +530,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         for k in range(1, d):  # for k = 1 to d-1
             # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
             core = cores[k - 1]
-            beta_k1, i_k, beta_k = core.shape
             # 𝐔, 𝚲, 𝐕ᵀ := SVDᵟ(𝐆ₖ(βₖ₋₁; iₖβₖ))
-            u, s, v_t = delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k), delta)
+            u, s, v_t = delta_truncated_svd(fold_left(core), delta)
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
-            cores[k - 1] = u.reshape((beta_k1, i_k, -1))
+            cores[k - 1] = unfold_left(u, core.shape)
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
             cores[k] = apply_left_message(scale_matrix(s, v_t, out=v_t), cores[k])
 

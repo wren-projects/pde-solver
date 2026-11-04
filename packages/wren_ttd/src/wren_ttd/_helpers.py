@@ -223,7 +223,7 @@ def contract_pair[DType: np.floating](
     assert rank == b.shape[0], "cores must have matching ranks"
     return cast(
         Matrix[DType],
-        np.matmul(a.reshape(-1, rank), b.reshape(rank, -1)),
+        np.matmul(fold_left(a), fold_right(b)),
     )
 
 
