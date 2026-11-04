@@ -36,6 +36,48 @@ ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
+def _compress_array[DT: np.floating](
+    array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
+) -> list[Core[DT]]:
+    d = array.ndim
+
+    if d == 1:
+        return [array.reshape((1, len(array), 1))]
+
+    delta = truncation_parameter(array, epsilon)
+
+    # 𝐂 = reshape(𝐂, [n, -1])
+    residue: Matrix[DT] = array.reshape((array.shape[0], -1))
+
+    # r₀ = 1
+    r = 1
+
+    cores: list[Core[DT]] = []
+
+    # for k = 1 to d - 1 do
+    # note: n = nₖ, r = rₖ₋₁
+    for n in array.shape[:-1]:
+        # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
+        residue = residue.reshape((r * n, -1))
+
+        # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
+        u, s, v_t = delta_truncated_svd(residue, delta)
+
+        # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
+        new_core = u.reshape((r, n, -1))
+        cores.append(new_core)
+
+        # set rₖ = rankᵟ(C) for next iteration
+        r = new_core.shape[2]
+
+        # 𝐂 = 𝐒𝐕ᵀ
+        residue = scale_matrix(s, v_t)
+
+    cores.append(residue.reshape((*residue.shape, 1)))
+
+    return cores
+
+
 @final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
@@ -54,7 +96,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     def __init__(
         self,
-        data: Iterable[Core[DType]],
+        data: TTD[DType] | NDArray[DType] | Iterable[Core[DType]],
         *,
         dtype: np.dtype | None = None,
     ) -> None:
@@ -63,9 +105,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         Parameters
         ----------
-        data : Iterable[Core[DType]]
-            The cores of the TTD object. The caller must ensure that the data
-            represents a valid TTD.
+        data : TTD | NDArray | Iterable[Core]
+            The data to be stored in the TTD object. If a TTD object is passed,
+            its data will be shallow-copied. If an NDArray is passed, it will be
+            compressed into a TTD object. If an Iterable of Core objects is
+            passed, it will be wrapped in a TTD object.
         dtype : np.dtype, optional
             The datatype of the TTD object. Defaults to the dtype of the first
             core. Either way, the dtype must be the same for all cores.
@@ -73,7 +117,22 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         super().__init__()
 
-        self.data = list(data)
+        if isinstance(data, TTD):
+            self.data = data.data.copy()
+            self.dtype = data.dtype
+            return
+
+        if isinstance(data, np.ndarray):
+            self.data = _compress_array(cast(NDArray[DType], data))
+            self.dtype = cast(np.dtype[DType], data.dtype)
+            return
+
+        if isinstance(data, Iterable):  # pyright: ignore[reportUnnecessaryIsInstance]
+            self.data = list(data)
+        else:
+            raise TypeError(  # pyright: ignore[reportUnreachable]
+                f"Unexpected type for TTD: {type(data)}"
+            )
 
         if not self.data:
             raise ValueError("TTD must have at least one core")
@@ -121,43 +180,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             The compressed TTD.
 
         """
-        d = array.ndim
-
-        if d == 1:
-            return TTD([array.reshape((1, len(array), 1))])
-
-        delta = truncation_parameter(array, epsilon)
-
-        # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = array.reshape((array.shape[0], -1))
-
-        # r₀ = 1
-        r = 1
-
-        cores: list[Core[DT]] = []
-
-        # for k = 1 to d - 1 do
-        # note: n = nₖ, r = rₖ₋₁
-        for n in array.shape[:-1]:
-            # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
-            residue = residue.reshape((r * n, -1))
-
-            # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
-            u, s, v_t = delta_truncated_svd(residue, delta)
-
-            # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
-            new_core = u.reshape((r, n, -1))
-            cores.append(new_core)
-
-            # set rₖ = rankᵟ(C) for next iteration
-            r = new_core.shape[2]
-
-            # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t)
-
-        cores.append(residue.reshape((*residue.shape, 1)))
-
-        return TTD(cores)
+        return TTD(_compress_array(array, epsilon), dtype=array.dtype)
 
     @staticmethod
     def ones[DT: np.floating](
