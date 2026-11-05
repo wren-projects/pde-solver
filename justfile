@@ -6,15 +6,15 @@ code_folders := "src tests packages"
 default:
     @just --list --justfile {{ justfile() }}
 
-format:
-    {{ uv }} run ruff format {{ code_folders }}
+format +files=code_folders:
+    {{ uv }} run ruff format {{ files }}
 
-lint:
-    {{ uv }} run ruff check {{ code_folders }}
-    {{ uv }} run ruff format --check {{ code_folders }}
+lint +files=code_folders:
+    {{ uv }} run ruff check {{ files }}
+    {{ uv }} run ruff format --check {{ files }}
 
-typecheck:
-    {{ uv }} run basedpyright
+typecheck +files=code_folders:
+    {{ uv }} run basedpyright {{ files }}
 
 test:
     {{ uv }} run pytest -n 4 --dist=load
@@ -33,7 +33,7 @@ generate-pdes:
     {{ uv }} run ruff check {{ pde_file }} --fix
     {{ uv }} run ruff format {{ pde_file }}
 
-check: lint test typecheck
+check +files=code_folders: (lint files) test (typecheck files)
 
 generate-math-doc:
     tectonic -Z shell-escape docs/main.tex
