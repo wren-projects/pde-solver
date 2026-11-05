@@ -12,6 +12,7 @@ from typing import (
     final,
     overload,
     override,
+    reveal_type,
 )
 
 import numpy as np
@@ -78,6 +79,19 @@ def _compress_array[DT: np.floating](
     return cores
 
 
+def _is_sequence_of_cores(data: Sequence[object]) -> bool:
+    return all(isinstance(item, np.ndarray) for item in data)
+
+
+def _as_floating_array(
+    data: npt.ArrayLike, dtype: np.dtype | None = None
+) -> NDArray[Any]:
+    array = np.asarray(data, dtype=dtype)
+    if not np.issubdtype(array.dtype, np.floating):
+        array = array.astype(np.float64)
+    return array
+
+
 @final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
@@ -94,9 +108,27 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     __slots__ = ("data", "dtype")
 
+    @overload
+    def __init__(self, data: TTD[DType], *, dtype: np.dtype | None = None) -> None: ...
+
+    @overload
+    def __init__(
+        self, data: NDArray[DType], *, dtype: np.dtype | None = None
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self, data: Iterable[Core[DType]], *, dtype: np.dtype | None = None
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self, data: Sequence[Any], *, dtype: np.dtype | None = None
+    ) -> None: ...
+
     def __init__(
         self,
-        data: TTD[DType] | NDArray[DType] | Iterable[Core[DType]],
+        data: object,
         *,
         dtype: np.dtype | None = None,
     ) -> None:
@@ -105,34 +137,47 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         Parameters
         ----------
-        data : TTD | NDArray | Iterable[Core]
+        data : TTD | ArrayLike | Iterable[Core]
             The data to be stored in the TTD object. If a TTD object is passed,
-            its data will be shallow-copied. If an NDArray is passed, it will be
-            compressed into a TTD object. If an Iterable of Core objects is
-            passed, it will be wrapped in a TTD object.
+            its data will be shallow-copied. If an array-like object, such as an
+            NDArray or a (nested) Python sequence, is passed, it will be
+            converted to an NDArray and compressed into a TTD object. If an
+            Iterable of Core objects is passed, it will be wrapped in a TTD
+            object.
         dtype : np.dtype, optional
             The datatype of the TTD object. Defaults to the dtype of the first
-            core. Either way, the dtype must be the same for all cores.
+            core, or the dtype of the array-like object. Either way, the dtype
+            must be the same for all cores.
 
         """
         super().__init__()
 
         if isinstance(data, TTD):
-            self.data = data.data.copy()
-            self.dtype = data.dtype
+            ttd = cast(TTD[DType], data)
+            self.data = ttd.data.copy()
+            self.dtype = ttd.dtype
             return
 
-        if isinstance(data, np.ndarray):
-            self.data = _compress_array(cast(NDArray[DType], data))
-            self.dtype = cast(np.dtype[DType], data.dtype)
-            return
-
-        if isinstance(data, Iterable):  # pyright: ignore[reportUnnecessaryIsInstance]
-            self.data = list(data)
-        else:
-            raise TypeError(  # pyright: ignore[reportUnreachable]
-                f"Unexpected type for TTD: {type(data)}"
+        if isinstance(data, np.ndarray) or (
+            isinstance(data, (list, tuple))
+            and not _is_sequence_of_cores(cast(Sequence[object], data))
+        ):
+            array = cast(
+                NDArray[DType],
+                _as_floating_array(cast(npt.ArrayLike, data), dtype),
             )
+            self.data = _compress_array(array)
+            self.dtype = array.dtype
+            return
+
+        if not isinstance(data, Iterable):
+            raise TypeError(f"Unexpected type for TTD: {type(data)}")
+
+        self.data = list(cast(Iterable[Any], data))
+
+        for core in self.data:
+            if not isinstance(core, np.ndarray):
+                raise TypeError(f"Unexpected type for TTD core: {type(core)}")
 
         if not self.data:
             raise ValueError("TTD must have at least one core")

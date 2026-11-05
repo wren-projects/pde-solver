@@ -49,6 +49,61 @@ def test_construct_from_ndarray_preserves_dtype() -> None:
     assert_default_epsilon(result, tensor, epsilon=1e-5)
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        [1.0, 2.0, 3.0],
+        [[1.0, 2.0], [3.0, 4.0]],
+        [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+        ((1.0, 2.0), (3.0, 4.0)),
+    ],
+)
+def test_construct_from_sequence(data: Any) -> None:
+    """Test construction from raw Python sequences."""
+    result: TTD[Any] = TTD(data)
+    tensor = np.asarray(data, dtype=np.float64)
+
+    assert result.dtype == np.float64
+    assert_default_epsilon(result, tensor)
+
+
+def test_construct_from_integer_ndarray() -> None:
+    """Test construction from an integer ndarray promotes to floating."""
+    tensor = np.arange(1, 7).reshape(2, 3)
+    result: TTD[Any] = TTD(tensor)
+
+    assert result.dtype == np.float64
+    assert_default_epsilon(result, tensor.astype(np.float64))
+
+
+def test_construct_from_integer_sequence() -> None:
+    """Test construction from a sequence of integers promotes to floating."""
+    data = [[1, 2], [3, 4]]
+    result: TTD[Any] = TTD(data)
+
+    assert result.dtype == np.float64
+    assert_default_epsilon(result, np.asarray(data, dtype=np.float64))
+
+
+def test_construct_from_sequence_preserves_dtype() -> None:
+    """Test construction from a sequence preserves a floating dtype."""
+    data = [[np.float32(1), np.float32(2)], [np.float32(3), np.float32(4)]]
+    result: TTD[Any] = TTD(data)
+
+    assert result.dtype == np.float32
+    assert_default_epsilon(result, np.asarray(data), epsilon=1e-5)
+
+
+def test_construct_from_sequence_with_dtype() -> None:
+    """Test construction from a sequence honors the requested dtype."""
+    result: TTD[Any] = TTD([[1, 2], [3, 4]], dtype=np.dtype(np.float32))
+
+    assert result.dtype == np.float32
+    assert_default_epsilon(
+        result, np.array([[1, 2], [3, 4]], dtype=np.float32), epsilon=1e-5
+    )
+
+
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_construct_from_ttd(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test construction from another TTD shallow-copies its data."""
@@ -63,10 +118,11 @@ def test_construct_from_ttd(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_construct_from_cores(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test construction from an iterable of cores."""
-    result = TTD(iter(ttd.data))
+    for data in ([*ttd.data], iter(ttd.data)):
+        result = TTD(data)
 
-    assert result.dtype == ttd.dtype
-    assert_default_epsilon(result, tensor)
+        assert result.dtype == ttd.dtype
+        assert_default_epsilon(result, tensor)
 
 
 @pytest.mark.parametrize("data", [42, 3.14, None, object()])
