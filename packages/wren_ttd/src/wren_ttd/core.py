@@ -862,35 +862,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TDD.__getitem__
 
         """
-        if len(key) > self.ndim:
-            raise IndexError(f"Too many indices: {len(key)} > {self.ndim}")
-
-        only_single_concrete = (
-            sum(isinstance(k, SupportsIndex) or k != slice(None) for k in key) == 1
-        )
-
-        if not only_single_concrete:
-            raise IndexError(
-                "TTD.__setitem__ requires exactly one mode indexed by an int or "
-                "slice, with all other modes set to ':'"
-            )
-
-        only_zero = cast(bool, np.equal(value, 0))
-
-        if not only_zero:
-            _ = ops.subtract(self, value, out=self)
-
-        for axis, (i, core) in enumerate(zip(key, self.data, strict=False)):
-            if i == slice(None):
-                continue
-
-            # copy before writing: the core may share memory with the caller's array
-            updated = core.copy()
-            updated[:, i, :] = 0
-            self.data[axis] = updated
-
-        if not only_zero:
-            _ = ops.add(self, value, out=self)
+        ops.set_item(self, key, value)
 
     @override
     def __len__(self) -> int:

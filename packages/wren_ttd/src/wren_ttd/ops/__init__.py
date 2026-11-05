@@ -7,6 +7,7 @@ from .like import full_like, ones_like, zeros_like
 from .multiply import multiply
 from .neg import neg
 from .pad import pad
+from .set_item import set_item
 from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
@@ -24,6 +25,7 @@ __all__ = [
     "neg",
     "ones_like",
     "pad",
+    "set_item",
     "stack",
     "subtract",
     "swapaxes",
