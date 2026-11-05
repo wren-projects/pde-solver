@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
 from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
@@ -8,10 +9,11 @@ from wren_pde_solver.solution_builder import EMPTY_SOLUTION_BUILDER
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
 
 
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_builder_runs_and_returns_the_same_running_a_solver_directly_would() -> None:
     """Tests solver builder."""
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
-    IC: NDArray = np.random.default_rng(0).random(size=(20, 20, 18))
+    IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
     PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
@@ -30,10 +32,11 @@ def test_builder_runs_and_returns_the_same_running_a_solver_directly_would() -> 
     )
 
 
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_builder_getters_work() -> None:
     """Tests solver builder getters."""
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
-    IC: NDArray = np.random.default_rng(0).random(size=(20, 20, 18))
+    IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
     PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
@@ -61,6 +64,7 @@ def test_builder_setters_create_copies() -> None:
     assert B.target_time == 20
 
 
+@pytest.mark.usefixtures("seeded_default_rng")
 def type_test_dont_allow_build_unless_everything_is_set() -> None:
     """
     Test builder cannot be build.
@@ -68,7 +72,7 @@ def type_test_dont_allow_build_unless_everything_is_set() -> None:
     Note this is a pyright test, not a pytest one so it shouldn't start with 'test'.
     """
     BC: BoundaryCondition = ConstantDirichletBoundaryCondition(0)
-    IC: NDArray = np.random.default_rng(0).random(size=(20, 20, 18))
+    IC: NDArray = np.random.default_rng().random(size=(20, 20, 18))
     PD: PDE = HomogeneousNoAdvectionScalarDiffusionPDE(3, scalar_diffusion=DType(10))
     dS: Vector = np.array([1, 1, 2])
     dT: DType = DType(0.1)
