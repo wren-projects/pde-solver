@@ -4,7 +4,9 @@ import numpy as np
 
 from wren_common.types import NDArray
 
-rng = np.random.default_rng(0)
+TEST_SEED = 42
+
+rng = np.random.default_rng(TEST_SEED)
 
 
 type TestTensor = NDArray[np.float64]
