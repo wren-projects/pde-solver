@@ -11,6 +11,7 @@ format:
 
 lint:
     {{ uv }} run ruff check {{ code_folders }}
+    {{ uv }} run ruff format --check {{ code_folders }}
 
 typecheck:
     {{ uv }} run basedpyright
