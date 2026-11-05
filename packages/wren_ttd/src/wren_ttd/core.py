@@ -18,7 +18,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
 from wren_common.math import scale_matrix
-from wren_common.types import Index1D, Matrix, NDArray, Scalar
+from wren_common.types import Index1D, Matrix, NDArray, Scalar, ScalarTypes
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
@@ -838,7 +838,21 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         raise NotImplementedError
 
-    def __setitem__(self, key: Sequence[Index1D], value: Scalar) -> None:
+    @overload
+    def __setitem__(self, key: Index1D | Sequence[Index1D], value: Scalar) -> None: ...
+
+    @overload
+    def __setitem__(
+        self,
+        key: EllipsisType,
+        value: list[Core[DType]],
+    ) -> None: ...
+
+    def __setitem__(
+        self,
+        key: Index1D | Sequence[Index1D] | EllipsisType,
+        value: Scalar | list[Core[DType]],
+    ) -> None:
         """
         Set a subtensor of the TTD.
 
@@ -862,7 +876,22 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TDD.__getitem__
 
         """
-        ops.set_item(self, key, value)
+        if key is Ellipsis:
+            if not isinstance(value, list):
+                raise TypeError(f"Can't assign {type(value)!r} to TTD cores.")
+
+            self.data = value
+
+        if not isinstance(value, ScalarTypes):
+            raise TypeError(f"Can't assign {type(value)!r} to TTD values")
+
+        if isinstance(key, (SupportsIndex, slice)):
+            return ops.set_item(self, (key,), value)
+
+        if isinstance(key, Sequence):
+            return ops.set_item(self, key, value)
+
+        raise NotImplementedError
 
     @override
     def __len__(self) -> int:
