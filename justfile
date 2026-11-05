@@ -16,8 +16,8 @@ lint +files=code_folders:
 typecheck +files=code_folders:
     {{ uv }} run basedpyright {{ files }}
 
-test:
-    {{ uv }} run pytest -n 4 --dist=load
+test +args="":
+    {{ uv }} run pytest --numprocesses=auto --maxprocesses=4 --dist=worksteal {{ args }}
 
 coverage:
     {{ uv }} run pytest --cov=src --cov=packages
