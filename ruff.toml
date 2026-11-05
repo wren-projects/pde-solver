@@ -79,3 +79,6 @@ ignore = [
 "**/tests*/**/*" = [
   "PLR2004", # magic-value-comparison
 ]
+"packages/wren_ttd/tests_ttd/ops/*" = [
+  "TID252", # nested test modules import shared helpers from the parent package
+]
