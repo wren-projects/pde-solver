@@ -6,8 +6,10 @@ from itertools import pairwise
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from wren_common.math import scale_matrix
 from wren_common.types import Matrix, NDArray, Scalar, Vector
 
+from wren_ttd._svd import TruncatedSVD
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
 
@@ -379,7 +381,7 @@ def truncation_parameter[DT: np.floating](
     ----------
     tensor : NDArray[DT] | TTD[DT]
         The tensor to compute the tolerance of.
-    epsilon : np.floating | float, optional
+    epsilon : Scalar, optional
         The target relative error, by default DEFAULT_EPSILON.
 
     Returns
@@ -440,3 +442,100 @@ def block_core[DType: np.floating](
         G[l0:l1, :, r0:r1] = core
 
     return G
+
+
+def ttsvd[DT: np.floating, **Params](
+    array: NDArray[DT],
+    svd_function: TruncatedSVD[DT, Params],
+    epsilon: Scalar = DEFAULT_EPSILON,
+    *svd_args: Params.args,
+    **svd_kwargs: Params.kwargs,
+) -> list[Core[DT]]:
+    d = array.ndim
+
+    if d == 1:
+        return [np.expand_dims(array, (0, 2))]
+
+    delta = truncation_parameter(array, epsilon)
+
+    # 𝐂 = reshape(𝐂, [n, -1])
+    residue: Matrix[DT] = fold_left(array)
+
+    # r₀ = 1
+    r = 1
+
+    cores: list[Core[DT]] = []
+
+    # for k = 1 to d - 1 do
+    # note: n = nₖ, r = rₖ₋₁
+    for n in array.shape[:-1]:
+        # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
+        residue = residue.reshape((r * n, -1))
+
+        # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
+        u, s, v_t = svd_function(residue, delta, *svd_args, **svd_kwargs)
+
+        # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
+        new_core = u.reshape((r, n, -1))
+        cores.append(new_core)
+
+        # set rₖ = rankᵟ(C) for next iteration
+        r = new_core.shape[2]
+
+        # 𝐂 = 𝐒𝐕ᵀ
+        residue = scale_matrix(s, v_t, out=v_t)
+
+    cores.append(np.expand_dims(residue, axis=2))
+
+    return cores
+
+
+def expand_cores[DType: np.floating](
+    cores: Iterable[Core[DType]], dtype: np.dtype[DType]
+) -> NDArray[DType]:
+    """
+    Multiply TTD cores together into dense tensor.
+
+    Parameters
+    ----------
+    cores : Iterable[Core[DType]]
+        The cores to multiply.
+    dtype : DType
+        The dtype of the resulting array.
+
+    Returns
+    -------
+    NDArray[DType]
+        The resulting dense tensor.
+
+    """
+    core_list = list(cores)
+    shape = tuple(core.shape[1] for core in core_list)
+    ranks = tuple(core.shape[2] for core in core_list[:-1])
+
+    if any(mode == 0 for mode in shape):
+        return np.empty(shape, dtype=dtype)
+
+    comulative_mode_size = cast(
+        np.ndarray[tuple[int], np.dtype[np.int64]], np.cumprod(shape)
+    )
+
+    largest_buffer_size = max(
+        rank * size
+        for rank, size in zip((*ranks, 1), comulative_mode_size, strict=True)
+    )
+
+    buffer_a = np.empty(largest_buffer_size, dtype=dtype)
+    buffer_b = np.empty(largest_buffer_size, dtype=dtype)
+
+    result = core_list[0]
+
+    for core in core_list[1:]:
+        result = mode_1_product(
+            fold_left(result),
+            core,
+            buffer=buffer_a,
+        )
+        buffer_a, buffer_b = buffer_b, buffer_a
+
+    return result.reshape(shape)
