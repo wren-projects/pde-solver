@@ -1,0 +1,13 @@
+name: "Setup uv and just"
+description: "Installs uv and just with caching enabled"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Install just
+      uses: extractions/setup-just@v2

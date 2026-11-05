@@ -5,41 +5,29 @@ on:
     branches: ["**"]
 
 jobs:
-  check_formatter:
-    name: Check formatter doesn't change code
+  check_lint:
+    name: Lint the code
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run ruff
-        run: uv run ruff format --check
-
-  run_linter:
-    name: Lint Code
-    runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Ruff
-        run: uv run ruff check .
+      - uses: ./.github/actions/setup-env
+      - run: just lint
 
   check_types:
     name: Check typing
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run basedpyright
-        run: uv run basedpyright
+      - uses: ./.github/actions/setup-env
+      - run: just typecheck
 
   run_coverage:
-    name: Run tests and check coverage
+    name: Check coverage
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run Pytest with Coverage
+      - uses: ./.github/actions/setup-env
+      - name: Run tests and check coverage
         run: |
           uv run pytest --cov=src --cov=packages \
               --cov-fail-under=${{ vars.MINIMAL_TEST_COVERAGE }}
@@ -47,19 +35,11 @@ jobs:
   check_pdes_is_build:
     name: Ensure pde.py were not manually altered
     runs-on: ubuntu-latest
-    container: ${{ vars.UV_CONTAINER_IMAGE }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
 
-      - name: Setup just
-        uses: extractions/setup-just@v4
+      - run: just generate-pdes
 
-      - name: Backup original
-        run: cp -a packages/ backup/
-
-      - name: Run just
-        run: just generate-pdes
-
-      - name: Check diff
-        run: diff -ruN -X .gitignore packages/ backup/
+      - name: Check for changes
+        run: git diff --exit-code packages/
