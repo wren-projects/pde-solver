@@ -94,7 +94,7 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
     M = len(ttds)
 
     # create the selector core for the new axis
-    G0 = np.eye(M, dtype=dtype).reshape(1, M, M)
+    G0 = np.expand_dims(np.eye(M, dtype=dtype), axis=0)
 
     # iterator of tuples of matching i-th cores from all given TTDs
     zipped_cores: Iterable[tuple[Core[DType], ...]] = zip(

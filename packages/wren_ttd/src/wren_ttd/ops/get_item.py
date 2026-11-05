@@ -5,9 +5,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, SupportsIndex, cast
 
 import numpy as np
-from wren_common.math import dot_product
 from wren_common.types import Index1D, Matrix
 
+from wren_ttd._helpers import mode_1_product, mode_3_product
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -71,33 +71,46 @@ def get_item[DType: np.floating](
     if len(indexes) > len(ttd.data):
         raise IndexError("Too many indices")
 
-    message_matrix: Matrix[DType] = np.ones((1, 1), dtype=ttd.dtype)
+    # keep track of the message matrix, None == [1]
+    message: Matrix[DType] | None = None
 
     cores: list[Core[DType]] = []
 
     for core, index in zip(ttd.data, indexes, strict=False):
         if isinstance(index, SupportsIndex):
-            message_matrix = cast(Matrix[DType], message_matrix @ core[:, index, :])
+            core_slice: Matrix[DType] = core[:, index, :]
+            message = (
+                core_slice
+                if message is None
+                else cast(Matrix[DType], message @ core_slice)
+            )
             continue
 
         # merge the slice of the core and the message matrix
-        core_slice: Core[DType] = core[:, index, :]
-        cores.append(dot_product(message_matrix, core_slice))
+        sliced: Core[DType] = core[:, index, :]
+        if message is None:
+            # no message to apply, keep the slice unchanged
+            cores.append(sliced)
+        else:
+            cores.append(mode_1_product(message, sliced))
         # continue with a clean new message matrix
-        message_matrix = np.eye(core.shape[2], dtype=ttd.dtype)
+        message = None
 
     remaining = ttd.data[len(indexes) :]
 
     # if all cores have been consumed, the result is a single element
     if not cores and not remaining:
-        return ttd.dtype.type(message_matrix.squeeze())
+        assert message is not None
+        return ttd.dtype.type(message.squeeze())
 
     # merge the message matrix into either the first remaining core or the last
     # preserved core
     if remaining:
-        remaining[0] = dot_product(message_matrix, remaining[0])
+        if message is not None:
+            remaining[0] = mode_1_product(message, remaining[0])
+
         cores.extend(remaining)
-    else:
-        cores[-1] = dot_product(cores[-1], message_matrix)
+    elif message is not None:
+        cores[-1] = mode_3_product(cores[-1], message)
 
     return TTD(cores, dtype=ttd.dtype)

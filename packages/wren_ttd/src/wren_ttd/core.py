@@ -17,16 +17,19 @@ from typing import (
 import numpy as np
 import numpy.typing as npt
 from numpy.lib.mixins import NDArrayOperatorsMixin
-from wren_common.math import dot_product, scale_matrix
+from wren_common.math import scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray, Scalar
 
 from wren_ttd import ops
 from wren_ttd._helpers import (
+    fold_left,
+    mode_1_product,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
     to_int_tuple,
     truncation_parameter,
+    unfold_left,
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
@@ -124,12 +127,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         d = array.ndim
 
         if d == 1:
-            return TTD([array.reshape((1, len(array), 1))])
+            return TTD([np.expand_dims(array, (0, 2))])
 
         delta = truncation_parameter(array, epsilon)
 
         # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = array.reshape((array.shape[0], -1))
+        residue: Matrix[DT] = fold_left(array)
 
         # r₀ = 1
         r = 1
@@ -153,9 +156,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             r = new_core.shape[2]
 
             # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t)
+            residue = scale_matrix(s, v_t, out=v_t)
 
-        cores.append(residue.reshape((*residue.shape, 1)))
+        cores.append(np.expand_dims(residue, axis=2))
 
         return TTD(cores)
 
@@ -449,8 +452,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         # 1D TTD
         if len(self.data) == 1:
             core = self.data[0]
-            reshaped = core.reshape((core.shape[1],))
-            return np.asarray(reshaped, dtype=dtype, copy=copy)
+            squeezed = core.squeeze((0, 2))
+            return np.asarray(squeezed, dtype=dtype, copy=copy)
 
         if copy is False:
             raise ValueError(
@@ -527,13 +530,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         for k in range(1, d):  # for k = 1 to d-1
             # G = 𝐆ₖ(αₖ₋₁; iₖβₖ)
             core = cores[k - 1]
-            beta_k1, i_k, beta_k = core.shape
             # 𝐔, 𝚲, 𝐕ᵀ := SVDᵟ(𝐆ₖ(βₖ₋₁; iₖβₖ))
-            u, s, v_t = delta_truncated_svd(core.reshape(beta_k1 * i_k, beta_k), delta)
+            u, s, v_t = delta_truncated_svd(fold_left(core), delta)
             # 𝐆ₖ(βₖ₋₁; iₖγₖ) = 𝐔
-            cores[k - 1] = u.reshape((beta_k1, i_k, -1))
+            cores[k - 1] = unfold_left(u, core.shape)
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
-            cores[k] = dot_product(scale_matrix(s, v_t), cores[k])
+            cores[k] = mode_1_product(scale_matrix(s, v_t, out=v_t), cores[k])
 
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
         """Return a new rounded TTD object."""
