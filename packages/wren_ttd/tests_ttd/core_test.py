@@ -3,8 +3,8 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor
-from wren_common.types import Scalar
+from wren_common.tests import TEST_SCALARS, TEST_SHAPES, TestTensor
+from wren_ttd import TTD
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -39,85 +39,52 @@ def test_size(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_rounding(tensor: TestTensor, ttd: TestTTD) -> None:
-    """Test rounding."""
-    assert_default_epsilon(ttd.rounded(), tensor)
+class TestRounding:
+    """Tests for TTD rounding."""
 
-    added = ttd + ttd
-    rounded = added.rounded()
-    assert_default_epsilon(rounded, 2 * tensor)
+    def test_plain(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test rounding a plain TTD."""
+        assert_default_epsilon(ttd.rounded(), tensor)
 
-
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing_full(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test full indexing."""
-    for index, value in np.ndenumerate(tensor):
-        assert_default_epsilon(ttd[index], value)
+    def test_with_inflated_ranks(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test rounding a TTD with inflated ranks."""
+        added = ttd + ttd
+        rounded = added.rounded()
+        assert_default_epsilon(rounded, 2 * tensor)
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_indexing_partial(ttd: TestTTD, tensor: TestTensor) -> None:
-    """Test partial indexing."""
-    for i in range(tensor.shape[0]):
-        assert_default_epsilon(ttd[i], tensor[i])
-        assert_default_epsilon(ttd[:i], tensor[:i])
-        assert_default_epsilon(ttd[i:], tensor[i:])
-        assert_default_epsilon(ttd[i::2], tensor[i::2])
-
-    for j in range(tensor.shape[1]):
-        assert_default_epsilon(ttd[:, j], tensor[:, j])
-        n = tensor.shape[0] // 2
-        assert_default_epsilon(ttd[:n, j], tensor[:n, j])
-        assert_default_epsilon(ttd[:n:2, j], tensor[:n:2, j])
-
-    for i in range(tensor.shape[0]):
-        for j in range(tensor.shape[1]):
-            assert_default_epsilon(ttd[i, j], tensor[i, j])
+def test_ranks() -> None:
+    """Test ranks."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.ranks == (2, 2)
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize(
-    "index",
-    [
-        0,
-        2,
-        -1,
-        slice(1, -1),
-        slice(None, None, 2),
-        slice(1, None, 2),
-        slice(None, None, -1),
-    ],
-)
-@pytest.mark.parametrize("value", TEST_SCALARS)
-def test_setitem(
-    tensor: TestTensor, ttd: TestTTD, index: int | slice, value: Scalar
-) -> None:
-    """Test zeroing a single mode addressed by an integer or a slice."""
-    for axis, _ in enumerate(tensor.shape):
-        leading = (slice(None),) * axis
-        trailing = (slice(None),) * (len(tensor.shape) - axis - 1)
-        key = (*leading, index, *trailing)
-
-        expected = tensor.copy()
-        expected[key] = value
-
-        result = ttd.copy()
-        result[key] = value
-
-        assert_default_epsilon(result, expected, scale=value)
+def test_compressed_size() -> None:
+    """Test compressed size."""
+    ttd = TTD([np.zeros((1, 2, 2)), np.zeros((2, 3, 2)), np.zeros((2, 2, 1))])
+    assert ttd.compressed_size == 2 * 2 + 2 * 3 * 2 + 2 * 2
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_setitem_boundary(tensor: TestTensor, ttd: TestTTD) -> None:
-    """Test repeatedly zeroing boundary slices of a TTD."""
-    expected = tensor.copy()
-    result = ttd.copy()
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_zeros(shape: tuple[int, ...]) -> None:
+    """Test zeros."""
+    ttd = TTD.zeros(shape, dtype=np.dtype(np.float64))
+    tensor = np.zeros(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
 
-    for axis, length in enumerate(tensor.shape):
-        for index in (0, length - 1):
-            key: list[int | slice] = [slice(None)] * tensor.ndim
-            key[axis] = index
-            expected[tuple(key)] = 0
-            result[tuple(key)] = 0
 
-    assert_default_epsilon(result, expected)
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+def test_ones(shape: tuple[int, ...]) -> None:
+    """Test ones."""
+    ttd = TTD.ones(shape, dtype=np.dtype(np.float64))
+    tensor = np.ones(shape, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
+@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+def test_full(shape: tuple[int, ...], fill_value: float) -> None:
+    """Test full."""
+    ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
+    tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor)
