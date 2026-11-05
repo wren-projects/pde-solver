@@ -137,6 +137,7 @@ TEST_RANKS: tuple[int, ...] = (2, 3, 4, 5, 6, 5, 4, 3, 2, 4, 7, 5, 3)
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
 @pytest.mark.parametrize("rank", [1, 3])
 @pytest.mark.parametrize("dtype", [np.dtype(np.float64), np.dtype(np.float32)])
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_random_scalar_ranks(
     shape: tuple[int, ...],
     rank: int,
@@ -155,6 +156,7 @@ def test_random_scalar_ranks(
 
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
 @pytest.mark.parametrize("dtype", [np.dtype(np.float64), np.dtype(np.float32)])
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_random_tuple_ranks(
     shape: tuple[int, ...],
     dtype: np.dtype[np.float32 | np.float64],
@@ -169,6 +171,7 @@ def test_random_tuple_ranks(
     assert len(ttd.data) == len(shape)
 
 
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_random_defaults() -> None:
     """Test the default inner rank and dtype."""
     ttd = TTD.random((3, 4))
@@ -181,6 +184,7 @@ def test_random_defaults() -> None:
     assert vector.ranks == ()
 
 
+@pytest.mark.usefixtures("seeded_default_rng")
 def test_random_seed() -> None:
     """Test that the same seed produces the same tensor."""
     shape, ranks = (2, 3, 4), (2, 3)
