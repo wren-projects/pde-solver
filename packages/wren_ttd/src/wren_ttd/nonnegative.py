@@ -149,6 +149,6 @@ class TroppTTD[DType: np.floating](TTD):
                 row_samples,
             )
 
-            current: NDArray[DT] = expand_cores(cores)
+            current: NDArray[DT] = expand_cores(cores, dtype=array.dtype)
 
         return TroppTTD(cores)

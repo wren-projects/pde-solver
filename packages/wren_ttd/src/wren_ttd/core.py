@@ -426,7 +426,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 "single-dimensional array."
             )
 
-        result = expand_cores(self.data)
+        result = expand_cores(self.data, self.dtype)
 
         return result if dtype is None else result.astype(dtype, copy=False)
 

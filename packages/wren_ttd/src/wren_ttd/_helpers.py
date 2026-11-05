@@ -490,7 +490,9 @@ def ttsvd[DT: np.floating, **Params](
     return cores
 
 
-def expand_cores[DType: np.floating](cores: Iterable[Core[DType]]) -> NDArray[DType]:
+def expand_cores[DType: np.floating](
+    cores: Iterable[Core[DType]], dtype: np.dtype[DType]
+) -> NDArray[DType]:
     """
     Multiply TTD cores together into dense tensor.
 
@@ -498,6 +500,8 @@ def expand_cores[DType: np.floating](cores: Iterable[Core[DType]]) -> NDArray[DT
     ----------
     cores : Iterable[Core[DType]]
         The cores to multiply.
+    dtype : DType
+        The dtype of the resulting array.
 
     Returns
     -------
@@ -506,36 +510,32 @@ def expand_cores[DType: np.floating](cores: Iterable[Core[DType]]) -> NDArray[DT
 
     """
     core_list = list(cores)
-    dtype = core_list[0].dtype
     shape = tuple(core.shape[1] for core in core_list)
     ranks = tuple(core.shape[2] for core in core_list[:-1])
 
     if any(mode == 0 for mode in shape):
         return np.empty(shape, dtype=dtype)
 
-    intermediate_sizes = np.cumprod(shape)
-    intermediate_rank_sizes = cast(
-        np.ndarray[tuple[int], np.dtype[np.int64]],
-        np.multiply(np.asarray((*ranks, 1)), intermediate_sizes),
+    comulative_mode_size = cast(
+        np.ndarray[tuple[int], np.dtype[np.int64]], np.cumprod(shape)
     )
 
     largest_buffer_size = max(
-        np.max(intermediate_sizes), np.max(intermediate_rank_sizes)
+        rank * size
+        for rank, size in zip((*ranks, 1), comulative_mode_size, strict=True)
     )
 
     buffer_a = np.empty(largest_buffer_size, dtype=dtype)
     buffer_b = np.empty(largest_buffer_size, dtype=dtype)
 
-    intermediate = np.ones((1, 1), dtype=dtype)
+    result = core_list[0]
 
-    for size, core in zip(intermediate_rank_sizes, core_list, strict=True):
-        left, mode, right = core.shape
-        intermediate: Matrix[DType] = np.matmul(
-            intermediate,
-            core.reshape(left, -1),
-            out=buffer_a[:size].reshape(-1, mode * right),
-            dtype=dtype,
-        ).reshape(-1, right)
+    for core in core_list[1:]:
+        result = mode_1_product(
+            fold_left(result),
+            core,
+            buffer=buffer_a,
+        )
         buffer_a, buffer_b = buffer_b, buffer_a
 
-    return intermediate.reshape(shape)
+    return result.reshape(shape)
