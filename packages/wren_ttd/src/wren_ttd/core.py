@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from itertools import pairwise
 from types import EllipsisType
 from typing import (
@@ -12,7 +12,6 @@ from typing import (
     final,
     overload,
     override,
-    reveal_type,
 )
 
 import numpy as np
@@ -34,10 +33,13 @@ from wren_ttd._helpers import (
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
-from wren_ttd.types import Core
+from wren_ttd.types import CORE_DIMENSIONS, Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
+
+
+DEFAULT_DTYPE = np.dtype(np.float64)
 
 
 def _compress_array[DT: np.floating](
@@ -82,10 +84,6 @@ def _compress_array[DT: np.floating](
     return cores
 
 
-def _is_sequence_of_cores(data: Sequence[object]) -> bool:
-    return all(isinstance(item, np.ndarray) for item in data)
-
-
 def _as_floating_array(
     data: npt.ArrayLike, dtype: np.dtype | None = None
 ) -> NDArray[Any]:
@@ -93,6 +91,51 @@ def _as_floating_array(
     if not np.issubdtype(array.dtype, np.floating):
         array = array.astype(np.float64)
     return array
+
+
+def _as_cores[DType: np.floating](
+    iterable: Iterable[object], dtype: np.dtype[DType] | None
+) -> tuple[list[Core[DType]], np.dtype[DType]]:
+    data = list(iterable)
+
+    if not data:
+        raise ValueError("TTD must have at least one core")
+
+    for core in data:
+        if not isinstance(core, np.ndarray):
+            raise TypeError(f"Unexpected type for TTD core: {type(core)!r}")
+
+        if core.ndim != CORE_DIMENSIONS:
+            raise ValueError(f"Invalid core shape {core.shape}")
+
+    data = cast(list[Core[Any]], data)
+
+    for i, (a, b) in enumerate(pairwise(data)):
+        _, _, ar = a.shape
+        bl, _, _ = b.shape
+        if ar != bl:
+            raise ValueError(
+                f"Mismatch in shared rank of cores {i} and {i + 1}: "
+                f"{ar} does not match {bl}"
+            )
+
+    if not (data[0].shape[0] == data[-1].shape[2] == 1):
+        raise ValueError("The boundary ranks have to be 1")
+
+    if dtype is None:
+        # infer from the first core
+        dtype = cast(np.dtype[DType], data[0].dtype)
+        if not all(core.dtype == dtype for core in data):
+            raise ValueError("All cores must have the same dtype")
+    else:
+        if not np.issubdtype(dtype, np.floating):
+            raise TypeError(f"{type(dtype)!r} is not a valid dtype for TTD")
+        # else convert
+        data = [core.astype(dtype, copy=False) for core in data]
+
+    data = cast(list[Core[DType]], data)
+
+    return data, dtype
 
 
 @final
@@ -112,28 +155,35 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     __slots__ = ("data", "dtype")
 
     @overload
-    def __init__(self, data: TTD[DType], *, dtype: np.dtype | None = None) -> None: ...
+    def __init__(self, data: TTD[Any], *, dtype: np.dtype[DType]) -> None: ...
+
+    @overload
+    def __init__(self, data: TTD[DType], *, dtype: None = None) -> None: ...
+
+    @overload
+    def __init__(self, data: NDArray[Any], *, dtype: np.dtype[DType]) -> None: ...
+
+    @overload
+    def __init__(self, data: NDArray[DType], *, dtype: None = None) -> None: ...
 
     @overload
     def __init__(
-        self, data: NDArray[DType], *, dtype: np.dtype | None = None
+        self, data: Iterable[Core[Any]], *, dtype: np.dtype[DType]
     ) -> None: ...
 
     @overload
-    def __init__(
-        self, data: Iterable[Core[DType]], *, dtype: np.dtype | None = None
-    ) -> None: ...
+    def __init__(self, data: Iterable[Core[DType]], *, dtype: None = None) -> None: ...
 
     @overload
     def __init__(
-        self, data: Sequence[Any], *, dtype: np.dtype | None = None
+        self, data: Sequence[Any], *, dtype: np.dtype[DType] | None = None
     ) -> None: ...
 
     def __init__(
         self,
         data: object,
         *,
-        dtype: np.dtype | None = None,
+        dtype: np.dtype[DType] | None = None,
     ) -> None:
         """
         Create a new TTD object.
@@ -161,10 +211,15 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             self.dtype = ttd.dtype
             return
 
-        if isinstance(data, np.ndarray) or (
-            isinstance(data, (list, tuple))
-            and not _is_sequence_of_cores(cast(Sequence[object], data))
-        ):
+        if isinstance(data, Iterable) and not isinstance(data, np.ndarray):
+            if isinstance(data, Iterator):
+                data = list(data)
+
+            if all(isinstance(item, np.ndarray) for item in data):
+                self.data, self.dtype = _as_cores(cast(Iterable[object], data), dtype)
+                return
+
+        if isinstance(data, (np.ndarray, list, tuple)):
             array = cast(
                 NDArray[DType],
                 _as_floating_array(cast(npt.ArrayLike, data), dtype),
@@ -173,36 +228,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             self.dtype = array.dtype
             return
 
-        if not isinstance(data, Iterable):
-            raise TypeError(f"Unexpected type for TTD: {type(data)}")
-
-        self.data = list(cast(Iterable[Any], data))
-
-        for core in self.data:
-            if not isinstance(core, np.ndarray):
-                raise TypeError(f"Unexpected type for TTD core: {type(core)}")
-
-        if not self.data:
-            raise ValueError("TTD must have at least one core")
-
-        if dtype is None:
-            self.dtype = self.data[0].dtype
-            if not all(core.dtype == self.dtype for core in self.data):
-                raise ValueError("All cores must have the same dtype")
-        else:
-            self.dtype = dtype
-            self.data = [core.astype(dtype, copy=False) for core in self.data]
-
-        for a, b in pairwise(self.data):
-            _, _, ar = a.shape
-            bl, _, _ = b.shape
-            if ar != bl:
-                raise ValueError(
-                    f"Mismatch in adjacent core ranks: {ar} does not match {bl}"
-                )
-
-        if not (self.data[0].shape[0] == self.data[-1].shape[2] == 1):
-            raise ValueError("The boundary ranks have to be 1")
+        raise TypeError(f"Unexpected type {type(data)!r}")
 
     @staticmethod
     def from_ndarray[DT: np.floating](

@@ -1,10 +1,10 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor
+from wren_common.tests import TEST_SCALARS, TEST_TENSORS, TestTensor
 from wren_common.types import Scalar
 from wren_ttd import TTD
 
@@ -19,14 +19,13 @@ def test_roundtrip_compression(tensor: TestTensor, ttd: TestTTD) -> None:
     assert_default_epsilon(ttd, tensor)
 
 
-@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-def test_construct_from_ndarray(tensor: TestTensor, ttd: TestTTD) -> None:
+@pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
+def test_construct_from_ndarray(tensor: TestTensor) -> None:
     """Test construction from an ndarray."""
     result = TTD(tensor)
 
     assert result.dtype == tensor.dtype
     assert_default_epsilon(result, tensor)
-    assert_default_epsilon(result, ttd)
 
 
 @pytest.mark.parametrize(
@@ -88,7 +87,7 @@ def test_construct_from_integer_sequence() -> None:
 def test_construct_from_sequence_preserves_dtype() -> None:
     """Test construction from a sequence preserves a floating dtype."""
     data = [[np.float32(1), np.float32(2)], [np.float32(3), np.float32(4)]]
-    result: TTD[Any] = TTD(data)
+    result = cast(TTD[np.float32], TTD(data))
 
     assert result.dtype == np.float32
     assert_default_epsilon(result, np.asarray(data), epsilon=1e-5)
@@ -96,7 +95,7 @@ def test_construct_from_sequence_preserves_dtype() -> None:
 
 def test_construct_from_sequence_with_dtype() -> None:
     """Test construction from a sequence honors the requested dtype."""
-    result: TTD[Any] = TTD([[1, 2], [3, 4]], dtype=np.dtype(np.float32))
+    result = TTD([[1, 2], [3, 4]], dtype=np.dtype(np.float32))
 
     assert result.dtype == np.float32
     assert_default_epsilon(
