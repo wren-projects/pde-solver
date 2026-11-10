@@ -88,7 +88,11 @@ def _compress_array[DT: np.floating](
 def _as_floating_array(
     data: npt.ArrayLike, dtype: np.dtype | None = None
 ) -> NDArray[Any]:
+    if dtype is not None and not np.issubdtype(dtype, np.floating):
+        raise TypeError(f"{dtype!r} is not a valid dtype for TTD")
     array = np.asarray(data, dtype=dtype)
+    if np.issubdtype(array.dtype, np.complexfloating):
+        raise TypeError("Complex dtypes are not supported for TTD")
     if not np.issubdtype(array.dtype, np.floating):
         array = array.astype(np.float64)
     return array
@@ -247,11 +251,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             if isinstance(data, Iterator):
                 data = list(data)
 
-            if all(isinstance(item, np.ndarray) for item in data):
+            if all(
+                isinstance(item, np.ndarray) and item.ndim == CORE_DIMENSIONS
+                for item in data
+            ):
                 self.data, self.dtype = _as_cores(cast(Iterable[object], data), dtype)
                 return
 
-        if isinstance(data, (np.ndarray, list, tuple)):
+        if isinstance(data, (np.ndarray, Sequence)):
             array = cast(
                 NDArray[DType],
                 _as_floating_array(cast(npt.ArrayLike, data), dtype),
