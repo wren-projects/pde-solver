@@ -14,11 +14,11 @@ type TestTTD = TTD[np.float64]
 type TestTTDPair = tuple[TTD[np.float64], TTD[np.float64]]
 
 TEST_TTD: list[tuple[TestTensor, TestTTD]] = [
-    (tensor, TTD.from_ndarray(tensor)) for tensor in TEST_TENSORS
+    (tensor, TTD(tensor)) for tensor in TEST_TENSORS
 ]
 
 TEST_PAIR_TTD: list[tuple[TestTensorPair, TestTTDPair]] = [
-    ((a, b), (TTD.from_ndarray(a), TTD.from_ndarray(b))) for a, b in TEST_PAIR_TENSORS
+    ((a, b), (TTD(a), TTD(b))) for a, b in TEST_PAIR_TENSORS
 ]
 
 

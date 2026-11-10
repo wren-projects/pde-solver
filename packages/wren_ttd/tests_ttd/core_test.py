@@ -1,12 +1,13 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
 from copy import deepcopy
-from typing import Any, cast
+from typing import Any, Unpack, cast, override
 
 import numpy as np
 import pytest
 from wren_common.tests import TEST_SCALARS, TEST_TENSORS, TestTensor
-from wren_common.types import Scalar
-from wren_ttd import TTD
+from wren_common.types import NDArray, Scalar
+from wren_ttd import DEFAULT_EPSILON, TTD, CompressionParameters
+from wren_ttd.types import Core
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -129,6 +130,53 @@ def test_construct_invalid_type(data: Any) -> None:
     """Test construction from an unsupported type raises an error."""
     with pytest.raises(TypeError):
         _ = TTD(data)
+
+
+def test_construct_from_ndarray_with_epsilon() -> None:
+    """Test that epsilon is passed through the constructor."""
+    tensor = np.random.default_rng(0).random((4, 4))
+
+    exact = TTD(tensor)
+    approximate = TTD(tensor, epsilon=10.0)
+
+    assert approximate.compressed_size < exact.compressed_size
+
+
+def test_construct_from_ndarray_forwards_compression_parameters() -> None:
+    """Test that subclasses can add their own compression parameters."""
+    received: dict[str, Any] = {}
+
+    class IteratedTTD(TTD[np.float64]):
+        iterations: int
+
+        @override
+        def __init__(
+            self,
+            data: Any,
+            *,
+            dtype: np.dtype[np.float64] | None = None,
+            epsilon: Scalar = DEFAULT_EPSILON,
+            iterations: int = 1,
+        ) -> None:
+            self.iterations = iterations
+            super().__init__(data, dtype=dtype, epsilon=epsilon)
+
+        @override
+        def _compress[DT: np.floating](
+            self,
+            array: NDArray[DT],
+            **compression_params: Unpack[CompressionParameters],
+        ) -> list[Core[DT]]:
+            received.update(compression_params)
+            received["iterations"] = self.iterations
+            return super()._compress(array, **compression_params)
+
+    tensor = np.ones((2, 3))
+    result = IteratedTTD(tensor, epsilon=1e-5, iterations=7)
+
+    assert received == {"epsilon": 1e-5, "iterations": 7}
+    assert result.dtype == tensor.dtype
+    assert_default_epsilon(result, tensor, epsilon=1e-5)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))

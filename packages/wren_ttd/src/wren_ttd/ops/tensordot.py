@@ -76,11 +76,10 @@ def tensordot[DType: np.floating](
 
     Examples
     --------
-    >>> import numpy as np
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
-    >>> a = TTD.from_ndarray(np.array([1.0, 2.0]))
-    >>> b = TTD.from_ndarray(np.array([3.0, 4.0]))
+    >>> a = TTD([1.0, 2.0])
+    >>> b = TTD([3.0, 4.0])
     >>> ops.tensordot(a, b, axes=1)
     np.float64(11.0)
     >>> ops.tensordot(a, b, axes=0).shape

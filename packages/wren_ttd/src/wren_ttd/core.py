@@ -6,10 +6,11 @@ from itertools import pairwise
 from types import EllipsisType
 from typing import (
     Any,
+    ClassVar,
     ParamSpec,
     SupportsIndex,
+    Unpack,
     cast,
-    final,
     overload,
     override,
 )
@@ -33,7 +34,7 @@ from wren_ttd._helpers import (
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
-from wren_ttd.types import CORE_DIMENSIONS, Core
+from wren_ttd.types import CORE_DIMENSIONS, CompressionParameters, Core
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
@@ -144,7 +145,6 @@ def _as_cores[DType: np.floating](
     return data, dtype
 
 
-@final
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
@@ -158,7 +158,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__ = ("data", "dtype")
+    __slots__: ClassVar[tuple[str, ...]] = ("data", "dtype")
 
     @overload
     def __init__(self, data: TTD[Any], *, dtype: np.dtype[DType]) -> None: ...
@@ -167,10 +167,22 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def __init__(self, data: TTD[DType], *, dtype: None = None) -> None: ...
 
     @overload
-    def __init__(self, data: NDArray[Any], *, dtype: np.dtype[DType]) -> None: ...
+    def __init__(
+        self,
+        data: NDArray[Any],
+        *,
+        dtype: np.dtype[DType],
+        **compression_params: Unpack[CompressionParameters],
+    ) -> None: ...
 
     @overload
-    def __init__(self, data: NDArray[DType], *, dtype: None = None) -> None: ...
+    def __init__(
+        self,
+        data: NDArray[DType],
+        *,
+        dtype: None = None,
+        **compression_params: Unpack[CompressionParameters],
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -182,7 +194,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @overload
     def __init__(
-        self, data: Sequence[Any], *, dtype: np.dtype[DType] | None = None
+        self,
+        data: Sequence[Any],
+        *,
+        dtype: np.dtype[DType] | None = None,
+        **compression_params: Unpack[CompressionParameters],
     ) -> None: ...
 
     def __init__(
@@ -190,6 +206,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         data: object,
         *,
         dtype: np.dtype[DType] | None = None,
+        **compression_params: Unpack[CompressionParameters],
     ) -> None:
         """
         Create a new TTD object.
@@ -207,6 +224,15 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             The datatype of the TTD object. Defaults to the dtype of the first
             core, or the dtype of the array-like object. Either way, the dtype
             must be the same for all cores.
+        **compression_params : CompressionParameters
+            Additional keyword arguments passed to :meth:`TTD._compress` when
+            compressing an array-like object. The common parameter is
+            ``epsilon``, the relative error tolerance of the compression: the
+            resulting TTD satisfies ‖A - TTD‖ᶠ ≤ epsilon ⋅ ‖A‖ᶠ. Subclasses
+            extending :class:`CompressionParameters` and overriding
+            :meth:`TTD._compress` can add their own parameters, such as
+            ``iterations``. Ignored when `data` is a TTD or an iterable of
+            cores.
 
         """
         super().__init__()
@@ -230,37 +256,38 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 NDArray[DType],
                 _as_floating_array(cast(npt.ArrayLike, data), dtype),
             )
-            self.data = _compress_array(array)
+            self.data = self._compress(array, **compression_params)
             self.dtype = array.dtype
             return
 
         raise TypeError(f"Unexpected type {type(data)!r}")
 
-    @staticmethod
-    def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
-    ) -> TTD[DT]:
+    def _compress[DT: np.floating](
+        self,
+        array: NDArray[DT],
+        **compression_params: Unpack[CompressionParameters],
+    ) -> list[Core[DT]]:
         """
-        Compress an NDArray into a TTD object.
+        Compress an NDArray into TTD cores.
 
-        The resulting TTD satisfies ‖A - TTD‖ᶠ ≤ epsilon ⋅ ‖A‖ᶠ for given tensor
-        A, where ‖A‖ᶠ is the Frobenius norm.
+        Subclasses can override this hook to add extra compression parameters.
+        They should also extend :class:`CompressionParameters` and accept it in
+        their ``__init__``.
 
         Parameters
         ----------
         array : NDArray
             The tensor to compress.
-        epsilon : float, optional
-            The error tolerance for the compression. Uses system-wide default
-            value if not provided.
+        **compression_params : CompressionParameters
+            Compression parameters, see :class:`CompressionParameters`.
 
         Returns
         -------
-        TTD
-            The compressed TTD.
+        list[Core]
+            The compressed cores.
 
         """
-        return TTD(_compress_array(array, epsilon), dtype=array.dtype)
+        return _compress_array(array, **compression_params)
 
     @staticmethod
     def ones[DT: np.floating](
