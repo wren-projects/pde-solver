@@ -93,24 +93,20 @@ def _as_floating_array(
     return array
 
 
-def _as_cores[DType: np.floating](
-    iterable: Iterable[object], dtype: np.dtype[DType] | None
-) -> tuple[list[Core[DType]], np.dtype[DType]]:
-    data = list(iterable)
-
-    if not data:
+def _validate_cores(cores: Sequence[object]) -> None:
+    if not cores:
         raise ValueError("TTD must have at least one core")
 
-    for core in data:
+    for core in cores:
         if not isinstance(core, np.ndarray):
             raise TypeError(f"Unexpected type for TTD core: {type(core)!r}")
 
         if core.ndim != CORE_DIMENSIONS:
             raise ValueError(f"Invalid core shape {core.shape}")
 
-    data = cast(list[Core[Any]], data)
+    cores = cast(list[Core[Any]], cores)
 
-    for i, (a, b) in enumerate(pairwise(data)):
+    for i, (a, b) in enumerate(pairwise(cores)):
         _, _, ar = a.shape
         bl, _, _ = b.shape
         if ar != bl:
@@ -119,8 +115,18 @@ def _as_cores[DType: np.floating](
                 f"{ar} does not match {bl}"
             )
 
-    if not (data[0].shape[0] == data[-1].shape[2] == 1):
+    if not (cores[0].shape[0] == cores[-1].shape[2] == 1):
         raise ValueError("The boundary ranks have to be 1")
+
+
+def _as_cores[DType: np.floating](
+    iterable: Iterable[object], dtype: np.dtype[DType] | None
+) -> tuple[list[Core[DType]], np.dtype[DType]]:
+    data = list(iterable)
+
+    _validate_cores(data)
+
+    data = cast(list[Core[Any]], data)
 
     if dtype is None:
         # infer from the first core
