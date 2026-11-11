@@ -51,6 +51,7 @@ DEFAULT_DTYPE = np.dtype(np.float64)
 def _compress_array[DT: np.floating](
     array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
 ) -> list[Core[DT]]:
+    """Compress an NDArray into TTD cores using TT-SVD."""
     d = array.ndim
 
     if d == 1:
@@ -131,6 +132,7 @@ def _resolve_dtype(
 def _as_floating_array[DT: np.floating](
     data: npt.ArrayLike, dtype: TTDType[DT] | None = None
 ) -> NDArray[DT]:
+    """Convert `data` to a floating-point NDArray with the resolved dtype."""
     if dtype is not None:
         resolved = _resolve_dtype(dtype, np.dtype(np.float64))
         return cast(NDArray[DT], np.asarray(data, dtype=resolved))
@@ -141,6 +143,7 @@ def _as_floating_array[DT: np.floating](
 
 
 def _validate_cores(cores: Sequence[object]) -> None:
+    """Check that cores are valid three-dimensional arrays with matching ranks."""
     if not cores:
         raise ValueError("TTD must have at least one core")
 
@@ -169,6 +172,7 @@ def _validate_cores(cores: Sequence[object]) -> None:
 def _as_cores[DType: np.floating](
     iterable: Iterable[object], dtype: TTDType[DType] | None
 ) -> tuple[list[Core[DType]], np.dtype[DType]]:
+    """Validate and convert an iterable into TTD cores with a resolved dtype."""
     data = list(iterable)
 
     _validate_cores(data)
