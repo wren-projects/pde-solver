@@ -12,6 +12,7 @@ from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
+    from wren_ttd.types import TTDType
 
 
 type ShapeLike = int | Sequence[int] | None
@@ -22,7 +23,7 @@ type _Order = Literal["C", "F", "A", "K"]
 def _full_like[DType: np.floating](
     array: TTD[DType],
     fill_value: Scalar,
-    dtype: np.dtype[DType] | None,
+    dtype: TTDType[DType] | None,
     order: _Order,
     subok: bool,
     shape: ShapeLike,
@@ -50,7 +51,7 @@ def _full_like[DType: np.floating](
 def full_like[DType: np.floating](
     array: TTD[DType],
     fill_value: Scalar,
-    dtype: np.dtype[DType] | None = None,
+    dtype: TTDType[DType] | None = None,
     order: _Order = "K",
     subok: bool = True,
     shape: ShapeLike = None,
@@ -70,7 +71,7 @@ def full_like[DType: np.floating](
         The TTD whose shape and dtype are used as defaults for the result.
     fill_value : scalar
         Value used to fill the tensor.
-    dtype : data-type, optional
+    dtype : np.dtype or type, optional
         Overrides the data type of the result. Defaults to the dtype of
         `array`.
     order : {'C', 'F', 'A', 'K'}, optional
@@ -114,7 +115,7 @@ def full_like[DType: np.floating](
 @implements_function("ones_like")
 def ones_like[DType: np.floating](
     array: TTD[DType],
-    dtype: np.dtype[DType] | None = None,
+    dtype: TTDType[DType] | None = None,
     order: _Order = "K",
     subok: bool = True,
     shape: ShapeLike = None,
@@ -132,7 +133,7 @@ def ones_like[DType: np.floating](
     ----------
     array : TTD[DType]
         The TTD whose shape and dtype are used as defaults for the result.
-    dtype : data-type, optional
+    dtype : np.dtype or type, optional
         Overrides the data type of the result. Defaults to the dtype of
         `array`.
     order : {'C', 'F', 'A', 'K'}, optional
@@ -176,7 +177,7 @@ def ones_like[DType: np.floating](
 @implements_function("zeros_like")
 def zeros_like[DType: np.floating](
     array: TTD[DType],
-    dtype: np.dtype[DType] | None = None,
+    dtype: TTDType[DType] | None = None,
     order: _Order = "K",
     subok: bool = True,
     shape: ShapeLike = None,
@@ -194,7 +195,7 @@ def zeros_like[DType: np.floating](
     ----------
     array : TTD[DType]
         The TTD whose shape and dtype are used as defaults for the result.
-    dtype : data-type, optional
+    dtype : np.dtype or type, optional
         Overrides the data type of the result. Defaults to the dtype of
         `array`.
     order : {'C', 'F', 'A', 'K'}, optional

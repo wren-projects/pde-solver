@@ -1,6 +1,7 @@
 # pyright: reportAny=false, reportUnknownVariableType=false
 from collections.abc import Callable
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 import pytest
@@ -104,11 +105,15 @@ def test_full_like(tensor: TestTensor, ttd: TestTTD, fill_value: float) -> None:
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 @pytest.mark.parametrize("func", [np.zeros_like, np.ones_like])
+@pytest.mark.parametrize(
+    "dtype",
+    [np.float32, np.dtype(np.float32), "float32", float],
+    ids=["type", "dtype", "str", "builtin"],
+)
 def test_like_dtype_and_shape(
-    func: Callable[..., np.ndarray], tensor: TestTensor, ttd: TestTTD
+    func: Callable[..., np.ndarray], tensor: TestTensor, ttd: TestTTD, dtype: Any
 ) -> None:
     """Test that the like functions accept a dtype and shape override."""
-    dtype = np.dtype(np.float32)
     result = func(ttd, dtype=dtype)
     assert isinstance(result, TTD)
     assert_default_epsilon(result, func(tensor, dtype=dtype))
