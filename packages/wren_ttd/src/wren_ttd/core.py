@@ -85,17 +85,54 @@ def _compress_array[DT: np.floating](
     return cores
 
 
-def _as_floating_array(
-    data: npt.ArrayLike, dtype: np.dtype | None = None
-) -> NDArray[Any]:
-    if dtype is not None and not np.issubdtype(dtype, np.floating):
-        raise TypeError(f"{dtype!r} is not a valid dtype for TTD")
-    array = np.asarray(data, dtype=dtype)
-    if np.issubdtype(array.dtype, np.complexfloating):
+def _resolve_dtype(
+    dtype: np.dtype[Any] | None, inferred: np.dtype[Any]
+) -> np.dtype[Any]:
+    """
+    Resolve the dtype of a TTD.
+
+    If `dtype` is provided, it must be a subdtype of :class:`numpy.floating`.
+    Otherwise, the floating `inferred` dtype is used, falling back to
+    :class:`numpy.float64` when `inferred` is not floating.
+
+    Parameters
+    ----------
+    dtype : np.dtype, optional
+        The explicitly requested dtype.
+    inferred : np.dtype
+        The dtype inferred from the data.
+
+    Returns
+    -------
+    np.dtype
+        The resolved dtype.
+
+    """
+    if dtype is not None:
+        dtype = np.dtype(dtype)
+        if not np.issubdtype(dtype, np.floating):
+            raise TypeError(f"{dtype!r} is not a valid dtype for TTD")
+        return dtype
+
+    if np.issubdtype(inferred, np.complexfloating):
         raise TypeError("Complex dtypes are not supported for TTD")
-    if not np.issubdtype(array.dtype, np.floating):
-        array = array.astype(np.float64)
-    return array
+
+    if np.issubdtype(inferred, np.floating):
+        return inferred
+
+    return np.dtype(np.float64)
+
+
+def _as_floating_array[DT: np.floating](
+    data: npt.ArrayLike, dtype: np.dtype[DT] | None = None
+) -> NDArray[DT]:
+    if dtype is not None:
+        resolved = cast(np.dtype[DT], _resolve_dtype(dtype, np.dtype(np.float64)))
+        return cast(NDArray[DT], np.asarray(data, dtype=resolved))
+
+    array = np.asarray(data)
+    resolved = cast(np.dtype[DT], _resolve_dtype(None, array.dtype))
+    return cast(NDArray[DT], array.astype(resolved, copy=False))
 
 
 def _validate_cores(cores: Sequence[object]) -> None:
@@ -131,22 +168,11 @@ def _as_cores[DType: np.floating](
 
     _validate_cores(data)
 
-    data = cast(list[Core[Any]], data)
+    cores = cast(list[Core[Any]], data)
+    inferred = np.result_type(*(core.dtype for core in cores))
+    resolved = cast(np.dtype[DType], _resolve_dtype(dtype, inferred))
 
-    if dtype is None:
-        # infer from the first core
-        dtype = cast(np.dtype[DType], data[0].dtype)
-        if not all(core.dtype == dtype for core in data):
-            raise ValueError("All cores must have the same dtype")
-    else:
-        if not np.issubdtype(dtype, np.floating):
-            raise TypeError(f"{type(dtype)!r} is not a valid dtype for TTD")
-        # else convert
-        data = [core.astype(dtype, copy=False) for core in data]
-
-    data = cast(list[Core[DType]], data)
-
-    return data, dtype
+    return [core.astype(resolved, copy=False) for core in cores], resolved
 
 
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
@@ -225,9 +251,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             Iterable of Core objects is passed, it will be wrapped in a TTD
             object.
         dtype : np.dtype, optional
-            The datatype of the TTD object. Defaults to the dtype of the first
-            core, or the dtype of the array-like object. Either way, the dtype
-            must be the same for all cores.
+            The datatype of the TTD object. If not provided, it is inferred from
+            the data. The inferred dtype is used only if it is a subdtype of
+            :class:`numpy.floating`; otherwise, :class:`numpy.float64` is used
+            as a fallback. An explicitly provided dtype must be a subdtype of
+            :class:`numpy.floating`. All cores of the resulting TTD have this
+            dtype.
         **compression_params : CompressionParameters
             Additional keyword arguments passed to :meth:`TTD._compress` when
             compressing an array-like object. The common parameter is
@@ -243,8 +272,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         if isinstance(data, TTD):
             ttd = cast(TTD[DType], data)
-            self.data = ttd.data.copy()
-            self.dtype = ttd.dtype
+            resolved = cast(np.dtype[DType], _resolve_dtype(dtype, ttd.dtype))
+            self.data = [core.astype(resolved, copy=False) for core in ttd.data]
+            self.dtype = resolved
             return
 
         if isinstance(data, Iterable) and not isinstance(data, np.ndarray):
@@ -259,10 +289,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                 return
 
         if isinstance(data, (np.ndarray, Sequence)):
-            array = cast(
-                NDArray[DType],
-                _as_floating_array(cast(npt.ArrayLike, data), dtype),
-            )
+            array = _as_floating_array(cast(npt.ArrayLike, data), dtype)
             self.data = self._compress(array, **compression_params)
             self.dtype = array.dtype
             return
@@ -382,7 +409,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
-        return TTD(cores)
+        return TTD(cores, dtype=dtype)
 
     @staticmethod
     def full[DT: np.floating](

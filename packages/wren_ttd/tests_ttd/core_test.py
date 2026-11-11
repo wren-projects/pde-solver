@@ -118,11 +118,77 @@ def test_construct_from_ttd(tensor: TestTensor, ttd: TestTTD) -> None:
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 def test_construct_from_cores(tensor: TestTensor, ttd: TestTTD) -> None:
     """Test construction from an iterable of cores."""
-    for data in ([*ttd.data], iter(ttd.data)):
+    cores = [*ttd.data]
+    for data in (cores, iter(cores)):
         result = TTD(data)
 
         assert result.dtype == ttd.dtype
+        assert all(a is b for a, b in zip(result.data, cores, strict=True))
         assert_default_epsilon(result, tensor)
+
+
+def test_construct_from_ttd_with_dtype() -> None:
+    """Test construction from another TTD casts its cores."""
+    ttd = TTD(np.ones((2, 3)))
+    result = TTD(ttd, dtype=np.dtype(np.float32))
+
+    assert result.dtype == np.float32
+    assert result.data is not ttd.data
+    assert all(core.dtype == np.float32 for core in result.data)
+    assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
+
+
+def test_construct_from_cores_infers_dtype() -> None:
+    """Test that the core dtype is inferred and unified across cores."""
+    ttd = TTD(np.ones((2, 3)))
+    mixed = [ttd.data[0].astype(np.float32), ttd.data[1].astype(np.float64)]
+
+    result = TTD(cast(Any, mixed))
+
+    assert result.dtype == np.float64
+    assert all(core.dtype == np.float64 for core in result.data)
+
+
+def test_construct_from_integer_cores_falls_back_to_float64() -> None:
+    """Test that non-floating core dtypes fall back to float64."""
+    integer_cores = [
+        np.ones((1, 2, 1), dtype=np.int64),
+        np.ones((1, 3, 1), dtype=np.int64),
+    ]
+
+    result = TTD(cast(Any, integer_cores))
+
+    assert result.dtype == np.float64
+    assert all(core.dtype == np.float64 for core in result.data)
+    assert_default_epsilon(result, np.ones((2, 3)))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        np.ones((2, 3)),
+        TTD(np.ones((2, 3))),
+        TTD(np.ones((2, 3))).data,
+    ],
+)
+def test_construct_rejects_non_floating_dtype(data: Any) -> None:
+    """Test that an explicit non-floating dtype is rejected."""
+    with pytest.raises(TypeError, match="not a valid dtype"):
+        _ = TTD(data, dtype=cast(Any, np.dtype(np.int32)))
+
+
+def test_construct_rejects_complex_data() -> None:
+    """Test that complex data is rejected."""
+    with pytest.raises(TypeError, match="Complex dtypes"):
+        _ = TTD(cast(Any, np.ones((2, 3), dtype=np.complex128)))
+
+
+def test_zeros_preserves_dtype() -> None:
+    """Test that zeros forwards and preserves the requested dtype."""
+    result = TTD.zeros((2, 2), dtype=np.dtype(np.float32))
+
+    assert result.dtype == np.float32
+    assert all(core.dtype == np.float32 for core in result.data)
 
 
 @pytest.mark.parametrize("data", [42, 3.14, None, object()])
