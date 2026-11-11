@@ -195,16 +195,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     __slots__: ClassVar[tuple[str, ...]] = ("data", "dtype")
 
-    @overload
-    def __init__(self, data: TTD[Any], *, dtype: TTDType[DType]) -> None: ...
-
-    @overload
-    def __init__(self, data: TTD[DType], *, dtype: None = None) -> None: ...
-
+    # Two overloads are needed: an explicit `dtype` determines `DType`, while
+    # without one `DType` is inferred from the data.
     @overload
     def __init__(
         self,
-        data: NDArray[Any],
+        data: TTD[Any] | NDArray[Any] | Iterable[Core[Any]] | Sequence[Any],
         *,
         dtype: TTDType[DType],
         **compression_params: Unpack[CompressionParameters],
@@ -213,24 +209,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     @overload
     def __init__(
         self,
-        data: NDArray[DType],
+        data: TTD[DType] | NDArray[DType] | Iterable[Core[DType]] | Sequence[Any],
         *,
         dtype: None = None,
-        **compression_params: Unpack[CompressionParameters],
-    ) -> None: ...
-
-    @overload
-    def __init__(self, data: Iterable[Core[Any]], *, dtype: TTDType[DType]) -> None: ...
-
-    @overload
-    def __init__(self, data: Iterable[Core[DType]], *, dtype: None = None) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        data: Sequence[Any],
-        *,
-        dtype: TTDType[DType] | None = None,
         **compression_params: Unpack[CompressionParameters],
     ) -> None: ...
 
