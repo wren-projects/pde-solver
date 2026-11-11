@@ -34,7 +34,12 @@ from wren_ttd._helpers import (
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
-from wren_ttd.types import CORE_DIMENSIONS, CompressionParameters, Core
+from wren_ttd.types import (
+    CORE_DIMENSIONS,
+    CompressionParameters,
+    Core,
+    TTDType,
+)
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
@@ -86,18 +91,18 @@ def _compress_array[DT: np.floating](
 
 
 def _resolve_dtype(
-    dtype: np.dtype[Any] | None, inferred: np.dtype[Any]
+    dtype: TTDType[Any] | None, inferred: np.dtype[Any]
 ) -> np.dtype[Any]:
     """
     Resolve the dtype of a TTD.
 
-    If `dtype` is provided, it must be a subdtype of :class:`numpy.floating`.
-    Otherwise, the floating `inferred` dtype is used, falling back to
-    :class:`numpy.float64` when `inferred` is not floating.
+    If `dtype` is provided, it must be convertible to a subdtype of
+    :class:`numpy.floating`. Otherwise, the floating `inferred` dtype is used,
+    falling back to :class:`numpy.float64` when `inferred` is not floating.
 
     Parameters
     ----------
-    dtype : np.dtype, optional
+    dtype : TTDType, optional
         The explicitly requested dtype.
     inferred : np.dtype
         The dtype inferred from the data.
@@ -109,10 +114,10 @@ def _resolve_dtype(
 
     """
     if dtype is not None:
-        dtype = np.dtype(dtype)
-        if not np.issubdtype(dtype, np.floating):
-            raise TypeError(f"{dtype!r} is not a valid dtype for TTD")
-        return dtype
+        resolved = np.dtype(dtype)
+        if not np.issubdtype(resolved, np.floating):
+            raise TypeError(f"{resolved!r} is not a valid dtype for TTD")
+        return resolved
 
     if np.issubdtype(inferred, np.complexfloating):
         raise TypeError("Complex dtypes are not supported for TTD")
@@ -124,14 +129,14 @@ def _resolve_dtype(
 
 
 def _as_floating_array[DT: np.floating](
-    data: npt.ArrayLike, dtype: np.dtype[DT] | None = None
+    data: npt.ArrayLike, dtype: TTDType[DT] | None = None
 ) -> NDArray[DT]:
     if dtype is not None:
-        resolved = cast(np.dtype[DT], _resolve_dtype(dtype, np.dtype(np.float64)))
+        resolved = _resolve_dtype(dtype, np.dtype(np.float64))
         return cast(NDArray[DT], np.asarray(data, dtype=resolved))
 
     array = np.asarray(data)
-    resolved = cast(np.dtype[DT], _resolve_dtype(None, array.dtype))
+    resolved = _resolve_dtype(None, array.dtype)
     return cast(NDArray[DT], array.astype(resolved, copy=False))
 
 
@@ -162,7 +167,7 @@ def _validate_cores(cores: Sequence[object]) -> None:
 
 
 def _as_cores[DType: np.floating](
-    iterable: Iterable[object], dtype: np.dtype[DType] | None
+    iterable: Iterable[object], dtype: TTDType[DType] | None
 ) -> tuple[list[Core[DType]], np.dtype[DType]]:
     data = list(iterable)
 
@@ -191,7 +196,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     __slots__: ClassVar[tuple[str, ...]] = ("data", "dtype")
 
     @overload
-    def __init__(self, data: TTD[Any], *, dtype: np.dtype[DType]) -> None: ...
+    def __init__(self, data: TTD[Any], *, dtype: TTDType[DType]) -> None: ...
 
     @overload
     def __init__(self, data: TTD[DType], *, dtype: None = None) -> None: ...
@@ -201,7 +206,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         self,
         data: NDArray[Any],
         *,
-        dtype: np.dtype[DType],
+        dtype: TTDType[DType],
         **compression_params: Unpack[CompressionParameters],
     ) -> None: ...
 
@@ -215,9 +220,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     ) -> None: ...
 
     @overload
-    def __init__(
-        self, data: Iterable[Core[Any]], *, dtype: np.dtype[DType]
-    ) -> None: ...
+    def __init__(self, data: Iterable[Core[Any]], *, dtype: TTDType[DType]) -> None: ...
 
     @overload
     def __init__(self, data: Iterable[Core[DType]], *, dtype: None = None) -> None: ...
@@ -227,7 +230,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         self,
         data: Sequence[Any],
         *,
-        dtype: np.dtype[DType] | None = None,
+        dtype: TTDType[DType] | None = None,
         **compression_params: Unpack[CompressionParameters],
     ) -> None: ...
 
@@ -235,7 +238,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         self,
         data: object,
         *,
-        dtype: np.dtype[DType] | None = None,
+        dtype: TTDType[DType] | None = None,
         **compression_params: Unpack[CompressionParameters],
     ) -> None:
         """
@@ -250,7 +253,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             converted to an NDArray and compressed into a TTD object. If an
             Iterable of Core objects is passed, it will be wrapped in a TTD
             object.
-        dtype : np.dtype, optional
+        dtype : np.dtype or type, optional
             The datatype of the TTD object. If not provided, it is inferred from
             the data. The inferred dtype is used only if it is a subdtype of
             :class:`numpy.floating`; otherwise, :class:`numpy.float64` is used
@@ -327,7 +330,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def ones[DT: np.floating](
         shape: int | Sequence[int],
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor of ones.
@@ -339,7 +342,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ----------
         shape : int or sequence of ints
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 
@@ -371,7 +374,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def zeros[DT: np.floating](
         shape: int | Sequence[int],
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor of zeros.
@@ -383,7 +386,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ----------
         shape : int or sequence of ints
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 
@@ -416,7 +419,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         shape: int | Sequence[int],
         fill_value: Scalar,
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor filled with `fill_value`.
@@ -430,7 +433,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
         fill_value : scalar
             Value used to fill the tensor.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 

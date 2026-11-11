@@ -13,3 +13,7 @@ class CompressionParameters(TypedDict, total=False):
     """Keyword parameters controlling TTD compression."""
 
     epsilon: Scalar
+
+
+# A dtype accepted by TTD constructors: a NumPy dtype, scalar type, or name.
+type TTDType[DT: np.floating] = np.dtype[DT] | type[DT] | type[float] | str

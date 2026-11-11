@@ -7,7 +7,7 @@ import pytest
 from wren_common.tests import TEST_SCALARS, TEST_TENSORS, TestTensor
 from wren_common.types import NDArray, Scalar
 from wren_ttd import DEFAULT_EPSILON, TTD, CompressionParameters
-from wren_ttd.types import Core
+from wren_ttd.types import Core, TTDType
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -94,13 +94,22 @@ def test_construct_from_sequence_preserves_dtype() -> None:
     assert_default_epsilon(result, np.asarray(data), epsilon=1e-5)
 
 
-def test_construct_from_sequence_with_dtype() -> None:
+@pytest.mark.parametrize(
+    ("dtype", "expected"),
+    [
+        (np.float32, np.float32),
+        (np.dtype(np.float32), np.float32),
+        ("float32", np.float32),
+        (float, np.float64),
+    ],
+)
+def test_construct_from_sequence_with_dtype(dtype: Any, expected: Any) -> None:
     """Test construction from a sequence honors the requested dtype."""
-    result = TTD([[1, 2], [3, 4]], dtype=np.dtype(np.float32))
+    result = TTD([[1, 2], [3, 4]], dtype=dtype)
 
-    assert result.dtype == np.float32
+    assert result.dtype == expected
     assert_default_epsilon(
-        result, np.array([[1, 2], [3, 4]], dtype=np.float32), epsilon=1e-5
+        result, np.array([[1, 2], [3, 4]], dtype=expected), epsilon=1e-5
     )
 
 
@@ -130,10 +139,20 @@ def test_construct_from_cores(tensor: TestTensor, ttd: TestTTD) -> None:
 def test_construct_from_ttd_with_dtype() -> None:
     """Test construction from another TTD casts its cores."""
     ttd = TTD(np.ones((2, 3)))
-    result = TTD(ttd, dtype=np.dtype(np.float32))
+    result = TTD(ttd, dtype=np.float32)
 
     assert result.dtype == np.float32
     assert result.data is not ttd.data
+    assert all(core.dtype == np.float32 for core in result.data)
+    assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
+
+
+def test_construct_from_cores_with_dtype() -> None:
+    """Test construction from cores with a directly passed dtype."""
+    ttd = TTD(np.ones((2, 3)))
+    result = TTD(ttd.data, dtype=np.float32)
+
+    assert result.dtype == np.float32
     assert all(core.dtype == np.float32 for core in result.data)
     assert_default_epsilon(result, np.ones((2, 3)), epsilon=1e-5)
 
@@ -171,10 +190,11 @@ def test_construct_from_integer_cores_falls_back_to_float64() -> None:
         TTD(np.ones((2, 3))).data,
     ],
 )
-def test_construct_rejects_non_floating_dtype(data: Any) -> None:
+@pytest.mark.parametrize("dtype", [np.int32, np.dtype(np.int32)], ids=["type", "dtype"])
+def test_construct_rejects_non_floating_dtype(data: Any, dtype: Any) -> None:
     """Test that an explicit non-floating dtype is rejected."""
     with pytest.raises(TypeError, match="not a valid dtype"):
-        _ = TTD(data, dtype=cast(Any, np.dtype(np.int32)))
+        _ = TTD(data, dtype=dtype)
 
 
 def test_construct_rejects_complex_data() -> None:
@@ -185,7 +205,7 @@ def test_construct_rejects_complex_data() -> None:
 
 def test_zeros_preserves_dtype() -> None:
     """Test that zeros forwards and preserves the requested dtype."""
-    result = TTD.zeros((2, 2), dtype=np.dtype(np.float32))
+    result = TTD.zeros((2, 2), dtype=np.float32)
 
     assert result.dtype == np.float32
     assert all(core.dtype == np.float32 for core in result.data)
@@ -220,7 +240,7 @@ def test_construct_from_ndarray_forwards_compression_parameters() -> None:
             self,
             data: Any,
             *,
-            dtype: np.dtype[np.float64] | None = None,
+            dtype: TTDType[np.float64] | None = None,
             epsilon: Scalar = DEFAULT_EPSILON,
             iterations: int = 1,
         ) -> None:
