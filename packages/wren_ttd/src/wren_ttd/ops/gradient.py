@@ -68,7 +68,7 @@ def gradient[DType: np.floating](
     >>> import numpy as np
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
-    >>> t = TTD.from_ndarray(np.array([1.0, 2.0, 4.0, 7.0, 11.0, 16.0]))
+    >>> t = TTD([1.0, 2.0, 4.0, 7.0, 11.0, 16.0])
     >>> np.asarray(ops.gradient(t))
     array([1. , 1.5, 2.5, 3.5, 4.5, 5. ])
 

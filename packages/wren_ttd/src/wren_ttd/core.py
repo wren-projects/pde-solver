@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from itertools import pairwise
 from types import EllipsisType
 from typing import (
     Any,
+    ClassVar,
     ParamSpec,
     SupportsIndex,
+    Unpack,
     cast,
-    final,
     overload,
     override,
 )
@@ -33,13 +34,156 @@ from wren_ttd._helpers import (
 )
 from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
-from wren_ttd.types import Core
+from wren_ttd.types import (
+    CORE_DIMENSIONS,
+    CompressionParameters,
+    Core,
+    TTDType,
+)
 
 ArrayFunctionParams = ParamSpec("ArrayFunctionParams")
 ArrayUFuncParams = ParamSpec("ArrayUFuncParams")
 
 
-@final
+DEFAULT_DTYPE = np.dtype(np.float64)
+
+
+def _compress_array[DT: np.floating](
+    array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
+) -> list[Core[DT]]:
+    """Compress an NDArray into TTD cores using TT-SVD."""
+    d = array.ndim
+
+    if d == 1:
+        return [np.expand_dims(array, (0, 2))]
+
+    delta = truncation_parameter(array, epsilon)
+
+    # 𝐂 = reshape(𝐂, [n, -1])
+    residue: Matrix[DT] = fold_left(array)
+
+    # r₀ = 1
+    r = 1
+
+    cores: list[Core[DT]] = []
+
+    # for k = 1 to d - 1 do
+    # note: n = nₖ, r = rₖ₋₁
+    for n in array.shape[:-1]:
+        # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
+        residue = residue.reshape((r * n, -1))
+
+        # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
+        u, s, v_t = delta_truncated_svd(residue, delta)
+
+        # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
+        new_core = u.reshape((r, n, -1))
+        cores.append(new_core)
+
+        # set rₖ = rankᵟ(C) for next iteration
+        r = new_core.shape[2]
+
+        # 𝐂 = 𝐒𝐕ᵀ
+        residue = scale_matrix(s, v_t, out=v_t)
+
+    cores.append(np.expand_dims(residue, axis=2))
+
+    return cores
+
+
+def _resolve_dtype(
+    dtype: TTDType[Any] | None, inferred: np.dtype[Any]
+) -> np.dtype[Any]:
+    """
+    Resolve the dtype of a TTD.
+
+    If `dtype` is provided, it must be convertible to a subdtype of
+    :class:`numpy.floating`. Otherwise, the floating `inferred` dtype is used,
+    falling back to :class:`numpy.float64` when `inferred` is not floating.
+
+    Parameters
+    ----------
+    dtype : TTDType, optional
+        The explicitly requested dtype.
+    inferred : np.dtype
+        The dtype inferred from the data.
+
+    Returns
+    -------
+    np.dtype
+        The resolved dtype.
+
+    """
+    if dtype is not None:
+        resolved = np.dtype(dtype)
+        if not np.issubdtype(resolved, np.floating):
+            raise TypeError(f"{resolved!r} is not a valid dtype for TTD")
+        return resolved
+
+    if np.issubdtype(inferred, np.complexfloating):
+        raise TypeError("Complex dtypes are not supported for TTD")
+
+    if np.issubdtype(inferred, np.floating):
+        return inferred
+
+    return np.dtype(np.float64)
+
+
+def _as_floating_array[DT: np.floating](
+    data: npt.ArrayLike, dtype: TTDType[DT] | None = None
+) -> NDArray[DT]:
+    """Convert `data` to a floating-point NDArray with the resolved dtype."""
+    if dtype is not None:
+        resolved = _resolve_dtype(dtype, np.dtype(np.float64))
+        return cast(NDArray[DT], np.asarray(data, dtype=resolved))
+
+    array = np.asarray(data)
+    resolved = _resolve_dtype(None, array.dtype)
+    return cast(NDArray[DT], array.astype(resolved, copy=False))
+
+
+def _validate_cores(cores: Sequence[object]) -> None:
+    """Check that cores are valid three-dimensional arrays with matching ranks."""
+    if not cores:
+        raise ValueError("TTD must have at least one core")
+
+    for core in cores:
+        if not isinstance(core, np.ndarray):
+            raise TypeError(f"Unexpected type for TTD core: {type(core)!r}")
+
+        if core.ndim != CORE_DIMENSIONS:
+            raise ValueError(f"Invalid core shape {core.shape}")
+
+    cores = cast(list[Core[Any]], cores)
+
+    for i, (a, b) in enumerate(pairwise(cores)):
+        _, _, ar = a.shape
+        bl, _, _ = b.shape
+        if ar != bl:
+            raise ValueError(
+                f"Mismatch in shared rank of cores {i} and {i + 1}: "
+                f"{ar} does not match {bl}"
+            )
+
+    if not (cores[0].shape[0] == cores[-1].shape[2] == 1):
+        raise ValueError("The boundary ranks have to be 1")
+
+
+def _as_cores[DType: np.floating](
+    iterable: Iterable[object], dtype: TTDType[DType] | None
+) -> tuple[list[Core[DType]], np.dtype[DType]]:
+    """Validate and convert an iterable into TTD cores with a resolved dtype."""
+    data = list(iterable)
+
+    _validate_cores(data)
+
+    cores = cast(list[Core[Any]], data)
+    inferred = np.result_type(*(core.dtype for core in cores))
+    resolved = cast(np.dtype[DType], _resolve_dtype(dtype, inferred))
+
+    return [core.astype(resolved, copy=False) for core in cores], resolved
+
+
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
     """
     Class for storing TTD encoded data.
@@ -53,120 +197,125 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     data: list[Core[DType]]
     dtype: np.dtype[DType]
 
-    __slots__ = ("data", "dtype")
+    __slots__: ClassVar[tuple[str, ...]] = ("data", "dtype")
+
+    # Two overloads are needed: an explicit `dtype` determines `DType`, while
+    # without one `DType` is inferred from the data.
+    @overload
+    def __init__(
+        self,
+        data: TTD[Any] | NDArray[Any] | Iterable[Core[Any]] | Sequence[Any],
+        *,
+        dtype: TTDType[DType],
+        **compression_params: Unpack[CompressionParameters],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        data: TTD[DType] | NDArray[DType] | Iterable[Core[DType]] | Sequence[Any],
+        *,
+        dtype: None = None,
+        **compression_params: Unpack[CompressionParameters],
+    ) -> None: ...
 
     def __init__(
         self,
-        data: Iterable[Core[DType]],
+        data: object,
         *,
-        dtype: np.dtype | None = None,
+        dtype: TTDType[DType] | None = None,
+        **compression_params: Unpack[CompressionParameters],
     ) -> None:
         """
         Create a new TTD object.
 
         Parameters
         ----------
-        data : Iterable[Core[DType]]
-            The cores of the TTD object. The caller must ensure that the data
-            represents a valid TTD.
-        dtype : np.dtype, optional
-            The datatype of the TTD object. Defaults to the dtype of the first
-            core. Either way, the dtype must be the same for all cores.
+        data : TTD | ArrayLike | Iterable[Core]
+            The data to be stored in the TTD object. If a TTD object is passed,
+            its data will be shallow-copied. If an array-like object, such as an
+            NDArray or a (nested) Python sequence, is passed, it will be
+            converted to an NDArray and compressed into a TTD object. If an
+            Iterable of Core objects is passed, it will be wrapped in a TTD
+            object.
+        dtype : np.dtype or type, optional
+            The datatype of the TTD object. If not provided, it is inferred from
+            the data. The inferred dtype is used only if it is a subdtype of
+            :class:`numpy.floating`; otherwise, :class:`numpy.float64` is used
+            as a fallback. An explicitly provided dtype must be a subdtype of
+            :class:`numpy.floating`. All cores of the resulting TTD have this
+            dtype.
+        **compression_params : CompressionParameters
+            Additional keyword arguments passed to :meth:`TTD._compress` when
+            compressing an array-like object. The common parameter is
+            ``epsilon``, the relative error tolerance of the compression: the
+            resulting TTD satisfies ‖A - TTD‖ᶠ ≤ epsilon ⋅ ‖A‖ᶠ. Subclasses
+            extending :class:`CompressionParameters` and overriding
+            :meth:`TTD._compress` can add their own parameters, such as
+            ``iterations``. Ignored when `data` is a TTD or an iterable of
+            cores.
 
         """
         super().__init__()
 
-        self.data = list(data)
+        if isinstance(data, TTD):
+            ttd = cast(TTD[DType], data)
+            resolved = cast(np.dtype[DType], _resolve_dtype(dtype, ttd.dtype))
+            self.data = [core.astype(resolved, copy=False) for core in ttd.data]
+            self.dtype = resolved
+            return
 
-        if not self.data:
-            raise ValueError("TTD must have at least one core")
+        if isinstance(data, Iterable) and not isinstance(data, np.ndarray):
+            if isinstance(data, Iterator):
+                data = list(data)
 
-        if dtype is None:
-            self.dtype = self.data[0].dtype
-            if not all(core.dtype == self.dtype for core in self.data):
-                raise ValueError("All cores must have the same dtype")
-        else:
-            self.dtype = dtype
-            self.data = [core.astype(dtype, copy=False) for core in self.data]
+            if all(
+                isinstance(item, np.ndarray) and item.ndim == CORE_DIMENSIONS
+                for item in data
+            ):
+                self.data, self.dtype = _as_cores(cast(Iterable[object], data), dtype)
+                return
 
-        for a, b in pairwise(self.data):
-            _, _, ar = a.shape
-            bl, _, _ = b.shape
-            if ar != bl:
-                raise ValueError(
-                    f"Mismatch in adjacent core ranks: {ar} does not match {bl}"
-                )
+        if isinstance(data, (np.ndarray, Sequence)):
+            array = _as_floating_array(cast(npt.ArrayLike, data), dtype)
+            self.data = self._compress(array, **compression_params)
+            self.dtype = array.dtype
+            return
 
-        if not (self.data[0].shape[0] == self.data[-1].shape[2] == 1):
-            raise ValueError("The boundary ranks have to be 1")
+        raise TypeError(f"Unexpected type {type(data)!r}")
 
-    @staticmethod
-    def from_ndarray[DT: np.floating](
-        array: NDArray[DT], epsilon: Scalar = DEFAULT_EPSILON
-    ) -> TTD[DT]:
+    def _compress[DT: np.floating](
+        self,
+        array: NDArray[DT],
+        **compression_params: Unpack[CompressionParameters],
+    ) -> list[Core[DT]]:
         """
-        Compress an NDArray into a TTD object.
+        Compress an NDArray into TTD cores.
 
-        The resulting TTD satisfies ‖A - TTD‖ᶠ ≤ epsilon ⋅ ‖A‖ᶠ for given tensor
-        A, where ‖A‖ᶠ is the Frobenius norm.
+        Subclasses can override this hook to add extra compression parameters.
+        They should also extend :class:`CompressionParameters` and accept it in
+        their ``__init__``.
 
         Parameters
         ----------
         array : NDArray
             The tensor to compress.
-        epsilon : float, optional
-            The error tolerance for the compression. Uses system-wide default
-            value if not provided.
+        **compression_params : CompressionParameters
+            Compression parameters, see :class:`CompressionParameters`.
 
         Returns
         -------
-        TTD
-            The compressed TTD.
+        list[Core]
+            The compressed cores.
 
         """
-        d = array.ndim
-
-        if d == 1:
-            return TTD([np.expand_dims(array, (0, 2))])
-
-        delta = truncation_parameter(array, epsilon)
-
-        # 𝐂 = reshape(𝐂, [n, -1])
-        residue: Matrix[DT] = fold_left(array)
-
-        # r₀ = 1
-        r = 1
-
-        cores: list[Core[DT]] = []
-
-        # for k = 1 to d - 1 do
-        # note: n = nₖ, r = rₖ₋₁
-        for n in array.shape[:-1]:
-            # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
-            residue = residue.reshape((r * n, -1))
-
-            # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
-            u, s, v_t = delta_truncated_svd(residue, delta)
-
-            # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
-            new_core = u.reshape((r, n, -1))
-            cores.append(new_core)
-
-            # set rₖ = rankᵟ(C) for next iteration
-            r = new_core.shape[2]
-
-            # 𝐂 = 𝐒𝐕ᵀ
-            residue = scale_matrix(s, v_t, out=v_t)
-
-        cores.append(np.expand_dims(residue, axis=2))
-
-        return TTD(cores)
+        return _compress_array(array, **compression_params)
 
     @staticmethod
     def ones[DT: np.floating](
         shape: int | Sequence[int],
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor of ones.
@@ -178,7 +327,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ----------
         shape : int or sequence of ints
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 
@@ -210,7 +359,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def zeros[DT: np.floating](
         shape: int | Sequence[int],
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor of zeros.
@@ -222,7 +371,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ----------
         shape : int or sequence of ints
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 
@@ -248,14 +397,14 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
-        return TTD(cores)
+        return TTD(cores, dtype=dtype)
 
     @staticmethod
     def full[DT: np.floating](
         shape: int | Sequence[int],
         fill_value: Scalar,
         *,
-        dtype: np.dtype[DT] | None = None,
+        dtype: TTDType[DT] | None = None,
     ) -> TTD[DT]:
         """
         Return a new TTD representing a tensor filled with `fill_value`.
@@ -269,7 +418,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             Shape of the new tensor, e.g. ``(2, 3)`` or ``2``.
         fill_value : scalar
             Value used to fill the tensor.
-        dtype : data-type, optional
+        dtype : np.dtype or type, optional
             The desired data-type of the tensor, e.g. ``numpy.float64``.
             The default is ``numpy.float64``.
 
