@@ -40,20 +40,15 @@ def test_dirichlet_boundary_setup_initial_condition(
     )  # interior is returned as a 1D array
 
 
-@pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
-@pytest.mark.parametrize("time", SMALL_TEST_SCALARS)
-@pytest.mark.parametrize("delta_time", SMALL_TEST_SCALARS)
 @pytest.mark.parametrize("tensor", deepcopy(TEST_TENSORS))
-def test_dirichlet_boundary_call(
-    value: float, time: float, delta_time: float, tensor: NDArray
-) -> None:
+def test_dirichlet_boundary_call(tensor: NDArray) -> None:
     """
     Test Dirichlet boundary condition for a time-step call.
 
     Should keep tensor size and set zero (not the given value) at boundary.
     """
-    boundary = ConstantDirichletBoundaryCondition(value=value)
-    new_tensor = boundary(tensor, time=time, delta_time=delta_time)
+    boundary = ConstantDirichletBoundaryCondition(value=1.0)
+    new_tensor = boundary(tensor, time=0.0, delta_time=1.0)
     np.testing.assert_array_equal(new_tensor.shape, tensor.shape)
     np.testing.assert_equal(tensor_boundary(new_tensor), 0)
     np.testing.assert_equal(

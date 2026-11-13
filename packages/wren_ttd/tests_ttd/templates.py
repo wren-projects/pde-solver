@@ -2,7 +2,12 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor, TestTensorPair
+from wren_common.tests import (
+    EDGE_TEST_SCALARS,
+    SMALL_TEST_SCALARS,
+    TestTensor,
+    TestTensorPair,
+)
 
 from .common import (
     TEST_PAIR_TTD,
@@ -70,7 +75,6 @@ class BinaryOperatorTests(ABC):
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("scalar", TEST_SCALARS)
 class ScalarOperatorTests(ABC):
     """Minimal interface for binary TTD-scalar operator-style op tests."""
 
@@ -91,6 +95,7 @@ class ScalarOperatorTests(ABC):
         """Perform the op using the in-place operator."""
         ...
 
+    @pytest.mark.parametrize("scalar", SMALL_TEST_SCALARS)
     def test_operator_right(
         self, tensor: TestTensor, ttd: TestTTD, scalar: float
     ) -> None:
@@ -99,6 +104,7 @@ class ScalarOperatorTests(ABC):
             self.operator(ttd, scalar), self.operator(tensor, scalar)
         )
 
+    @pytest.mark.parametrize("scalar", SMALL_TEST_SCALARS)
     def test_operator_left(
         self, tensor: TestTensor, ttd: TestTTD, scalar: float
     ) -> None:
@@ -107,6 +113,7 @@ class ScalarOperatorTests(ABC):
             self.operator(scalar, ttd), self.operator(scalar, tensor)
         )
 
+    @pytest.mark.parametrize("scalar", SMALL_TEST_SCALARS)
     def test_numpy_right(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
         """Test the op via the NumPy function as ``f(ttd, scalar)``."""
         assert_default_epsilon(
@@ -114,6 +121,7 @@ class ScalarOperatorTests(ABC):
             self.operator_numpy(tensor, scalar),
         )
 
+    @pytest.mark.parametrize("scalar", SMALL_TEST_SCALARS)
     def test_numpy_left(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
         """Test the op via the NumPy function as ``f(scalar, ttd)``."""
         assert_default_epsilon(
@@ -121,30 +129,31 @@ class ScalarOperatorTests(ABC):
             self.operator_numpy(scalar, tensor),
         )
 
-    def test_operator_matches_numpy_left(
-        self,
-        tensor: TestTensor,  # noqa: ARG002
-        ttd: TestTTD,
-        scalar: float,
-    ) -> None:
-        """Test that the op via the Python operator matches the NumPy function."""
-        assert_default_epsilon(
-            self.operator(ttd, scalar), self.operator_numpy(ttd, scalar)
-        )
-
-    def test_operator_matches_numpy_right(
-        self,
-        tensor: TestTensor,  # noqa: ARG002
-        ttd: TestTTD,
-        scalar: float,
-    ) -> None:
-        """Test the op via the Python operator as ``scalar op ttd``."""
-        assert_default_epsilon(
-            self.operator(scalar, ttd), self.operator_numpy(scalar, ttd)
-        )
-
+    @pytest.mark.parametrize("scalar", SMALL_TEST_SCALARS)
     def test_inplace(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
         """Test the op via the in-place operator."""
+        ttd_copy = ttd.copy()
+        self.operator_inplace(ttd_copy, scalar)
+        assert_default_epsilon(ttd_copy, self.operator(tensor, scalar))
+
+    @pytest.mark.parametrize("scalar", EDGE_TEST_SCALARS)
+    def test_edge_scalar(self, tensor: TestTensor, ttd: TestTTD, scalar: float) -> None:
+        """Test the op with large-magnitude scalar values."""
+        assert_default_epsilon(
+            self.operator(ttd, scalar), self.operator(tensor, scalar)
+        )
+        assert_default_epsilon(
+            self.operator(scalar, ttd), self.operator(scalar, tensor)
+        )
+        assert_default_epsilon(
+            self.operator_numpy(ttd, scalar),
+            self.operator_numpy(tensor, scalar),
+        )
+        assert_default_epsilon(
+            self.operator_numpy(scalar, ttd),
+            self.operator_numpy(scalar, tensor),
+        )
+
         ttd_copy = ttd.copy()
         self.operator_inplace(ttd_copy, scalar)
         assert_default_epsilon(ttd_copy, self.operator(tensor, scalar))
