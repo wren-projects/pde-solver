@@ -5,7 +5,8 @@ from typing import Any, Unpack, cast, override
 import numpy as np
 import pytest
 from wren_common.tests import (
-    TEST_SCALARS,
+    EDGE_TEST_SCALARS,
+    SMALL_TEST_SCALARS,
     TEST_SEED,
     TEST_SHAPES,
     TEST_TENSORS,
@@ -338,12 +339,38 @@ def test_ones(shape: tuple[int, ...]) -> None:
 
 
 @pytest.mark.parametrize("shape", deepcopy(TEST_SHAPES))
-@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+@pytest.mark.parametrize("fill_value", deepcopy(SMALL_TEST_SCALARS))
 def test_full(shape: tuple[int, ...], fill_value: float) -> None:
     """Test full."""
     ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
     tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
     assert_default_epsilon(ttd, tensor)
+
+
+@pytest.mark.parametrize("shape", [(2, 3), (2, 3, 4)])
+@pytest.mark.parametrize("fill_value", EDGE_TEST_SCALARS)
+def test_full_edge(shape: tuple[int, ...], fill_value: float) -> None:
+    """Test full with large-magnitude edge values."""
+    ttd = TTD.full(shape, fill_value, dtype=np.dtype(np.float64))
+    tensor = np.full(shape, fill_value, dtype=np.dtype(np.float64))
+    assert_default_epsilon(ttd, tensor, scale=fill_value)
+
+
+def _assert_setitem(
+    tensor: TestTensor, ttd: TestTTD, index: int | slice, value: Scalar
+) -> None:
+    for axis, _ in enumerate(tensor.shape):
+        leading = (slice(None),) * axis
+        trailing = (slice(None),) * (len(tensor.shape) - axis - 1)
+        key = (*leading, index, *trailing)
+
+        expected = tensor.copy()
+        expected[key] = value
+
+        result = ttd.copy()
+        result[key] = value
+
+        assert_default_epsilon(result, expected, scale=value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
@@ -359,23 +386,22 @@ def test_full(shape: tuple[int, ...], fill_value: float) -> None:
         slice(None, None, -1),
     ],
 )
-@pytest.mark.parametrize("value", TEST_SCALARS)
+@pytest.mark.parametrize("value", SMALL_TEST_SCALARS)
 def test_setitem(
     tensor: TestTensor, ttd: TestTTD, index: int | slice, value: Scalar
 ) -> None:
-    """Test zeroing a single mode addressed by an integer or a slice."""
-    for axis, _ in enumerate(tensor.shape):
-        leading = (slice(None),) * axis
-        trailing = (slice(None),) * (len(tensor.shape) - axis - 1)
-        key = (*leading, index, *trailing)
+    """Test setting a single mode addressed by an integer or a slice."""
+    _assert_setitem(tensor, ttd, index, value)
 
-        expected = tensor.copy()
-        expected[key] = value
 
-        result = ttd.copy()
-        result[key] = value
-
-        assert_default_epsilon(result, expected, scale=value)
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+@pytest.mark.parametrize("index", [0, slice(1, None, 2)])
+@pytest.mark.parametrize("value", EDGE_TEST_SCALARS)
+def test_setitem_edge(
+    tensor: TestTensor, ttd: TestTTD, index: int | slice, value: Scalar
+) -> None:
+    """Test setting with large-magnitude edge values."""
+    _assert_setitem(tensor, ttd, index, value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))

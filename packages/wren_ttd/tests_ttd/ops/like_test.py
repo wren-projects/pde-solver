@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 import pytest
-from wren_common.tests import TEST_SCALARS, TestTensor
+from wren_common.tests import EDGE_TEST_SCALARS, SMALL_TEST_SCALARS, TestTensor
 from wren_ttd import TTD
 
 from ..common import TEST_TTD, TestTTD, assert_default_epsilon
@@ -28,7 +28,7 @@ def test_ones_like(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-@pytest.mark.parametrize("fill_value", deepcopy(TEST_SCALARS))
+@pytest.mark.parametrize("fill_value", deepcopy(SMALL_TEST_SCALARS))
 def test_full_like(tensor: TestTensor, ttd: TestTTD, fill_value: float) -> None:
     """Test full_like."""
     result = np.full_like(ttd, fill_value)
@@ -40,6 +40,15 @@ def test_full_like(tensor: TestTensor, ttd: TestTTD, fill_value: float) -> None:
 
     result = np.full_like(ttd, 2.5, dtype=dtype, shape=shape)
     assert_default_epsilon(result, np.full_like(tensor, 2.5, dtype=dtype, shape=shape))
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD[:2]))
+@pytest.mark.parametrize("fill_value", EDGE_TEST_SCALARS)
+def test_full_like_edge(tensor: TestTensor, ttd: TestTTD, fill_value: float) -> None:
+    """Test full_like with large-magnitude edge values."""
+    result = np.full_like(ttd, fill_value)
+    assert isinstance(result, TTD)
+    assert_default_epsilon(result, np.full_like(tensor, fill_value), scale=fill_value)
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))

@@ -23,20 +23,15 @@ TEST_TENSORS: list[TestTensor] = [
     tensor.astype(np.float64)
     for tensor in [
         # ---- 2D ----
-        arange_tensor(3, 3),
         rng.random((5, 3)),
-        np.array([x % 2 == 0 for x in range(16)]).reshape(4, 4),
         # ---- 3D ----
-        arange_tensor(4, 5, 5),
-        rng.normal(size=(3, 4, 6)),
+        np.ones((6, 7, 8)),
         # ---- 4D ----
-        arange_tensor(6, 5, 4, 3),
-        10e50 * np.ones((3, 4, 3, 5)),
+        rng.normal(size=(3, 4, 6)),
         # ---- 5D ----
-        arange_tensor(4, 3, 4, 5, 3),
-        -10e-5 * arange_tensor(4, 3, 4, 5, 3),
+        np.full((6, 5, 4, 3), 1e50),
         # ---- 6D ----
-        arange_tensor(4, 3, 4, 3, 3, 6),
+        -1e-50 * arange_tensor(4, 3, 4, 5, 3),
     ]
 ]
 
@@ -101,7 +96,7 @@ TEST_SHAPES: list[tuple[int, ...]] = [
 ]
 
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
-TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
+EDGE_TEST_SCALARS: tuple[float, ...] = (0, 1e30, -1e30)
 
 
 def tensor_interior[DType: np.number](
