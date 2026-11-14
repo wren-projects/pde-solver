@@ -1,4 +1,5 @@
 import numpy as np
+from wren_common.tests import TEST_SEED
 from wren_pde_solver.boundary_conditions import ConstantDirichletBoundaryCondition
 from wren_pde_solver.pde import HomogeneousNoAdvectionNoDiffusionPDE
 from wren_pde_solver.solvers.finite_differences import FiniteDifferences
@@ -8,7 +9,7 @@ def test_empty_state_3_dims() -> None:
     """Test that in 3 dimensions with no diffusion nor advection."""
     solver = FiniteDifferences()
     PDE = HomogeneousNoAdvectionNoDiffusionPDE(3)
-    initial_condition = np.random.default_rng(seed=1).random((10, 10, 10))
+    initial_condition = np.random.default_rng(TEST_SEED).random((10, 10, 10))
     solved = solver(
         pde=PDE,
         initial_condition=initial_condition,

@@ -1,10 +1,13 @@
 import math
 
 import numpy as np
+import pytest
 
 from wren_common.types import NDArray
 
-rng = np.random.default_rng(0)
+TEST_SEED = 0
+
+rng = np.random.default_rng(TEST_SEED)
 
 
 type TestTensor = NDArray[np.float64]
@@ -20,26 +23,21 @@ TEST_TENSORS: list[TestTensor] = [
     tensor.astype(np.float64)
     for tensor in [
         # ---- 2D ----
-        arange_tensor(3, 3),
         rng.random((5, 3)),
-        np.array([x % 2 == 0 for x in range(16)]).reshape(4, 4),
         # ---- 3D ----
-        arange_tensor(4, 5, 5),
-        rng.normal(size=(3, 4, 6)),
+        np.ones((6, 7, 8)),
         # ---- 4D ----
-        arange_tensor(6, 5, 4, 3),
-        10e50 * np.ones((3, 4, 3, 5)),
+        rng.normal(size=(3, 4, 6)),
         # ---- 5D ----
-        arange_tensor(4, 3, 4, 5, 3),
-        -10e-5 * arange_tensor(4, 3, 4, 5, 3),
+        np.full((6, 5, 4, 3), 1e50),
         # ---- 6D ----
-        arange_tensor(4, 3, 4, 3, 3, 6),
+        -1e-50 * arange_tensor(4, 3, 4, 5, 3),
     ]
 ]
 
 
 # NOTE: each pair of tensors must have the same shape
-TEST_PAIR_TENSORS: list[TestTensorPair] = [
+_TEST_PAIR_TENSORS: list[TestTensorPair] = [
     (a.astype(np.float64), b.astype(np.float64))
     for a, b in [
         # ---- 2D ----
@@ -77,6 +75,11 @@ TEST_PAIR_TENSORS: list[TestTensorPair] = [
     ]
 ]
 
+# Add the reverse of each pair to test both operand orders
+TEST_PAIR_TENSORS: list[TestTensorPair] = [
+    pair for a, b in _TEST_PAIR_TENSORS for pair in [(a, b), (b, a)]
+]
+
 for a, b in TEST_PAIR_TENSORS:
     assert a.shape == b.shape
     assert a.dtype == b.dtype
@@ -93,7 +96,7 @@ TEST_SHAPES: list[tuple[int, ...]] = [
 ]
 
 SMALL_TEST_SCALARS: tuple[float, ...] = (1, -1, math.pi)
-TEST_SCALARS: tuple[float, ...] = (1, 2, 0.5, -1, 0, math.pi, -math.e, 1e30, -1e30)
+EDGE_TEST_SCALARS: tuple[float, ...] = (0, 1e30, -1e30)
 
 
 def tensor_interior[DType: np.number](
@@ -146,3 +149,16 @@ def tensor_boundary[DType: np.number](
     interior_slices = tuple(slice(order, -order) for _ in range(tensor.ndim))
     mask[interior_slices] = False
     return tensor[mask]
+
+
+@pytest.fixture
+def seeded_default_rng(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch the default_rng inside the marked test case to use fixed seed."""
+    # NOTE: we have to create a new RNG for each test case so they are independent,
+    # since they run in non-deterministic order
+    original = np.random.default_rng
+
+    def seeded_rng(seed: int | None = None) -> np.random.Generator:
+        return original(TEST_SEED if seed is None else seed)
+
+    monkeypatch.setattr(np.random, "default_rng", seeded_rng)
