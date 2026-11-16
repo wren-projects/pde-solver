@@ -5,6 +5,7 @@ from .gradient import gradient
 from .inner_product import inner_product
 from .like import full_like, ones_like, zeros_like
 from .matmul import matmul
+from .moveaxis import moveaxis
 from .multiply import multiply
 from .neg import neg
 from .pad import pad
@@ -22,6 +23,7 @@ __all__ = [
     "gradient",
     "inner_product",
     "matmul",
+    "moveaxis",
     "multiply",
     "neg",
     "ones_like",
