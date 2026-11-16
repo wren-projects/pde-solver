@@ -6,9 +6,8 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from wren_common.types import Scalar, ScalarTypes
 
-from wren_ttd._helpers import smallest_core
+from wren_ttd._helpers import multiply_cores, smallest_core
 from wren_ttd._numpy_api import implements_ufunc
-from wren_ttd.types import Core
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -23,24 +22,7 @@ def _hadamard_impl[DType: np.floating](
     if a.shape != b.shape:
         raise ValueError("Tensors must have the same shape.")
 
-    N = np.newaxis
-
-    new_cores: list[Core[DType]] = []
-    for core_a, core_b in zip(a.data, b.data, strict=True):
-        la, n, ra = core_a.shape
-        lb, _, rb = core_b.shape
-
-        # Expand dimensions to leverage standard NumPy broadcasting:
-        # core_a expanded: (la,  1, n, ra,  1)
-        # core_b expanded: ( 1, lb, n,  1, rb)
-        # Resulting shape: (la, lb, n, ra, rb)
-        # then multiply and flatten back
-        core = np.multiply(
-            core_a[:, N, :, :, N],
-            core_b[N, :, :, N, :],
-        ).reshape(la * lb, n, ra * rb)
-
-        new_cores.append(core)
+    new_cores = multiply_cores(a.data, b.data)
 
     if out is not None:
         if out.shape != a.shape:

@@ -440,3 +440,44 @@ def block_core[DType: np.floating](
         G[l0:l1, :, r0:r1] = core
 
     return G
+
+
+def multiply_cores[DType: np.floating](
+    cores_a: Iterable[Core[DType]], cores_b: Iterable[Core[DType]]
+) -> list[Core[DType]]:
+    """
+    Element-wise multiply two sequences of cores.
+
+    Parameters
+    ----------
+    cores_a : Iterable[Core[DType]]
+        The first sequence of cores.
+    cores_b : Iterable[Core[DType]]
+        The second sequence of cores.
+
+    Returns
+    -------
+    list[Core[DType]]
+      Element-wise multiplied cores.
+
+    """
+    N = np.newaxis
+
+    new_cores: list[Core[DType]] = []
+    for core_a, core_b in zip(cores_a, cores_b, strict=True):
+        la, n, ra = core_a.shape
+        lb, _, rb = core_b.shape
+
+        # Expand dimensions to leverage standard NumPy broadcasting:
+        # core_a expanded: (la,  1, n, ra,  1)
+        # core_b expanded: ( 1, lb, n,  1, rb)
+        # Resulting shape: (la, lb, n, ra, rb)
+        # then multiply and flatten back
+        core = np.multiply(
+            core_a[:, N, :, :, N],
+            core_b[N, :, :, N, :],
+        ).reshape(la * lb, n, ra * rb)
+
+        new_cores.append(core)
+
+    return new_cores
