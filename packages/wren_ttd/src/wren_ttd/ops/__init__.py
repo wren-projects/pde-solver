@@ -4,6 +4,7 @@ from .get_item import get_item
 from .gradient import gradient
 from .inner_product import inner_product
 from .like import full_like, ones_like, zeros_like
+from .matmul import matmul
 from .multiply import multiply
 from .neg import neg
 from .pad import pad
@@ -20,6 +21,7 @@ __all__ = [
     "get_item",
     "gradient",
     "inner_product",
+    "matmul",
     "multiply",
     "neg",
     "ones_like",

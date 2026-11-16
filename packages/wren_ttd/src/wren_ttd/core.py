@@ -1369,6 +1369,139 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.multiply(self, other)
 
     @override
+    def __matmul__(self, other: TTD[DType]) -> TTD[DType] | DType:
+        """
+        Matrix-multiply this TTD by another TTD.
+
+        Equivalent to ``self @ other`` and :func:`numpy.matmul` for TTD
+        operands. The last axis of `self` is contracted with the first axis
+        of a 1D `other`, or the second-to-last axis otherwise. A vector-vector
+        product returns a scalar; other supported products return a TTD.
+
+        Both operands must have the same dtype. Products where both operands
+        have leading batch dimensions are not supported. See
+        :func:`wren_ttd.ops.matmul` for supported dimensions and details.
+
+        Parameters
+        ----------
+        other : TTD[DType]
+            Right operand. Its contracted dimension must match the last
+            dimension of `self`.
+
+        Returns
+        -------
+        TTD[DType] | DType
+            The matrix product, or a scalar for a vector-vector product.
+
+        See Also
+        --------
+        numpy.matmul : Equivalent operation for dense arrays.
+        TTD.__rmatmul__ : Matrix-multiply another TTD by this one.
+        TTD.__imatmul__ : In-place matrix multiplication.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> a = TTD(np.arange(6.0).reshape(2, 3))
+        >>> b = TTD(np.arange(12.0).reshape(3, 4))
+        >>> (a @ b).shape
+        (2, 4)
+
+        """
+        return ops.matmul(self, other)
+
+    @override
+    def __imatmul__(self, other: TTD[DType]) -> TTD[DType] | DType:
+        """
+        Matrix-multiply this TTD by another TTD in place.
+
+        Computes ``self @ other`` and replaces the cores of `self` with the
+        result by calling :func:`wren_ttd.ops.matmul` with `out=self`.
+        Consequently, only TTD-valued results with the same shape and dtype
+        as `self` can be assigned in place; scalar results and results with a
+        different shape are not supported.
+
+        Parameters
+        ----------
+        other : TTD[DType]
+            Right operand. Its contracted dimension must match the last
+            dimension of `self`.
+
+        Returns
+        -------
+        TTD[DType] | DType
+            The updated `self`. The return annotation matches the regular
+            matrix multiplication operator; in-place output constraints mean
+            this operation returns a TTD when successful.
+
+        Raises
+        ------
+        ValueError
+            If the result shape or dtype differs from `self`, or if the
+            contracted dimensions or operand dtypes do not match.
+        TypeError
+            If the product is scalar-valued.
+        NotImplementedError
+            If both operands have leading batch dimensions.
+
+        See Also
+        --------
+        TTD.__matmul__ : Matrix multiplication.
+        numpy.matmul : Equivalent operation for dense arrays.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> a = TTD(np.arange(4.0).reshape(2, 2))
+        >>> b = TTD(np.eye(2))
+        >>> a @= b
+        >>> a.shape
+        (2, 2)
+
+        """
+        return ops.matmul(self, other, out=self)
+
+    @override
+    def __rmatmul__(self, other: TTD[DType]) -> TTD[DType] | DType:
+        """
+        Matrix-multiply another TTD by this TTD.
+
+        Computes ``other @ self``. This reflected operator is called when the
+        left operand defers matrix multiplication to this TTD. See
+        :func:`wren_ttd.ops.matmul` for supported dimensions and constraints.
+
+        Parameters
+        ----------
+        other : TTD[DType]
+            Left operand. Its last dimension must match the first dimension
+            of `self` when `self` is 1D, or its second-to-last dimension
+            otherwise.
+
+        Returns
+        -------
+        TTD[DType] | DType
+            The matrix product, or a scalar for a vector-vector product.
+
+        See Also
+        --------
+        TTD.__matmul__ : Matrix-multiply this TTD by another.
+        numpy.matmul : Equivalent operation for dense arrays.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> a = TTD(np.arange(6.0).reshape(2, 3))
+        >>> b = TTD(np.arange(12.0).reshape(3, 4))
+        >>> b.__rmatmul__(a).shape
+        (2, 4)
+
+        """
+        return ops.matmul(other, self)
+
+    @override
     def __neg__(self) -> TTD[DType]:
         """
         Negate the TTD, element-wise.
