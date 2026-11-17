@@ -824,7 +824,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [1., 1.]])
 
         """
-        return self.__class__(a.copy() for a in self.data)
+        return ops.copy(self, subok=True)
 
     def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
         """

@@ -1,5 +1,6 @@
 from .add import add
 from .astype import astype
+from .copy import copy
 from .diff import diff
 from .expand_dims import expand_dims
 from .flip import flip
@@ -24,6 +25,7 @@ from .transpose import transpose
 __all__ = [
     "add",
     "astype",
+    "copy",
     "diff",
     "expand_dims",
     "flip",
