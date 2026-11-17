@@ -7,6 +7,7 @@ from types import EllipsisType
 from typing import (
     Any,
     ClassVar,
+    Literal,
     ParamSpec,
     SupportsIndex,
     Unpack,
@@ -567,9 +568,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return tuple(core.shape[2] for core in self.data[:-1])
 
     @property
+    def device(self) -> Literal["cpu"]:
+        """Return the device that stores this TTD."""
+        return "cpu"
+
+    @property
     def mT(self) -> TTD[DType]:  # noqa: N802
         """Transpose the final two dimensions."""
         return ops.matrix_transpose(self)
+
+    def to_device(self, device: str, /, *, stream: object | None = None) -> TTD[DType]:
+        """Return this TTD on the requested device."""
+        return ops.to_device(self, device, stream=stream)
 
     @overload
     def astype[NewDType: np.floating](

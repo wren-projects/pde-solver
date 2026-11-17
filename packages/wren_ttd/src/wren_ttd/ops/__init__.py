@@ -20,6 +20,7 @@ from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
 from .tensordot import tensordot
+from .to_device import to_device
 from .transpose import transpose
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "subtract",
     "swapaxes",
     "tensordot",
+    "to_device",
     "transpose",
     "zeros_like",
 ]
