@@ -11,6 +11,7 @@ from .moveaxis import moveaxis
 from .multiply import multiply
 from .neg import neg
 from .pad import pad
+from .squeeze import squeeze
 from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
@@ -32,6 +33,7 @@ __all__ = [
     "neg",
     "ones_like",
     "pad",
+    "squeeze",
     "stack",
     "subtract",
     "swapaxes",
