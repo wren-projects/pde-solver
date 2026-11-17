@@ -138,15 +138,15 @@ def transpose[DType: np.floating](
 
         merged = (
             contract_pair(core_0, core_1)
-            .reshape((r0, n1, n2, r2))
+            .reshape(r0, n1, n2, r2)
             .swapaxes(1, 2)
-            .reshape((r0 * n2, n1 * r2))
+            .reshape(r0 * n2, n1 * r2)
         )
         u, s, v_t = delta_truncated_svd(merged, delta)
 
         u *= s
-        cores[k] = u.reshape((r0, n2, -1))
-        cores[k + 1] = v_t.reshape((-1, n1, r2))
+        cores[k] = u.reshape(r0, n2, -1)
+        cores[k + 1] = v_t.reshape(-1, n1, r2)
 
         target[k], target[k + 1] = target[k + 1], target[k]
 
