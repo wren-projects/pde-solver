@@ -25,6 +25,7 @@ from wren_ttd import ops
 from wren_ttd._helpers import (
     fold_left,
     mode_1_product,
+    normalize_dtype,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
@@ -92,7 +93,7 @@ def _compress_array[DT: np.floating](
 
 
 def _resolve_dtype(
-    dtype: TTDType[Any] | None, inferred: np.dtype[Any]
+    dtype: npt.DTypeLike | None, inferred: np.dtype[Any]
 ) -> np.dtype[Any]:
     """
     Resolve the dtype of a TTD.
@@ -115,10 +116,7 @@ def _resolve_dtype(
 
     """
     if dtype is not None:
-        resolved = np.dtype(dtype)
-        if not np.issubdtype(resolved, np.floating):
-            raise TypeError(f"{resolved!r} is not a valid dtype for TTD")
-        return resolved
+        return normalize_dtype(dtype)
 
     if np.issubdtype(inferred, np.complexfloating):
         raise TypeError("Complex dtypes are not supported for TTD")
@@ -572,6 +570,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def mT(self) -> TTD[DType]:  # noqa: N802
         """Transpose the final two dimensions."""
         return ops.matrix_transpose(self)
+
+    @overload
+    def astype[NewDType: np.floating](
+        self, dtype: TTDType[NewDType], *, copy: bool = True
+    ) -> TTD[NewDType]: ...
+
+    @overload
+    def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]: ...
+
+    def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]:
+        """Return this TTD cast to a floating-point dtype."""
+        return ops.astype(self, dtype, copy=copy)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None

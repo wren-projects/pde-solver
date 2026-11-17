@@ -3,9 +3,10 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from wren_common.types import Matrix, NDArray, Scalar, Vector
 
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
@@ -13,6 +14,34 @@ from wren_ttd.types import Core
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
+
+
+@overload
+def normalize_dtype(dtype: None) -> np.dtype[Any]: ...
+
+
+@overload
+def normalize_dtype[DType: np.floating](
+    dtype: np.dtype[DType],
+) -> np.dtype[DType]: ...
+
+
+@overload
+def normalize_dtype[DType: np.floating](
+    dtype: DType,
+) -> np.dtype[DType]: ...
+
+
+@overload
+def normalize_dtype(dtype: npt.DTypeLike) -> np.dtype[Any]: ...
+
+
+def normalize_dtype(dtype: npt.DTypeLike | None) -> np.dtype[Any]:
+    """Normalize and validate a floating-point TTD dtype."""
+    normalized = np.dtype(dtype)
+    if not np.issubdtype(normalized, np.floating):
+        raise TypeError(f"{normalized!r} is not a valid dtype for TTD")
+    return normalized
 
 
 def fold_right[DType: np.floating](array: NDArray[DType]) -> Matrix[DType]:
