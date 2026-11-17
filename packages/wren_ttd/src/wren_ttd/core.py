@@ -1297,6 +1297,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.add(-self, other)
 
     @override
+    def __truediv__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
+        """Divide this TTD by a scalar, element-wise."""
+        return ops.divide(self, other)
+
+    @override
     def __mul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
         """
         Multiply this TTD by a TTD or scalar, element-wise.

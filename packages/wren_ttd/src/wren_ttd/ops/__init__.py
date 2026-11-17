@@ -2,6 +2,7 @@ from .add import add
 from .astype import astype
 from .copy import copy
 from .diff import diff
+from .divide import divide
 from .expand_dims import expand_dims
 from .flip import flip
 from .frobenius_norm import frobenius_norm
@@ -28,6 +29,7 @@ __all__ = [
     "astype",
     "copy",
     "diff",
+    "divide",
     "expand_dims",
     "flip",
     "frobenius_norm",
