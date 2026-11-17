@@ -568,6 +568,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """Return the internal ranks of the TTD object."""
         return tuple(core.shape[2] for core in self.data[:-1])
 
+    @property
+    def mT(self) -> TTD[DType]:  # noqa: N802
+        """Transpose the final two dimensions."""
+        return ops.matrix_transpose(self)
+
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
     ) -> NDArray[DType]:

@@ -8,6 +8,7 @@ from .gradient import gradient
 from .inner_product import inner_product
 from .like import full_like, ones_like, zeros_like
 from .matmul import matmul
+from .matrix_transpose import matrix_transpose
 from .moveaxis import moveaxis
 from .multiply import multiply
 from .neg import neg
@@ -30,6 +31,7 @@ __all__ = [
     "gradient",
     "inner_product",
     "matmul",
+    "matrix_transpose",
     "moveaxis",
     "multiply",
     "neg",
