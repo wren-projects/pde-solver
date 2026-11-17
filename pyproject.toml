@@ -38,6 +38,9 @@ wren-ttd = { workspace = true }
 wren-pde-solver = { workspace = true }
 wren-common = { workspace = true }
 
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+
 [tool.basedpyright]
 include = ["src", "packages/**/src", "tests", "scripts", "packages/**/*tests*"]
 
