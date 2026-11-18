@@ -1,12 +1,18 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import numpy.typing as npt
 from wren_common.types import Scalar, ScalarTypes
 
-from wren_ttd._helpers import block_core
+from wren_ttd._helpers import (
+    block_core,
+    normalize_dtype,
+    promote_dtype,
+    validate_out,
+)
 from wren_ttd._numpy_api import implements_ufunc
 from wren_ttd.types import Core
 
@@ -19,7 +25,8 @@ def add[DType: np.floating](
     a: TTD[DType] | Scalar,
     b: TTD[DType] | Scalar,
     *,
-    out: TTD[DType] | None = None,
+    out: TTD[Any] | None = None,
+    dtype: npt.DTypeLike | None = None,
 ) -> TTD[DType]:
     """
     Add arguments element-wise.
@@ -31,10 +38,13 @@ def add[DType: np.floating](
 
         A + B = (G₀ H₀) ⊗ (G₁ 0 ; 0 H₁) ⊗ (G₂ 0 ; 0 H₂) ⊗ … ⊗ (Gₙ ; Hₙ).
 
-    The addition requires that the TTD objects have the same shape and the same
-    dtype. If one of the operands is a scalar, it is broadcasted to the shape of
-    the other operand and then added. That is equivalent to adding the scalar to
-    each element of the other operand.
+    The addition requires that the TTD objects have the same shape. Their
+    dtypes are promoted with NumPy's rules, so adding a ``float32`` and a
+    ``float64`` tensor yields a ``float64`` tensor. If one of the operands is a
+    scalar, it is broadcasted to the shape of the other operand and then added.
+    That is equivalent to adding the scalar to each element of the other
+    operand. Python scalars follow NumPy's weak promotion, while NumPy scalars
+    do not.
 
     Parameters
     ----------
@@ -45,12 +55,22 @@ def add[DType: np.floating](
     out : TTD[DType], optional
         The output TTD object. If not provided, a new TTD object is created.
         If provided, it must have the same shape as the result and its cores
-        are replaced with the cores of the sum.
+        are replaced with the cores of the sum. The result is cast to the
+        dtype of `out` if that is allowed by NumPy's ``"same_kind"`` casting.
+    dtype : np.dtype or type, optional
+        The dtype of the result. If not provided, it is promoted from the
+        operand dtypes. Must be a floating-point dtype.
 
     Returns
     -------
     TTD[DType]
         The element-wise sum of `a` and `b`.
+
+    Raises
+    ------
+    ValueError
+        If the operand shapes differ, or if `out` has an incompatible shape
+        or dtype.
 
     See Also
     --------
@@ -77,10 +97,21 @@ def add[DType: np.floating](
     >>> np.asarray(ops.add(a, 1))
     array([[2., 2.],
            [2., 2.]])
+    >>> ops.add(TTD.ones((2, 2), dtype=np.float32), b).dtype
+    dtype('float64')
 
     """
     # the import has to be here to avoid circular imports
     from wren_ttd.core import TTD
+
+    result_dtype = (
+        normalize_dtype(dtype)
+        if dtype is not None
+        else promote_dtype(
+            a.dtype if isinstance(a, TTD) else a,
+            b.dtype if isinstance(b, TTD) else b,
+        )
+    )
 
     def normalize_operands(
         a: TTD[DType] | Scalar, b: TTD[DType] | Scalar
@@ -90,10 +121,10 @@ def add[DType: np.floating](
             return a, b
 
         if isinstance(a, TTD) and isinstance(b, ScalarTypes):
-            return a, TTD.full(a.shape, b, dtype=a.dtype)
+            return a, TTD.full(a.shape, b, dtype=result_dtype)
 
         if isinstance(b, TTD) and isinstance(a, ScalarTypes):
-            return TTD.full(b.shape, a, dtype=b.dtype), b
+            return TTD.full(b.shape, a, dtype=result_dtype), b
 
         raise TypeError("a and b must be either TTDs or a TTD and a scalar")
 
@@ -102,15 +133,16 @@ def add[DType: np.floating](
     if a.shape != b.shape:
         raise ValueError("Tensors with different shapes cannot be added.")
 
-    if out is not None and out.shape != a.shape:
-        raise ValueError("Output tensor has an incorrect shape.")
-
-    cores = _add_cores(a.data, b.data)
+    # cast both operands before combining them so that no precision is lost
+    a_cores = [core.astype(result_dtype, copy=False) for core in a.data]
+    b_cores = [core.astype(result_dtype, copy=False) for core in b.data]
+    cores = _add_cores(a_cores, b_cores)
 
     if out is None:
-        return TTD(cores, dtype=a.dtype)
+        return TTD(cores, dtype=result_dtype)
 
-    out.data = list(cores)
+    out_dtype = validate_out(out, a.shape, result_dtype)
+    out.data = [core.astype(out_dtype, copy=False) for core in cores]
     return out
 
 

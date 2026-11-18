@@ -11,6 +11,7 @@ from wren_ttd._helpers import (
     contract_cores,
     mode_1_product,
     mode_3_product,
+    promote_dtype,
     reverse_cores,
 )
 from wren_ttd._numpy_api import implements_function
@@ -47,8 +48,9 @@ def tensordot[DType: np.floating](
     a : TTD[DType]
         First input TTD.
     b : TTD[DType]
-        Second input TTD. Must have the same dtype as `a`, and the sizes
-        of the contracted axes must match.
+        Second input TTD. The sizes of the contracted axes must match. The
+        dtypes of both operands are promoted with NumPy's rules, so mixed
+        floating-point dtypes are accepted.
     axes : int or tuple of sequences of ints
         Axes to contract over. If an int ``k``, contract the last ``k``
         axes of `a` with the first ``k`` axes of `b`. Otherwise, a pair
@@ -88,10 +90,13 @@ def tensordot[DType: np.floating](
     """
     from wren_ttd.core import TTD
 
-    if a.dtype != b.dtype:
-        raise ValueError("TTD objects must have the same dtype")
+    dtype = promote_dtype(a.dtype, b.dtype)
 
-    dtype = a.dtype
+    # cast both operands before contracting so that no precision is lost
+    if dtype != a.dtype:
+        a = TTD(a, dtype=dtype)
+    if dtype != b.dtype:
+        b = TTD(b, dtype=dtype)
 
     if isinstance(axes, int):
         k = axes
