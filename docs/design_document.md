@@ -46,17 +46,26 @@ This core component simply provides a custom container implementation.
 
 ## API
 
-TTD needs to implement all numpy array functions. The following functions,
-however, are to be called on it repeatedly:
+TTD implements the NumPy custom array container protocol (NEP 13/18) for a
+documented subset of NumPy. It does not aim to implement every NumPy function.
+See [the parity plan](ttd-numpy-parity-plan.md) for the current capability
+matrix and the planned work.
+
+The following operations are used repeatedly by the solver and the TTD
+implementation focuses on them:
+
 - `np.add` of two TTDs with the same dimensions
-- `np.mul` with a number
+- `np.multiply` with a number
 - `np.tensordot`
 - `np.gradient`
-- `np.trace`
 - `np.expand_dims`
 - `np.stack`
 - `np.pad`
 - setting a slice of the form `[:, :, ..., :, 0, :, ..., :, :]` to 0
+
+Element-wise reductions such as `np.sum` and `np.trace` are not implemented
+yet; they are part of Phase 1 of the parity plan.
+
 
 
 # Solver Component
