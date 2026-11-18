@@ -27,7 +27,9 @@ after each timestep.
   promotion, ufunc `out`/`dtype` handling, `np.size(axis=...)`, truncation
   aliases, top-level `matrix_transpose`, and validated `np.pad` are
   implemented and covered by tests.
-- **Phase 1-3: pending.** See the phases below.
+- **Phase 1: in progress.** Reductions, norms, reshape/broadcasting, and
+  selection/joining are split into the work packages below.
+- **Phase 2-3: pending.** See the phases below.
 
 Current supported surface: [capability matrix](ttd-capability-matrix.md).
 
@@ -174,20 +176,138 @@ Acceptance criteria:
 
 ## Phase 1: reductions and manipulation
 
-Implement, in order:
+Phase 1 adds the reductions and manipulation operations that the solver and
+ordinary NumPy callers need. It is split into four non-overlapping work
+packages. Each package owns its operation modules and its test files; the
+integration step owns `core.py` methods, `ops/__init__.py` conflicts, the
+capability matrix, and documentation.
 
-1. `sum` (axis, keepdims, dtype, out), `mean`, `cumsum`, `trace`.
-2. `vecdot`, `linalg.vector_norm`, `linalg.matrix_norm`.
-3. `reshape` for contiguous merge/split groups and `-1`, plus `ravel`,
-   `flatten`, and `broadcast_to` for leading and size-1 axes.
-4. `take`, `repeat`, `tile`, and `concat` along existing axes.
-5. `diagonal` if the solver needs it.
+Every function accepts the same core arguments as its NumPy counterpart for
+the documented subset and rejects unsupported options with an actionable
+`NotImplementedError`.
+
+### Reduction result shape
+
+TTD has no 0-D representation yet (see Phase 2). A reduction that removes
+every axis therefore returns a NumPy scalar when `keepdims=False`. With
+`keepdims=True`, it returns a TTD of shape ``(1,) * ndim`` built with
+:meth:`TTD.full`. Reductions that leave at least one axis return a TTD.
+`out=` is supported only when the result is a TTD; requesting a dense 0-D
+output raises `NotImplementedError`.
+
+### WP 1.1: Reductions
+
+Files: `ops/sum.py` (extend the existing implementation), new
+`ops/mean.py`, `ops/cumsum.py`, `ops/trace.py`, and their test files.
+
+- `sum(a, axis=None, dtype=None, out=None, keepdims=False)`:
+  - accept `int`, tuple of ints, negative axes, `None`, and `()`;
+  - contract each reduced core into its neighbour with
+    :func:`mode_1_product` / :func:`mode_3_product`;
+  - return a scalar for a full reduction with `keepdims=False`, and an
+    all-ones TTD for `keepdims=True`;
+  - apply `dtype=` as the result dtype and validate `out=`;
+  - reject `initial` and non-default `where` with `NotImplementedError`.
+- `mean(...)`: `sum` followed by division by the product of the reduced
+  sizes. Same `axis`, `dtype`, `out`, and `keepdims` semantics as `sum`.
+- `cumsum(a, axis=None, dtype=None, out=None)`: apply a lower-triangular
+  matrix of ones to the selected core mode. This is exact and preserves
+  ranks. `axis=None` may use a documented dense fallback until the
+  reshape package is integrated; the integration step should switch it to
+  `reshape(-1)` followed by `cumsum(axis=0)`.
+- `trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None)`:
+  - support `offset=0` only and reject nonzero offsets;
+  - when the two axes are adjacent, contract the two cores directly with
+    `einsum`, which is exact;
+  - otherwise move the axes with the existing `transpose`/`moveaxis`
+    (SVD-truncated) and contract the resulting last two cores;
+  - validate `dtype` and `out`.
+
+### WP 1.2: Vector and matrix norms
+
+Files: new `ops/vecdot.py`, `ops/vector_norm.py`, `ops/matrix_norm.py`, and
+their test files.
+
+- `vecdot(a, b, axis=-1)`: implement as `sum(a * b, axis)` for equal shapes.
+  Broadcasting incompatible shapes raises `NotImplementedError`. This is
+  exact and keeps the TT representation.
+- `linalg.vector_norm(a, axis=None, keepdims=False, ord=None)`: support the
+  Euclidean norm (`ord` in `None, 2`) as `sqrt(sum(a * a, axis))`. Other
+  orders raise `NotImplementedError`.
+- `linalg.matrix_norm(a, keepdims=False, ord="fro")`: support the Frobenius
+  norm over the last two axes (`ord` in `"fro", "f"`). Other orders raise
+  `NotImplementedError`.
+- The final element-wise square root is not multiplicative. For scalar
+  results it is a NumPy scalar operation; for TTD results it uses a
+  documented dense fallback and recompresses the result. The sum of squares
+  itself stays in TT format.
+
+### WP 1.3: Reshape and broadcasting
+
+Files: new `ops/reshape.py`, `ops/ravel.py`, `ops/flatten.py`,
+`ops/broadcast_to.py`, their test files, and new helpers in `_helpers.py` if
+needed.
+
+- `reshape(a, shape, order="C")`:
+  - accept an int or tuple shape and one `-1` entry;
+  - merge adjacent cores exactly by contracting their shared rank;
+  - split a core by reshaping it to ``(left * n_left, n_right * right)``
+    and factoring with an SVD, which is exact but may inflate ranks;
+  - walk the source and target shapes one mode at a time, merging or
+    splitting as required, so interleaved cases such as ``(2, 6) -> (3, 4)``
+    work;
+  - support `order="C"` only; reject `"F"`/`"A"`/`"K"`.
+- `ravel(a, order="C")` and `flatten(a, order="C")`: reshape to
+  ``(a.size,)``. `flatten` is also exposed as a `TTD` method.
+- `broadcast_to(a, shape, subok=False)`:
+  - prepend identity cores for new leading axes;
+  - expand size-1 axes by repeating the mode slices;
+  - reject broadcast shapes that are not compatible with the input;
+  - reject `subok=True`.
+- The reshape path must not densify the whole tensor. Document the rank
+  behaviour in the docstring.
+
+### WP 1.4: Selection and joining
+
+Files: new `ops/take.py`, `ops/repeat.py`, `ops/tile.py`, `ops/concat.py`,
+and their test files.
+
+- `take(a, indices, axis=None, out=None, mode="raise")`: select mode slices
+  from one core, which is exact and rank-preserving. Support scalar and
+  integer-array indices, negative indices, and `axis=None` via ravel.
+  Reject `mode` other than `"raise"`.
+- `repeat(a, repeats, axis=None)`: repeat mode slices, with a scalar or
+  per-index `repeats`; `axis=None` uses ravel first. Exact and
+  rank-preserving.
+- `tile(a, reps)`: tile mode slices and prepend identity cores when `reps`
+  has more entries than `a.ndim`; normalise a scalar `reps`. Exact and
+  rank-preserving.
+- `concatenate(ttds, axis=0, dtype=None)` and its `np.concat` alias:
+  - build block-diagonal cores for the joined axis and block-structured
+    ranks for every other axis, as in :func:`stack`;
+  - promote dtypes with :func:`promote_dtype`;
+  - support an integer `axis` and `axis=None` (flatten inputs first);
+  - reject `casting` other than `"same_kind"` and `out`.
+- `diagonal` is deferred until the solver needs it. It would follow the
+  `trace` core-contraction pattern while keeping the diagonal mode.
+
+### WP 1.5: Integration and documentation
+
+- Add the corresponding `TTD` methods (`mean`, `cumsum`, `trace`, `reshape`,
+  `ravel`, `flatten`, `take`, `repeat`, `tile`, `diagonal`, etc.) that
+  delegate to `ops.*`.
+- Resolve `ops/__init__.py` imports and exports.
+- Run `just check`.
+- Update `docs/ttd-capability-matrix.md` and the status section above.
 
 `prod`, `max`, and `min` are deferred: exact TT algorithms are not
 low-hanging and should not be approximated silently.
 
-Acceptance criteria: every function is tested against NumPy on vectors,
-matrices, and at least one 3-D tensor, through both `ops.*` and `np.*`.
+Acceptance criteria: every function is tested against NumPy on a vector, a
+matrix, and at least one 3-D tensor, through both `ops.*` and `np.*` (or the
+documented namespace path). Reduction tests cover `axis`, `keepdims`,
+`dtype`, and `out`. Manipulation tests cover round trips
+(``reshape(reshape(a, s), a.shape)``), negative axes, and rejected forms.
 
 ## Phase 2: Array API contract
 
