@@ -15,6 +15,7 @@ def test_matrix_transpose(tensor: TestTensor, ttd: TestTTD) -> None:
     expected = np.linalg.matrix_transpose(tensor)
     assert_default_epsilon(ops.matrix_transpose(ttd), expected)
     assert_default_epsilon(ttd.mT, expected)
+    assert_default_epsilon(np.matrix_transpose(ttd), expected)
     assert_default_epsilon(np.linalg.matrix_transpose(ttd), expected)
 
 
@@ -23,5 +24,9 @@ def test_matrix_transpose_rejects_one_dimension() -> None:
     ttd = TTD(np.ones(3))
     with pytest.raises(ValueError, match="at least 2-d"):
         _ = ops.matrix_transpose(ttd)
+    with pytest.raises(ValueError, match="at least 2-d"):
+        _ = np.matrix_transpose(ttd)
+    with pytest.raises(ValueError, match="at least 2-d"):
+        _ = np.linalg.matrix_transpose(ttd)
     with pytest.raises(ValueError, match="at least 2-d"):
         _ = ttd.mT
