@@ -32,3 +32,7 @@ def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
         return func
 
     return decorator
+
+
+class DenseWarning(UserWarning):
+    """Warning raised by operations that fall back on dense arrays."""
