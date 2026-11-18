@@ -296,6 +296,16 @@ def test_size(tensor: TestTensor, ttd: TestTTD) -> None:
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
+def test_size_axis(tensor: TestTensor, ttd: TestTTD) -> None:
+    """Test size along an axis or a tuple of axes."""
+    assert np.size(ttd, axis=0) == np.size(tensor, axis=0)
+    assert np.size(ttd, axis=-1) == np.size(tensor, axis=-1)
+
+    axes = (0, 1)
+    assert np.size(ttd, axis=axes) == tensor.shape[0] * tensor.shape[1]
+
+
+@pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
 class TestRounding:
     """Tests for TTD rounding."""
 
@@ -308,6 +318,20 @@ class TestRounding:
         added = ttd + ttd
         rounded = added.rounded()
         assert_default_epsilon(rounded, 2 * tensor)
+
+    def test_truncate(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test the in-place truncation alias."""
+        inflated = ttd + ttd
+        inflated.truncate()
+        assert_default_epsilon(inflated, 2 * tensor)
+
+    def test_truncated(self, tensor: TestTensor, ttd: TestTTD) -> None:
+        """Test the truncation alias returns a new TTD."""
+        inflated = ttd + ttd
+        truncated = inflated.truncated()
+        assert truncated is not inflated
+        assert truncated.ranks == inflated.rounded().ranks
+        assert_default_epsilon(truncated, 2 * tensor)
 
 
 def test_ranks() -> None:
