@@ -48,8 +48,9 @@ This core component simply provides a custom container implementation.
 
 TTD implements the NumPy custom array container protocol (NEP 13/18) for a
 documented subset of NumPy. It does not aim to implement every NumPy function.
-See [the parity plan](ttd-numpy-parity-plan.md) for the current capability
-matrix and the planned work.
+See [the parity plan](ttd-numpy-parity-plan.md) and the
+[capability matrix](ttd-capability-matrix.md) for the current supported
+surface and the planned work.
 
 The following operations are used repeatedly by the solver and the TTD
 implementation focuses on them:

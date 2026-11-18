@@ -21,6 +21,16 @@ The solver is also still blocked on TTD integration: mixed ndarray/TTD
 `tensordot` fails, `Divergence.ZERO` is an ndarray, and ranks must be truncated
 after each timestep.
 
+## Status
+
+- **Phase 0: complete.** Elementwise scalar operations, binary dtype
+  promotion, ufunc `out`/`dtype` handling, `np.size(axis=...)`, truncation
+  aliases, top-level `matrix_transpose`, and validated `np.pad` are
+  implemented and covered by tests.
+- **Phase 1-3: pending.** See the phases below.
+
+Current supported surface: [capability matrix](ttd-capability-matrix.md).
+
 ## Goals
 
 1. Make the existing NumPy-protocol surface internally consistent and safe.
