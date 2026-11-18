@@ -44,6 +44,88 @@ def normalize_dtype(dtype: npt.DTypeLike | None) -> np.dtype[Any]:
     return normalized
 
 
+def promote_dtype(*dtypes: npt.DTypeLike | Scalar) -> np.dtype[Any]:
+    """
+    Determine the result dtype of an operation from its operand dtypes.
+
+    Uses :func:`numpy.result_type`, i.e. NumPy 2 (NEP 50) promotion rules:
+    NumPy scalars and arrays are strong, while Python scalars are weak and
+    adopt the dtype of the other operand.
+
+    Parameters
+    ----------
+    *dtypes : npt.DTypeLike | Scalar
+        The operand dtypes or scalar values to promote.
+
+    Returns
+    -------
+    np.dtype
+        The promoted floating-point dtype.
+
+    Raises
+    ------
+    TypeError
+        If the promoted dtype is not a floating-point dtype.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd._helpers import promote_dtype
+    >>> promote_dtype(np.dtype(np.float32), np.dtype(np.float64))
+    dtype('float64')
+    >>> promote_dtype(np.dtype(np.float32), 1.0)
+    dtype('float32')
+    >>> promote_dtype(np.dtype(np.float32), np.float64(1))
+    dtype('float64')
+
+    """
+    return normalize_dtype(np.result_type(*dtypes))
+
+
+def validate_out[DType: np.floating](
+    out: TTD[DType],
+    shape: tuple[int, ...],
+    result_dtype: np.dtype[Any],
+) -> np.dtype[DType]:
+    """
+    Validate an explicit output TTD and return the dtype to cast the result to.
+
+    The result may be cast to the dtype of `out` with NumPy's ``"same_kind"``
+    casting rules, so in-place operations can narrow floating-point results.
+
+    Parameters
+    ----------
+    out : TTD[DType]
+        The output TTD to validate.
+    shape : tuple[int, ...]
+        The expected shape of the result.
+    result_dtype : np.dtype
+        The dtype of the computed result.
+
+    Returns
+    -------
+    np.dtype[DType]
+        The dtype of `out`, i.e. the dtype the result cores have to be cast to.
+
+    Raises
+    ------
+    ValueError
+        If `out` has a different shape or its dtype cannot represent the
+        result under ``"same_kind"`` casting.
+
+    """
+    if out.shape != shape:
+        raise ValueError(f"Output tensor has shape {out.shape}, expected {shape}")
+
+    if not np.can_cast(result_dtype, out.dtype, casting="same_kind"):
+        raise ValueError(
+            f"Cannot cast the result from {result_dtype} to the output dtype "
+            f"{out.dtype} with casting='same_kind'"
+        )
+
+    return out.dtype
+
+
 def fold_right[DType: np.floating](array: NDArray[DType]) -> Matrix[DType]:
     """
     Flatten all but the first dimension of an array.
