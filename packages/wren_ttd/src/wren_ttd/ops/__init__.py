@@ -2,6 +2,7 @@ from .absolute import absolute
 from .add import add
 from .astype import astype
 from .broadcast_to import broadcast_to
+from .concat import concat
 from .copy import copy
 from .diff import diff
 from .divide import divide
@@ -23,6 +24,7 @@ from .pad import pad
 from .positive import positive
 from .power import power
 from .ravel import ravel
+from .repeat import repeat
 from .reshape import reshape
 from .roll import roll
 from .rounding import round_
@@ -31,7 +33,9 @@ from .stack import stack
 from .subtract import subtract
 from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
+from .take import take
 from .tensordot import tensordot
+from .tile import tile
 from .to_device import to_device
 from .transpose import transpose
 from .vecdot import vecdot
@@ -42,6 +46,7 @@ __all__ = [
     "add",
     "astype",
     "broadcast_to",
+    "concat",
     "copy",
     "diff",
     "divide",
@@ -64,6 +69,7 @@ __all__ = [
     "positive",
     "power",
     "ravel",
+    "repeat",
     "reshape",
     "roll",
     "round_",
@@ -72,7 +78,9 @@ __all__ = [
     "subtract",
     "sum",
     "swapaxes",
+    "take",
     "tensordot",
+    "tile",
     "to_device",
     "transpose",
     "vecdot",
