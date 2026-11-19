@@ -12,6 +12,7 @@ from .gradient import gradient
 from .inner_product import inner_product
 from .like import full_like, ones_like, zeros_like
 from .matmul import matmul
+from .matrix_norm import matrix_norm
 from .matrix_transpose import matrix_transpose
 from .moveaxis import moveaxis
 from .multiply import multiply
@@ -29,6 +30,8 @@ from .swapaxes import swapaxes
 from .tensordot import tensordot
 from .to_device import to_device
 from .transpose import transpose
+from .vecdot import vecdot
+from .vector_norm import vector_norm
 
 __all__ = [
     "absolute",
@@ -45,6 +48,7 @@ __all__ = [
     "gradient",
     "inner_product",
     "matmul",
+    "matrix_norm",
     "matrix_transpose",
     "moveaxis",
     "multiply",
@@ -63,5 +67,7 @@ __all__ = [
     "tensordot",
     "to_device",
     "transpose",
+    "vecdot",
+    "vector_norm",
     "zeros_like",
 ]
