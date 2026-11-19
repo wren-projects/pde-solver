@@ -30,6 +30,7 @@ from wren_ttd._helpers import (
     normalize_dtype,
     orthogonalize_right,
     reverse_cores,
+    singleton_cores,
     smallest_core,
     to_int_tuple,
     truncation_parameter,
@@ -419,8 +420,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [1., 1.]])
 
         """
-        cores = [np.ones((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
-        return TTD(cores, dtype=dtype)
+        dtype = normalize_dtype(dtype)
+        return TTD(singleton_cores(to_int_tuple(shape), dtype), dtype=dtype)
 
     @staticmethod
     def zeros[DT: np.floating](
