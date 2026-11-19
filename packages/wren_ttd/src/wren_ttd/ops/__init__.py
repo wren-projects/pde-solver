@@ -4,6 +4,7 @@ from .astype import astype
 from .broadcast_to import broadcast_to
 from .concat import concat
 from .copy import copy
+from .cumsum import cumsum
 from .diff import diff
 from .divide import divide
 from .expand_dims import expand_dims
@@ -17,6 +18,7 @@ from .like import full_like, ones_like, zeros_like
 from .matmul import matmul
 from .matrix_norm import matrix_norm
 from .matrix_transpose import matrix_transpose
+from .mean import mean
 from .moveaxis import moveaxis
 from .multiply import multiply
 from .neg import neg
@@ -37,6 +39,7 @@ from .take import take
 from .tensordot import tensordot
 from .tile import tile
 from .to_device import to_device
+from .trace import trace
 from .transpose import transpose
 from .vecdot import vecdot
 from .vector_norm import vector_norm
@@ -48,6 +51,7 @@ __all__ = [
     "broadcast_to",
     "concat",
     "copy",
+    "cumsum",
     "diff",
     "divide",
     "expand_dims",
@@ -61,6 +65,7 @@ __all__ = [
     "matmul",
     "matrix_norm",
     "matrix_transpose",
+    "mean",
     "moveaxis",
     "multiply",
     "neg",
@@ -82,6 +87,7 @@ __all__ = [
     "tensordot",
     "tile",
     "to_device",
+    "trace",
     "transpose",
     "vecdot",
     "vector_norm",
