@@ -1,0 +1,127 @@
+# ruff: noqa: PLC0415
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, cast
+
+import numpy as np
+from numpy.lib.array_utils import normalize_axis_tuple
+
+from wren_ttd._numpy_api import implements_function
+
+if TYPE_CHECKING:
+    from wren_ttd.core import TTD
+
+
+def _as_scalar[DType: np.floating](value: np.ndarray | DType) -> DType:
+    """Normalize a size-one array to a NumPy scalar."""
+    return cast(DType, cast(object, np.asarray(value).reshape(())[()]))
+
+
+def _sqrt[DType: np.floating](value: DType | TTD[DType]) -> DType | TTD[DType]:
+    """Take the element-wise square root, recompressing TTD results."""
+    from wren_ttd.core import TTD
+
+    if isinstance(value, TTD):
+        # ``sqrt`` is not multiplicative, so the square root is computed
+        # densely and the result is recompressed.
+        return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
+
+    # The current full reduction returns a size-one array; normalize it to a
+    # NumPy scalar to match ``numpy.linalg.vector_norm``.
+    return cast(DType, np.sqrt(_as_scalar(value)))
+
+
+@implements_function("linalg.vector_norm")
+def vector_norm[DType: np.floating](
+    a: TTD[DType],
+    axis: int | Iterable[int] | None = None,
+    *,
+    keepdims: bool = False,
+    ord: float | str | None = None,  # noqa: A002
+) -> DType | TTD[DType]:
+    """
+    Compute the Euclidean vector norm of a TTD.
+
+    Equivalent to :func:`numpy.linalg.vector_norm` for dense arrays, extended
+    to TTDs and restricted to the Euclidean norm. The norm is computed as
+
+        ‖a‖₂ = √(sum(a * a, axis)).
+
+    Parameters
+    ----------
+    a : TTD[DType]
+        The input tensor.
+    axis : int | Iterable[int] | None, optional
+        Axis or axes along which to compute the norm. Negative axes count
+        from the end. The default is ``None``, which reduces all axes.
+    keepdims : bool, optional
+        If ``True``, the reduced axes are kept as size-one dimensions. The
+        default is ``False``.
+    ord : float | str | None, optional
+        The order of the norm. Only the Euclidean norm, ``None`` or ``2``, is
+        supported. The default is ``None``.
+
+    Returns
+    -------
+    DType | TTD[DType]
+        The vector norm. A full reduction returns a NumPy scalar, while a
+        partial reduction returns a TTD. With ``keepdims=True``, a full
+        reduction returns a TTD of shape ``(1,) * a.ndim``.
+
+    Raises
+    ------
+    NotImplementedError
+        If `ord` is anything other than ``None`` or ``2``.
+
+    See Also
+    --------
+    numpy.linalg.vector_norm : Equivalent function for dense arrays.
+    matrix_norm : Frobenius norm over the last two axes.
+    frobenius_norm : Frobenius norm of a whole TTD.
+
+    Notes
+    -----
+    The sum of squares stays in the TT representation. Since the element-wise
+    square root is not multiplicative, the final square root of a TTD result
+    uses a documented dense fallback: the reduced tensor is expanded with
+    :func:`numpy.asarray`, square-rooted, and recompressed into a TTD.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> a = TTD.ones((2, 3))
+    >>> np.asarray(ops.vector_norm(a, axis=0))
+    array([1.41421356, 1.41421356, 1.41421356])
+    >>> ops.vector_norm(TTD.ones(3))
+    np.float64(1.7320508075688772)
+
+    """
+    from wren_ttd.core import TTD
+    from wren_ttd.ops.expand_dims import expand_dims
+    from wren_ttd.ops.multiply import multiply
+    from wren_ttd.ops.sum import sum as ttd_sum
+
+    if ord not in (None, 2, 2.0):
+        raise NotImplementedError(
+            "vector_norm supports only the Euclidean norm "
+            f"(ord=None or 2), got ord={ord!r}"
+        )
+
+    axes = tuple(range(a.ndim)) if axis is None else normalize_axis_tuple(axis, a.ndim)
+
+    squared = ttd_sum(multiply(a, a), axis=axis)
+
+    if keepdims:
+        if isinstance(squared, TTD):
+            squared = expand_dims(squared, axes)
+        else:
+            squared = TTD.full(
+                (1,) * a.ndim,
+                _as_scalar(squared),
+                dtype=a.dtype,
+            )
+
+    return _sqrt(squared)
