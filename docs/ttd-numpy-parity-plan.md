@@ -3,8 +3,8 @@
 ## Context
 
 `wren_ttd` is a NumPy-protocol array container (NEP 13/18), not a full
-Array API implementation. The current branch (`matmul`) has 23 commits on top
-of `origin/main` and exposes 29 registered NumPy entry points:
+Array API implementation. At the start of the plan, the branch had 23 commits
+on top of `origin/main` and exposed 29 registered NumPy entry points:
 
 - **6 ufuncs:** `add`, `subtract`, `multiply`, `divide`, `negative`, `matmul`
 - **23 functions:** `pad`, `stack`, `transpose`, `swapaxes`, `tensordot`,
@@ -27,8 +27,10 @@ after each timestep.
   promotion, ufunc `out`/`dtype` handling, `np.size(axis=...)`, truncation
   aliases, top-level `matrix_transpose`, and validated `np.pad` are
   implemented and covered by tests.
-- **Phase 1: in progress.** Reductions, norms, reshape/broadcasting, and
-  selection/joining are split into the work packages below.
+- **Phase 1: complete.** Reductions, norms, reshape/broadcasting, and
+  selection/joining are implemented, tested, and exposed through `ops.*`,
+  `np.*`, and the matching `TTD` methods. `diagonal`, `prod`, `max`, and
+  `min` remain deferred.
 - **Phase 2-3: pending.** See the phases below.
 
 Current supported surface: [capability matrix](ttd-capability-matrix.md).
@@ -212,13 +214,12 @@ Files: `ops/sum.py` (extend the existing implementation), new
   sizes. Same `axis`, `dtype`, `out`, and `keepdims` semantics as `sum`.
 - `cumsum(a, axis=None, dtype=None, out=None)`: apply a lower-triangular
   matrix of ones to the selected core mode. This is exact and preserves
-  ranks. `axis=None` may use a documented dense fallback until the
-  reshape package is integrated; the integration step should switch it to
-  `reshape(-1)` followed by `cumsum(axis=0)`.
+  ranks. `axis=None` flattens the input with `ravel` and then accumulates
+  along axis 0.
 - `trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None)`:
   - support `offset=0` only and reject nonzero offsets;
-  - when the two axes are adjacent, contract the two cores directly with
-    `einsum`, which is exact;
+  - when the two axes are the last two, contract the two cores directly
+    with `einsum`, which is exact;
   - otherwise move the axes with the existing `transpose`/`moveaxis`
     (SVD-truncated) and contract the resulting last two cores;
   - validate `dtype` and `out`.
@@ -294,8 +295,8 @@ and their test files.
 ### WP 1.5: Integration and documentation
 
 - Add the corresponding `TTD` methods (`mean`, `cumsum`, `trace`, `reshape`,
-  `ravel`, `flatten`, `take`, `repeat`, `tile`, `diagonal`, etc.) that
-  delegate to `ops.*`.
+  `ravel`, `flatten`, `take`, `repeat`, `tile`, etc.) that delegate to
+  `ops.*`.
 - Resolve `ops/__init__.py` imports and exports.
 - Run `just check`.
 - Update `docs/ttd-capability-matrix.md` and the status section above.

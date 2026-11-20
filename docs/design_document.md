@@ -64,8 +64,10 @@ implementation focuses on them:
 - `np.pad`
 - setting a slice of the form `[:, :, ..., :, 0, :, ..., :, :]` to 0
 
-Element-wise reductions such as `np.sum` and `np.trace` are not implemented
-yet; they are part of Phase 1 of the parity plan.
+Element-wise reductions such as `np.sum`, `np.mean`, `np.cumsum`, and
+`np.trace` are implemented through the NumPy dispatch. See the
+[capability matrix](ttd-capability-matrix.md) for the supported subset and
+documented dense fallbacks.
 
 
 
