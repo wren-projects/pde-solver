@@ -27,7 +27,7 @@ TEST_TENSORS: list[TestTensor] = [
         # ---- 3D ----
         np.ones((6, 7, 8)),
         # ---- 4D ----
-        rng.normal(size=(3, 4, 6)),
+        1 - rng.normal(size=(3, 4, 6)),
         # ---- 5D ----
         np.full((6, 5, 4, 3), 1e50),
         # ---- 6D ----
