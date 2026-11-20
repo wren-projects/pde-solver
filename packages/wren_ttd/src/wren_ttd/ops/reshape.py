@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._helpers import merge_cores, split_core, to_int_tuple
+from wren_ttd._helpers import merge_cores, singleton_cores, split_core, to_int_tuple
 from wren_ttd._numpy_api import DenseWarning, implements_function
 from wren_ttd.types import Core
 
@@ -79,7 +79,8 @@ def reshape[DType: np.floating](
     representation.
 
     Keep in mind, that reshaping to shapes ``-1`` or ``a.size`` is equivalent to
-    densifying the TTD and flattening the result into a single rank-1 core.
+    densifying the TTD and flattening the result into a single rank-1 core. A
+    :class:`DenseWarning` is emitted in that case.
 
     Examples
     --------
@@ -96,12 +97,7 @@ def reshape[DType: np.floating](
     """
     from wren_ttd.core import TTD
 
-    if order != "C":
-        raise NotImplementedError(
-            f"reshape with order={order!r} is not supported for TTDs; "
-            "only order='C' is supported"
-        )
-
+    _validate_order(order)
     target_shape = _resolve_shape(a.size, to_int_tuple(shape))
 
     if not target_shape:
@@ -120,13 +116,28 @@ def reshape[DType: np.floating](
                 "effectively densifies the TTD. See Notes."
             ),
             DenseWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
-        dense_core = np.asarray(a).reshape(-1)[np.newaxis, :, np.newaxis]
-        return TTD([dense_core], dtype=a.dtype)
+        return _flatten_to_core(a)
 
     cores = _reshape_cores(a.data, target_shape)
     return TTD(cores, dtype=a.dtype)
+
+
+def _validate_order(order: str) -> None:
+    """Reject non-C memory orders shared by ``reshape`` and ``ravel``."""
+    if order != "C":
+        raise NotImplementedError(
+            f"order={order!r} is not supported for TTDs; only order='C' is supported"
+        )
+
+
+def _flatten_to_core[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
+    """Densify `a` into a single rank-one core without emitting a warning."""
+    from wren_ttd.core import TTD
+
+    dense_core = np.asarray(a).reshape(-1)[np.newaxis, :, np.newaxis]
+    return TTD([dense_core], dtype=a.dtype)
 
 
 def _resolve_shape(size: int, shape: tuple[int, ...]) -> tuple[int, ...]:
@@ -161,7 +172,18 @@ def _reshape_cores[DType: np.floating](
     source_cores: list[Core[DType]] = list(reversed(cores))
     result: list[Core[DType]] = []
 
-    for target in target_shape:
+    for index, target in enumerate(target_shape):
+        if not source_cores:
+            # The total sizes match, so any remaining target modes must be one.
+            remaining = target_shape[index:]
+            if any(dimension != 1 for dimension in remaining):
+                raise ValueError(
+                    "cannot reshape a TTD into the requested shape: "
+                    "the total sizes do not match"
+                )
+            result.extend(singleton_cores(remaining, cores[0].dtype))
+            return result
+
         core = source_cores.pop()
         mode = core.shape[1]
 

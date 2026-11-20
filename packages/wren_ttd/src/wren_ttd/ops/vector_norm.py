@@ -1,13 +1,14 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_tuple
 
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import DenseWarning, implements_function
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -25,6 +26,11 @@ def _sqrt[DType: np.floating](value: DType | TTD[DType]) -> DType | TTD[DType]:
     if isinstance(value, TTD):
         # ``sqrt`` is not multiplicative, so the square root is computed
         # densely and the result is recompressed.
+        warnings.warn(
+            "Calling vector_norm with a TTD result densifies the reduced TTD.",
+            DenseWarning,
+            stacklevel=3,
+        )
         return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
 
     # The current full reduction returns a size-one array; normalize it to a
@@ -85,7 +91,8 @@ def vector_norm[DType: np.floating](
     The sum of squares stays in the TT representation. Since the element-wise
     square root is not multiplicative, the final square root of a TTD result
     uses a documented dense fallback: the reduced tensor is expanded with
-    :func:`numpy.asarray`, square-rooted, and recompressed into a TTD.
+    :func:`numpy.asarray`, square-rooted, and recompressed into a TTD. A
+    :class:`DenseWarning` is emitted in that case.
 
     Examples
     --------

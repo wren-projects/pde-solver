@@ -58,6 +58,12 @@ def repeat[DType: np.floating](
     tile : Construct a TTD by repeating it.
     take : Take elements from a TTD along an axis.
 
+    Notes
+    -----
+    With ``axis=None`` the input is flattened with :func:`ravel` first. Since
+    :func:`ravel` effectively densifies the TTD, a :class:`DenseWarning` is
+    emitted in that case.
+
     Examples
     --------
     >>> from wren_ttd import ops
