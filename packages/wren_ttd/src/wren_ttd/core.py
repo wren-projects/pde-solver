@@ -1154,9 +1154,130 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         return TTD(reverse_cores(self.data), dtype=self.dtype)
 
-    def sum(self, axis: int | Sequence[int] | None = None) -> DType | TTD[DType]:
-        """Return the sum of the TTD object."""
-        return ops.sum(self, axis)
+    def sum(  # noqa: PLR0913
+        self,
+        axis: int | Sequence[int] | None = None,
+        dtype: npt.DTypeLike | None = None,
+        out: TTD[Any] | None = None,
+        keepdims: bool = False,  # noqa: FBT001, FBT002
+        *,
+        initial: object = None,
+        where: object = True,
+    ) -> DType | TTD[Any]:
+        """
+        Return the sum of the TTD elements over the given axes.
+
+        See :func:`wren_ttd.ops.sum` for the full parameter documentation.
+
+        Parameters
+        ----------
+        axis : int | sequence of int | None, optional
+            Axis or axes along which to sum. ``None`` sums over all axes.
+        dtype : np.dtype or type, optional
+            The dtype of the result.
+        out : TTD, optional
+            Output TTD for a TTD-valued result.
+        keepdims : bool, optional
+            Whether to keep the reduced axes as size-one axes.
+        initial : object, optional
+            Not supported; must be ``None``.
+        where : object, optional
+            Not supported; only the default ``True`` is accepted.
+
+        Returns
+        -------
+        DType | TTD
+            A NumPy scalar for a full reduction without `keepdims`, and a TTD
+            otherwise.
+
+        See Also
+        --------
+        mean : Arithmetic mean of a TTD.
+        cumsum : Cumulative sum of a TTD.
+        trace : Trace along two axes of a TTD.
+
+        """
+        return ops.sum(
+            self,
+            axis,
+            dtype,
+            out,
+            keepdims,
+            initial=initial,
+            where=where,
+        )
+
+    def mean(
+        self,
+        axis: int | Sequence[int] | None = None,
+        dtype: npt.DTypeLike | None = None,
+        out: TTD[Any] | None = None,
+        keepdims: bool = False,  # noqa: FBT001, FBT002
+        *,
+        where: object = True,
+    ) -> DType | TTD[Any]:
+        """Return the arithmetic mean over the given axes."""
+        return ops.mean(self, axis, dtype, out, keepdims, where=where)
+
+    def cumsum(
+        self,
+        axis: int | None = None,
+        dtype: npt.DTypeLike | None = None,
+        out: TTD[Any] | None = None,
+    ) -> TTD[Any]:
+        """Return the cumulative sum along an axis."""
+        return ops.cumsum(self, axis, dtype, out)
+
+    def trace(
+        self,
+        offset: int = 0,
+        axis1: int = 0,
+        axis2: int = 1,
+        dtype: npt.DTypeLike | None = None,
+        out: TTD[Any] | None = None,
+    ) -> DType | TTD[Any]:
+        """Return the trace along two axes."""
+        return ops.trace(self, offset, axis1, axis2, dtype, out)
+
+    def reshape(
+        self,
+        shape: int | Sequence[int],
+        order: str = "C",
+        *,
+        copy: bool | None = None,
+    ) -> TTD[DType]:
+        """Return the TTD reshaped to `shape` without changing its data."""
+        return ops.reshape(self, shape, order, copy=copy)
+
+    def ravel(self, order: str = "C") -> TTD[DType]:
+        """Return a flattened one-dimensional TTD."""
+        return ops.ravel(self, order)
+
+    def flatten(self, order: str = "C") -> TTD[DType]:
+        """Return a flattened one-dimensional TTD."""
+        return ops.flatten(self, order)
+
+    def take(
+        self,
+        indices: int | npt.NDArray[np.integer[Any]] | Sequence[int],
+        axis: int | None = None,
+        out: TTD[DType] | None = None,
+        mode: str = "raise",
+    ) -> TTD[DType] | DType:
+        """Take elements from the TTD along an axis."""
+        return ops.take(self, indices, axis, out, mode)
+
+    def repeat(
+        self,
+        repeats: int | Sequence[int] | npt.NDArray[np.integer[Any]],
+        axis: int | None = None,
+    ) -> TTD[DType]:
+        """Repeat elements of the TTD."""
+        return ops.repeat(self, repeats, axis)
+
+    def tile(self, reps: int | Sequence[int]) -> TTD[DType]:
+        """Construct a TTD by repeating it."""
+        return ops.tile(self, reps)
 
     @overload
     def __getitem__(self, key: SupportsIndex) -> TTD[DType] | DType: ...
