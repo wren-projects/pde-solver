@@ -7,7 +7,10 @@ import numpy as np
 
 from wren_ttd._numpy_api import DenseWarning, implements_function
 
-from .reshape import reshape
+from .reshape import (
+    _flatten_to_core,  # pyright: ignore[reportPrivateUsage]
+    _validate_order,  # pyright: ignore[reportPrivateUsage]
+)
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -53,7 +56,8 @@ def ravel[DType: np.floating](
     Notes
     -----
     While the tensor is not directly densified, the singular resulting core is
-    by definition going to be equal in size to the dense tensor.
+    by definition going to be equal in size to the dense tensor. A
+    :class:`DenseWarning` is emitted to make this cost explicit.
 
     Examples
     --------
@@ -64,9 +68,10 @@ def ravel[DType: np.floating](
     (6,)
 
     """
+    _validate_order(order)
     warnings.warn(
         "Calling `ravel` effectively densifies the TTD. See Notes.",
         DenseWarning,
-        stacklevel=1,
+        stacklevel=2,
     )
-    return reshape(a, a.size, order=order)
+    return _flatten_to_core(a)

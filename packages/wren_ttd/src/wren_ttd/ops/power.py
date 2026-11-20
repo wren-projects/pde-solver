@@ -1,12 +1,13 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 from wren_common.types import Scalar
 
-from wren_ttd._numpy_api import implements_ufunc
+from wren_ttd._numpy_api import DenseWarning, implements_ufunc
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -59,8 +60,9 @@ def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
 
     Notes
     -----
-    Negative exponents densify the tensor internally. Non-negative exponents
-    do not densify, but the ranks grow with the exponent.
+    Negative exponents densify the tensor internally and emit a
+    :class:`DenseWarning`. Non-negative exponents do not densify, but the ranks
+    grow with the exponent.
 
     Examples
     --------
@@ -93,4 +95,9 @@ def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
             result = multiply(result, a)
         return TTD(result.data, dtype=dtype)
 
+    warnings.warn(
+        "Calling power with a negative exponent densifies the TTD.",
+        DenseWarning,
+        stacklevel=2,
+    )
     return TTD(np.power(np.asarray(a), exponent), dtype=dtype)

@@ -10,6 +10,7 @@ from numpy.lib.array_utils import normalize_axis_index
 
 from wren_ttd._helpers import block_core, normalize_dtype, promote_dtype
 from wren_ttd._numpy_api import implements_function
+from wren_ttd.ops.ravel import ravel
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -80,10 +81,9 @@ def concat[DType: np.floating](
 
     Notes
     -----
-    ``axis=None`` currently uses a documented dense fallback: every input is
-    expanded, flattened and joined with :func:`numpy.concatenate`. The
-    integration step will switch this path to ``ravel`` followed by
-    ``concatenate`` along axis 0 once the reshape operations are available.
+    ``axis=None`` first flattens every input with :func:`ravel` and then
+    concatenates along axis 0. Since :func:`ravel` effectively densifies each
+    input, a :class:`DenseWarning` is emitted in that case.
 
     Examples
     --------
@@ -124,10 +124,7 @@ def concat[DType: np.floating](
     ]
 
     if axis is None:
-        return TTD(
-            np.concatenate([np.asarray(ttd).ravel() for ttd in items]),
-            dtype=result_dtype,
-        )
+        return concat([ravel(ttd) for ttd in items], axis=0, dtype=result_dtype)
 
     axis = _validate_shapes(items, axis)
     return TTD(_build_cores(items, axis, result_dtype), dtype=result_dtype)

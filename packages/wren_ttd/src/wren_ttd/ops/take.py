@@ -81,6 +81,12 @@ def take[DType: np.floating](
     repeat : Repeat elements of a TTD.
     tile : Construct a TTD by repeating it.
 
+    Notes
+    -----
+    With ``axis=None`` the input is flattened with :func:`ravel` first. Since
+    :func:`ravel` effectively densifies the TTD, a :class:`DenseWarning` is
+    emitted in that case.
+
     Examples
     --------
     >>> import numpy as np
@@ -103,7 +109,7 @@ def take[DType: np.floating](
         raise NotImplementedError(f"take only supports mode='raise', not {mode!r}")
 
     if axis is None:
-        return take(ravel(a), indices, axis=0)
+        return take(ravel(a), indices, axis=0, out=out, mode=mode)
 
     axis = normalize_axis_index(axis, a.ndim)
     index_array = np.asarray(indices)
