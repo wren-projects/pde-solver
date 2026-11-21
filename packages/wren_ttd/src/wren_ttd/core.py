@@ -36,7 +36,11 @@ from wren_ttd._helpers import (
     truncation_parameter,
     unfold_left,
 )
-from wren_ttd._numpy_api import HANDLED_FUNCTIONS, HANDLED_UFUNCS, implements_function
+from wren_ttd._numpy_api import (
+    HANDLED_FUNCTIONS,
+    HANDLED_UFUNCS,
+    implements_function,
+)
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
 from wren_ttd.types import (
     CORE_DIMENSIONS,
@@ -1296,38 +1300,48 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def __getitem__(self, key: EllipsisType) -> TTD[DType]: ...
 
     @overload
-    def __getitem__(self, key: Sequence[Index1D]) -> TTD[DType] | DType: ...
+    def __getitem__(self, key: None) -> TTD[DType]: ...
+
+    @overload
+    def __getitem__(
+        self, key: Sequence[Index1D | None | EllipsisType]
+    ) -> TTD[DType] | DType: ...
+
+    @overload
+    def __getitem__(self, key: object) -> TTD[DType] | DType: ...
 
     @override
     def __getitem__(
         self,
-        key: Index1D | Sequence[Index1D] | EllipsisType,
+        key: object,
     ) -> TTD[DType] | DType:
         """
         Return a subtensor of the TTD.
 
-        Equivalent to indexing a :class:`numpy.ndarray` with basic
-        indexing: each entry of `key` addresses the corresponding mode
-        of the tensor. An integer index contracts away that mode, while
-        a slice preserves it. Indexing all modes with integers returns
-        a scalar; otherwise a TTD is returned. ``...`` (Ellipsis) alone
-        returns a copy of the TTD.
+        Equivalent to indexing a :class:`numpy.ndarray`: each entry of `key`
+        addresses the corresponding mode of the tensor. An integer index
+        contracts away that mode, while a slice preserves it. ``None`` (or
+        ``numpy.newaxis``) inserts a singleton mode and ``...`` (Ellipsis)
+        selects all remaining modes. Trailing modes are selected implicitly.
+        Indexing all modes with integers returns a scalar; otherwise a TTD is
+        returned.
 
-        Only integer and slice indices are supported; boolean masks and
-        advanced (fancy) indexing are not supported.
+        Integer arrays, boolean masks, and other advanced indices fall back on a
+        dense array and emit a :class:`~wren_ttd.DenseWarning`.
 
         Parameters
         ----------
-        key : int, slice, Ellipsis, or sequence thereof
-            Index for each addressed mode. A single ``int`` or ``slice``
-            addresses the first mode; a sequence addresses one mode per
-            entry. Negative indices count from the end of the mode.
+        key : int, slice, None, Ellipsis, or sequence thereof
+            Index for each addressed mode. A single ``int``, ``slice``,
+            or ``None`` addresses the first mode; a sequence addresses
+            one mode per entry. Negative indices count from the end of
+            the mode.
 
         Returns
         -------
         TTD or scalar
             The indexed subtensor, or a scalar if every mode was indexed
-            with an integer.
+            with an integer and no singleton modes were inserted.
 
         See Also
         --------
@@ -1344,18 +1358,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         np.float64(1.0)
         >>> t[...].shape
         (2, 3)
+        >>> t[None].shape
+        (1, 2, 3)
+        >>> t[..., None].shape
+        (2, 3, 1)
 
         """
-        if key is Ellipsis:
-            return self.copy()
-
-        if isinstance(key, (SupportsIndex, slice)):
-            return ops.get_item(self, (key,))
-
-        if isinstance(key, Sequence):
-            return ops.get_item(self, key)
-
-        raise NotImplementedError
+        return ops.get_item(self, key)
 
     def __setitem__(self, key: Sequence[Index1D], value: Scalar) -> None:
         """
