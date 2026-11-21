@@ -8,10 +8,9 @@ import numpy.typing as npt
 from wren_common.types import Scalar, ScalarTypes
 
 from wren_ttd._helpers import (
-    normalize_dtype,
-    promote_dtype,
+    resolve_dtype,
     smallest_core,
-    validate_out,
+    write_out,
 )
 from wren_ttd._numpy_api import implements_ufunc
 from wren_ttd.types import Core
@@ -185,30 +184,15 @@ def multiply[DType: np.floating](
     """
     from wren_ttd.core import TTD
 
-    result_dtype = (
-        normalize_dtype(dtype)
-        if dtype is not None
-        else promote_dtype(
-            a.dtype if isinstance(a, TTD) else a,
-            b.dtype if isinstance(b, TTD) else b,
-        )
-    )
+    result_dtype = resolve_dtype(dtype, a, b)
 
     if isinstance(a, TTD) and isinstance(b, ScalarTypes):
-        shape = a.shape
         cores = _scale_cores(a, b, result_dtype)
     elif isinstance(b, TTD) and isinstance(a, ScalarTypes):
-        shape = b.shape
         cores = _scale_cores(b, a, result_dtype)
     elif isinstance(a, TTD) and isinstance(b, TTD):
-        shape = a.shape
         cores = _hadamard_cores(a, b, result_dtype)
     else:
         return NotImplemented
 
-    if out is None:
-        return TTD(cores, dtype=result_dtype)
-
-    out_dtype = validate_out(out, shape, result_dtype)
-    out.data = [core.astype(out_dtype, copy=False) for core in cores]
-    return out
+    return write_out(TTD(cores, dtype=result_dtype), out)

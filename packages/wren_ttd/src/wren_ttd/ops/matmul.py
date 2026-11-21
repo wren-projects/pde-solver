@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
-from wren_ttd._helpers import normalize_dtype, promote_dtype, validate_out
+from wren_ttd._helpers import resolve_dtype, write_out
 from wren_ttd._numpy_api import implements_ufunc
 
 if TYPE_CHECKING:
@@ -120,9 +120,7 @@ def matmul[DType: np.floating](
     if not isinstance(a, TTD) or not isinstance(b, TTD):
         return NotImplemented
 
-    result_dtype = (
-        normalize_dtype(dtype) if dtype is not None else promote_dtype(a.dtype, b.dtype)
-    )
+    result_dtype = resolve_dtype(dtype, a, b)
 
     # cast both operands before contracting so that no precision is lost
     if a.dtype != result_dtype:
@@ -139,9 +137,7 @@ def matmul[DType: np.floating](
     if not isinstance(result, TTD):
         raise TypeError("out is only supported for TTD-valued results")
 
-    out_dtype = validate_out(out, result.shape, result_dtype)
-    out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-    return out
+    return write_out(result, out)
 
 
 def _validate_batch_dimensions[DType: np.floating](

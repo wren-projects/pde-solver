@@ -1,11 +1,12 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.lib.array_utils import normalize_axis_index
 
+from wren_ttd._helpers import as_scalar
 from wren_ttd._numpy_api import implements_function, implements_ufunc
 
 if TYPE_CHECKING:
@@ -94,6 +95,4 @@ def vecdot[DType: np.floating](
     if isinstance(result, TTD):
         return result
 
-    # The current full reduction returns a size-one array; normalize it to a
-    # NumPy scalar to match ``numpy.vecdot``.
-    return cast(DType, cast(object, np.asarray(result).reshape(())[()]))
+    return as_scalar(result)

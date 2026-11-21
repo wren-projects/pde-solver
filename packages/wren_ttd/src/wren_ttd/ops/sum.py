@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from numpy.lib.array_utils import normalize_axis_tuple
 from wren_common.types import Matrix, Scalar
 
 from wren_ttd._helpers import (
     mode_1_product,
     mode_3_product,
-    normalize_dtype,
-    validate_out,
+    normalize_axes,
+    resolve_dtype,
+    write_out,
 )
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.types import Core
@@ -44,13 +44,6 @@ def _sum_cores(
         _ = cores.pop(axis)
 
     return cores
-
-
-def _write_out(out: TTD[Any], result: TTD[Any], dtype: np.dtype[Any]) -> TTD[Any]:
-    """Validate `out` and replace its cores with those of `result`."""
-    out_dtype = validate_out(out, result.shape, dtype)
-    out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-    return out
 
 
 @implements_function("sum")
@@ -151,12 +144,8 @@ def sum[DType: np.floating](  # noqa: A001, PLR0913
     if not (isinstance(where, (bool, np.bool_)) and where):
         raise NotImplementedError("The `where` argument is not supported for TTD sums")
 
-    axes = (
-        tuple(range(a.ndim))
-        if axis is None
-        else normalize_axis_tuple(axis, a.ndim, "axis")
-    )
-    result_dtype = normalize_dtype(dtype) if dtype is not None else a.dtype
+    axes = normalize_axes(axis, a.ndim)
+    result_dtype = resolve_dtype(dtype, a)
 
     result = _sum_cores(a, axes, result_dtype)
 
@@ -164,9 +153,7 @@ def sum[DType: np.floating](  # noqa: A001, PLR0913
         reduced = TTD(result, dtype=result_dtype)
         if keepdims and axes:
             reduced = expand_dims(reduced, axes)
-        if out is not None:
-            return _write_out(out, reduced, result_dtype)
-        return reduced
+        return write_out(reduced, out)
 
     assert result.size == 1
     scalar = cast(DType, result_dtype.type(result))
@@ -174,9 +161,7 @@ def sum[DType: np.floating](  # noqa: A001, PLR0913
     if keepdims:
         shape = (1,) * a.ndim
         expanded = TTD.full(shape, cast(Scalar, scalar), dtype=result_dtype)
-        if out is not None:
-            return _write_out(out, expanded, result_dtype)
-        return expanded
+        return write_out(expanded, out)
 
     if out is not None:
         raise NotImplementedError(

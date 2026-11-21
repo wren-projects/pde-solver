@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from wren_common.types import Scalar, ScalarTypes
 
-from wren_ttd._helpers import normalize_dtype, promote_dtype
+from wren_ttd._helpers import resolve_dtype
 from wren_ttd._numpy_api import implements_ufunc
 
 if TYPE_CHECKING:
@@ -81,9 +81,7 @@ def divide[DType: np.floating](
     if not isinstance(a, TTD) or not isinstance(b, ScalarTypes):
         raise NotImplementedError("TTD division is only supported by a scalar divisor")
 
-    result_dtype = (
-        normalize_dtype(dtype) if dtype is not None else promote_dtype(a.dtype, b)
-    )
+    result_dtype = resolve_dtype(dtype, a, b)
 
     reciprocal = cast(Scalar, np.divide(cast(Scalar, result_dtype.type(1)), b))
     return multiply(a, reciprocal, out=out, dtype=result_dtype)

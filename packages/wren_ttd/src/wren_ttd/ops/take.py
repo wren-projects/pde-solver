@@ -9,7 +9,7 @@ import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_index
 from wren_common.types import Index1D
 
-from wren_ttd._helpers import validate_out
+from wren_ttd._helpers import write_out
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.ops.ravel import ravel
 from wren_ttd.types import Core
@@ -124,18 +124,15 @@ def take[DType: np.floating](
         else _take_array(a, index_array, axis)
     )
 
-    if out is None:
+    if not isinstance(result, TTD):
+        if out is not None:
+            raise NotImplementedError(
+                "out= is not supported for scalar take results; "
+                "TTD has no 0-D representation"
+            )
         return result
 
-    if not isinstance(result, TTD):
-        raise NotImplementedError(
-            "out= is not supported for scalar take results; "
-            "TTD has no 0-D representation"
-        )
-
-    out_dtype = validate_out(out, result.shape, result.dtype)
-    out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-    return out
+    return write_out(result, out)
 
 
 def _take_scalar[DType: np.floating](
