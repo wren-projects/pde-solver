@@ -646,14 +646,21 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.matrix_transpose(self)
 
     def __array_namespace__(self, *, api_version: str | None = None) -> ModuleType:
-        """Return NumPy's Array API-compatible namespace."""
+        """
+        Return the TTD Array API-compatible namespace.
+
+        The namespace is :mod:`wren_ttd.array_api`. It overrides constructors
+        to return TTDs and delegates the remaining attributes to NumPy.
+        """
         if api_version is not None:
             _ = np.empty(0).__array_namespace__(
                 api_version=cast(
                     Literal["2021.12", "2022.12", "2023.12", "2024.12"], api_version
                 )
             )
-        return np
+        from wren_ttd import array_api  # noqa: PLC0415
+
+        return array_api
 
     def to_device(self, device: str, /, *, stream: object | None = None) -> TTD[DType]:
         """Return this TTD on the requested device."""
