@@ -10,7 +10,26 @@ HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
 
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_ufunc__` implementation for TTD objects."""
+    """
+    Register an `__array_ufunc__` implementation for TTD objects.
+
+    Parameters
+    ----------
+    name : str
+        The NumPy ufunc name to dispatch on, e.g. ``"add"``.
+
+    Returns
+    -------
+    collections.abc.Callable
+        A decorator that registers the decorated function and returns it
+        unchanged.
+
+    Raises
+    ------
+    ValueError
+        If a handler for `name` is already registered.
+
+    """
 
     def decorator(func: F) -> F:
         if name in HANDLED_UFUNCS:
@@ -22,7 +41,26 @@ def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
 
 
 def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
-    """Register an `__array_function__` implementation for TTD objects."""
+    """
+    Register an `__array_function__` implementation for TTD objects.
+
+    Parameters
+    ----------
+    name : str
+        The NumPy function name to dispatch on, e.g. ``"sum"``.
+
+    Returns
+    -------
+    collections.abc.Callable
+        A decorator that registers the decorated function and returns it
+        unchanged.
+
+    Raises
+    ------
+    ValueError
+        If a handler for `name` is already registered.
+
+    """
 
     def decorator(func: F) -> F:
         if name in HANDLED_FUNCTIONS:

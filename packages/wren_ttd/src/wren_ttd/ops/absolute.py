@@ -18,7 +18,9 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     Compute the absolute value element-wise.
 
     Equivalent to :func:`numpy.absolute` for dense arrays, extended to TTDs.
-    The operation is exact and preserves the TT-ranks of the input.
+    The absolute value is not multiplicative, so it cannot be applied to a
+    TTD core by core. The tensor is expanded to a dense array, transformed,
+    and compressed again.
 
     Parameters
     ----------
@@ -35,6 +37,12 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     numpy.absolute : Equivalent ufunc for dense arrays.
     positive : Return the TTD unchanged.
     power : Raise a TTD to a scalar power.
+
+    Notes
+    -----
+    This operation densifies the tensor internally and emits a
+    :class:`DenseWarning`. It is intended for small tensors and for API
+    compatibility, not for large TT computations.
 
     Examples
     --------

@@ -631,22 +631,104 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @property
     def compressed_size(self) -> int:
-        """Return the size of the compressed representation."""
+        """
+        Number of stored elements in the compressed representation.
+
+        This is the sum of the sizes of all cores, as opposed to
+        :attr:`TTD.size`, which is the size of the dense tensor.
+
+        Returns
+        -------
+        int
+            The number of elements stored in the cores.
+
+        See Also
+        --------
+        TTD.size : Number of elements in the uncompressed tensor.
+        TTD.ranks : Internal TT-ranks.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3, 4)).compressed_size
+        9
+
+        """
         return sum(core.size for core in self.data)
 
     @property
     def ranks(self) -> tuple[int, ...]:
-        """Return the internal ranks of the TTD object."""
+        """
+        Return the internal TT-ranks.
+
+        Returns
+        -------
+        tuple[int, ...]
+            The size of the right rank of every core except the last, i.e.
+            ``(r₁, r₂, …, rₙ₋₁)`` for a tensor with ``n`` modes.
+
+        See Also
+        --------
+        TTD.compressed_size : Number of elements stored in the cores.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3, 4)).ranks
+        (1, 1)
+
+        """
         return tuple(core.shape[2] for core in self.data[:-1])
 
     @property
     def device(self) -> Literal["cpu"]:
-        """Return the device that stores this TTD."""
+        """
+        Return the device that stores this TTD.
+
+        Returns
+        -------
+        Literal["cpu"]
+            The device name. TTDs are always stored on the CPU.
+
+        See Also
+        --------
+        TTD.to_device : Transfer a TTD to another device.
+
+        """
         return "cpu"
 
     @property
     def mT(self) -> TTD[DType]:  # noqa: N802
-        """Transpose the final two dimensions."""
+        """
+        Transpose the final two dimensions.
+
+        Equivalent to :attr:`numpy.ndarray.mT` and to
+        :func:`numpy.matrix_transpose`. Also equivalent to
+        ``self.swapaxes(-1, -2)``.
+
+        Returns
+        -------
+        TTD
+            The TTD with its final two axes swapped.
+
+        Raises
+        ------
+        ValueError
+            If this TTD has fewer than two dimensions.
+
+        See Also
+        --------
+        numpy.ndarray.mT : Equivalent property for dense arrays.
+        matrix_transpose : Transpose the final two dimensions of a TTD.
+        TTD.T : Reverse the order of all axes.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3, 4)).mT.shape
+        (2, 4, 3)
+
+        """
         return ops.matrix_transpose(self)
 
     def __array_namespace__(self, *, api_version: str | None = None) -> ModuleType:
@@ -655,6 +737,23 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         The namespace is :mod:`wren_ttd.array_api`. It overrides constructors
         to return TTDs and delegates the remaining attributes to NumPy.
+
+        Parameters
+        ----------
+        api_version : str, optional
+            The requested Array API version. When given, it is validated by
+            NumPy's own ``__array_namespace__`` implementation.
+
+        Returns
+        -------
+        module
+            The :mod:`wren_ttd.array_api` module.
+
+        Raises
+        ------
+        ValueError
+            If `api_version` is not a version supported by NumPy.
+
         """
         if api_version is not None:
             _ = np.empty(0).__array_namespace__(
@@ -667,7 +766,44 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return array_api
 
     def to_device(self, device: str, /, *, stream: object | None = None) -> TTD[DType]:
-        """Return this TTD on the requested device."""
+        """
+        Return this TTD on the requested device.
+
+        TTDs are only supported on the CPU, so a CPU request returns this
+        TTD unchanged.
+
+        Parameters
+        ----------
+        device : str
+            The target device. Only ``"cpu"`` is supported.
+        stream : object, optional
+            Not supported; must be ``None``.
+
+        Returns
+        -------
+        TTD
+            This TTD.
+
+        Raises
+        ------
+        ValueError
+            If `device` is not ``"cpu"``.
+        NotImplementedError
+            If `stream` is not None.
+
+        See Also
+        --------
+        ops.to_device : Transfer a TTD to another device.
+        TTD.device : The device that stores a TTD.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD.ones((2, 2))
+        >>> t.to_device("cpu") is t
+        True
+
+        """
         return ops.to_device(self, device, stream=stream)
 
     @overload
@@ -679,7 +815,45 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]: ...
 
     def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]:
-        """Return this TTD cast to a floating-point dtype."""
+        """
+        Return this TTD cast to a floating-point dtype.
+
+        Equivalent to :meth:`numpy.ndarray.astype`, extended to TTDs. The cast
+        is applied to every core, so the TT representation and TT-ranks are
+        preserved.
+
+        Parameters
+        ----------
+        dtype : np.dtype or type
+            The target dtype. Must be a floating-point dtype.
+        copy : bool, optional
+            Whether to copy the cores even when the dtype does not change, by
+            default True. If False and the dtype is already the target dtype,
+            this TTD is returned unchanged.
+
+        Returns
+        -------
+        TTD
+            The cast TTD.
+
+        Raises
+        ------
+        TypeError
+            If `dtype` is not a floating-point dtype.
+
+        See Also
+        --------
+        numpy.ndarray.astype : Equivalent method for dense arrays.
+        ops.astype : Cast a TTD.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 2)).astype(np.float32).dtype
+        dtype('float32')
+
+        """
         return ops.astype(self, dtype, copy=copy)
 
     def __array__(
@@ -1133,7 +1307,44 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.swapaxes(self, axis1, axis2)
 
     def squeeze(self, axis: int | Sequence[int] | None = None) -> TTD[DType] | DType:
-        """Remove singleton dimensions from this TTD."""
+        """
+        Remove singleton dimensions from this TTD.
+
+        Equivalent to :func:`numpy.squeeze`, extended to TTDs. Without `axis`,
+        every size-one mode is removed. If all modes are removed, the result
+        is a NumPy scalar because TTD has no rank-zero representation.
+
+        Parameters
+        ----------
+        axis : int | sequence of int | None, optional
+            Axis or axes to remove. ``None`` removes every size-one axis.
+            Negative axes count from the end. By default None.
+
+        Returns
+        -------
+        TTD | DType
+            The squeezed TTD, or a NumPy scalar if all axes are removed.
+
+        Raises
+        ------
+        ValueError
+            If a selected axis does not have size one.
+        numpy.exceptions.AxisError
+            If an axis is out of range.
+
+        See Also
+        --------
+        numpy.squeeze : Equivalent function for dense arrays.
+        ops.squeeze : Remove singleton dimensions from a TTD.
+        expand_dims : Insert singleton dimensions into a TTD.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((1, 2, 1)).squeeze().shape
+        (2,)
+
+        """
         return ops.squeeze(self, axis)
 
     @property
@@ -1201,6 +1412,16 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             A NumPy scalar for a full reduction without `keepdims`, and a TTD
             otherwise.
 
+        Raises
+        ------
+        NotImplementedError
+            If `initial` is given, if `where` is not the default, or if a
+            scalar result is requested together with `out`.
+        TypeError
+            If `dtype` is not a floating-point dtype.
+        ValueError
+            If an axis is invalid or `out` is incompatible.
+
         See Also
         --------
         mean : Arithmetic mean of a TTD.
@@ -1227,7 +1448,56 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         *,
         where: object = True,
     ) -> DType | TTD[Any]:
-        """Return the arithmetic mean over the given axes."""
+        """
+        Return the arithmetic mean over the given axes.
+
+        See :func:`wren_ttd.ops.mean` for the full semantics.
+
+        Parameters
+        ----------
+        axis : int | sequence of int | None, optional
+            Axis or axes along which to compute the mean. ``None`` uses all
+            axes.
+        dtype : np.dtype or type, optional
+            The dtype of the result.
+        out : TTD, optional
+            Output TTD for a TTD-valued result.
+        keepdims : bool, optional
+            Whether to keep the reduced axes as size-one axes.
+        where : object, optional
+            Not supported; only the default ``True`` is accepted.
+
+        Returns
+        -------
+        DType | TTD
+            A NumPy scalar for a full reduction without `keepdims`, and a TTD
+            otherwise.
+
+        Raises
+        ------
+        NotImplementedError
+            If `where` is not the default, or if a scalar result is requested
+            together with `out`.
+        TypeError
+            If `dtype` is not a floating-point dtype.
+        ValueError
+            If an axis is invalid or `out` is incompatible.
+
+        See Also
+        --------
+        ops.mean : Arithmetic mean of a TTD.
+        sum : Sum of a TTD over the given axes.
+        divide : Divide a TTD by a scalar.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD(np.arange(6.0).reshape(2, 3))
+        >>> float(t.mean())
+        2.5
+
+        """
         return ops.mean(self, axis, dtype, out, keepdims, where=where)
 
     def cumsum(
@@ -1236,7 +1506,54 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         dtype: npt.DTypeLike | None = None,
         out: TTD[Any] | None = None,
     ) -> TTD[Any]:
-        """Return the cumulative sum along an axis."""
+        """
+        Return the cumulative sum along an axis.
+
+        See :func:`wren_ttd.ops.cumsum` for the full semantics.
+
+        Parameters
+        ----------
+        axis : int | None, optional
+            Axis along which to accumulate. ``None`` flattens the TTD first.
+            By default None.
+        dtype : np.dtype or type, optional
+            The dtype of the result.
+        out : TTD, optional
+            Output TTD for the result.
+
+        Returns
+        -------
+        TTD
+            The cumulative sum, with the same shape as this TTD for an integer
+            `axis`, or a one-dimensional TTD when `axis` is None.
+
+        Raises
+        ------
+        TypeError
+            If `dtype` is not a floating-point dtype.
+        ValueError
+            If `axis` is invalid or `out` is incompatible.
+
+        See Also
+        --------
+        ops.cumsum : Cumulative sum of a TTD.
+        sum : Sum of a TTD over the given axes.
+        ravel : Flatten a TTD.
+
+        Notes
+        -----
+        With ``axis=None`` the TTD is flattened with :func:`ravel` first,
+        which emits a :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> t = TTD(np.arange(6.0).reshape(2, 3))
+        >>> np.asarray(t.cumsum(axis=1)).shape
+        (2, 3)
+
+        """
         return ops.cumsum(self, axis, dtype, out)
 
     def trace(
@@ -1247,7 +1564,54 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         dtype: npt.DTypeLike | None = None,
         out: TTD[Any] | None = None,
     ) -> DType | TTD[Any]:
-        """Return the trace along two axes."""
+        """
+        Return the trace along two axes.
+
+        See :func:`wren_ttd.ops.trace` for the full semantics.
+
+        Parameters
+        ----------
+        offset : int, optional
+            Diagonal offset. Only zero is supported. By default 0.
+        axis1 : int, optional
+            First axis of the 2-D sub-arrays. By default 0.
+        axis2 : int, optional
+            Second axis of the 2-D sub-arrays. By default 1.
+        dtype : np.dtype or type, optional
+            The dtype of the result.
+        out : TTD, optional
+            Output TTD for a TTD-valued result.
+
+        Returns
+        -------
+        DType | TTD
+            A NumPy scalar for a 2-D input, and a TTD otherwise.
+
+        Raises
+        ------
+        NotImplementedError
+            If `offset` is nonzero, or if a scalar result is requested together
+            with `out`.
+        ValueError
+            If `axis1` and `axis2` are equal, their sizes differ, or `out` is
+            incompatible.
+        numpy.exceptions.AxisError
+            If an axis is out of range.
+
+        See Also
+        --------
+        ops.trace : Trace along two axes of a TTD.
+        sum : Sum of a TTD over the given axes.
+        moveaxis : Move TTD axes to new positions.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> float(TTD(np.arange(9.0).reshape(3, 3)).trace())
+        12.0
+
+        """
         return ops.trace(self, offset, axis1, axis2, dtype, out)
 
     def reshape(
@@ -1257,15 +1621,137 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         *,
         copy: bool | None = None,
     ) -> TTD[DType]:
-        """Return the TTD reshaped to `shape` without changing its data."""
+        """
+        Return the TTD reshaped to `shape` without changing its data.
+
+        See :func:`wren_ttd.ops.reshape` for the full semantics.
+
+        Parameters
+        ----------
+        shape : int | sequence of int
+            The target shape. At most one entry may be ``-1``.
+        order : str, optional
+            The memory order. Only ``"C"`` is supported. By default ``"C"``.
+        copy : bool, optional
+            Accepted for compatibility with :func:`numpy.reshape`; TTDs have
+            no views.
+
+        Returns
+        -------
+        TTD
+            The reshaped TTD. The result shares no writable state with this
+            TTD.
+
+        Raises
+        ------
+        NotImplementedError
+            If `order` is not ``"C"``, or if the source or target shape is
+            empty or contains zero.
+        ValueError
+            If the target shape is invalid or has a different total size.
+
+        See Also
+        --------
+        ops.reshape : Reshape a TTD.
+        ravel : Flatten a TTD.
+        flatten : Flatten a TTD.
+
+        Notes
+        -----
+        Reshaping to ``(self.size,)`` densifies the TTD and emits a
+        :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).reshape((3, 2)).shape
+        (3, 2)
+
+        """
         return ops.reshape(self, shape, order, copy=copy)
 
     def ravel(self, order: str = "C") -> TTD[DType]:
-        """Return a flattened one-dimensional TTD."""
+        """
+        Return a flattened one-dimensional TTD.
+
+        See :func:`wren_ttd.ops.ravel` for the full semantics.
+
+        Parameters
+        ----------
+        order : str, optional
+            The memory order. Only ``"C"`` is supported. By default ``"C"``.
+
+        Returns
+        -------
+        TTD
+            The one-dimensional TTD.
+
+        Raises
+        ------
+        NotImplementedError
+            If `order` is not ``"C"``.
+
+        See Also
+        --------
+        ops.ravel : Flatten a TTD.
+        flatten : Flatten a TTD.
+        reshape : Reshape a TTD.
+
+        Notes
+        -----
+        The result is a rank-one core whose size equals the dense tensor, so
+        this operation effectively densifies the TTD and emits a
+        :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).ravel().shape
+        (6,)
+
+        """
         return ops.ravel(self, order)
 
     def flatten(self, order: str = "C") -> TTD[DType]:
-        """Return a flattened one-dimensional TTD."""
+        """
+        Return a flattened one-dimensional TTD.
+
+        Equivalent to :meth:`numpy.ndarray.flatten`, extended to TTDs. This is
+        an alias of :func:`ravel`, since TTDs have no notion of views.
+
+        Parameters
+        ----------
+        order : str, optional
+            The memory order. Only ``"C"`` is supported. By default ``"C"``.
+
+        Returns
+        -------
+        TTD
+            The one-dimensional TTD.
+
+        Raises
+        ------
+        NotImplementedError
+            If `order` is not ``"C"``.
+
+        See Also
+        --------
+        ops.flatten : Flatten a TTD.
+        ravel : Flatten a TTD.
+        reshape : Reshape a TTD.
+
+        Notes
+        -----
+        This operation effectively densifies the TTD and emits a
+        :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).flatten().shape
+        (6,)
+
+        """
         return ops.flatten(self, order)
 
     def take(
@@ -1275,7 +1761,58 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         out: TTD[DType] | None = None,
         mode: str = "raise",
     ) -> TTD[DType] | DType:
-        """Take elements from the TTD along an axis."""
+        """
+        Take elements from this TTD along an axis.
+
+        See :func:`wren_ttd.ops.take` for the full semantics.
+
+        Parameters
+        ----------
+        indices : int | array of int | sequence of int
+            The indices to take. Negative indices count from the end.
+        axis : int | None, optional
+            The axis over which to take the indices. ``None`` flattens first.
+            By default None.
+        out : TTD, optional
+            Output TTD for a TTD-valued result.
+        mode : str, optional
+            Only ``"raise"`` is supported. By default ``"raise"``.
+
+        Returns
+        -------
+        TTD | DType
+            The selected elements, or a NumPy scalar for a scalar index that
+            consumes every axis.
+
+        Raises
+        ------
+        IndexError
+            If an index is out of bounds.
+        ValueError
+            If `axis` is out of range or `out` is incompatible.
+        NotImplementedError
+            If `mode` is not ``"raise"``, or if `out` is requested for a
+            scalar result.
+
+        See Also
+        --------
+        ops.take : Take elements from a TTD along an axis.
+        TTD.__getitem__ : Index into a TTD.
+        repeat : Repeat elements of this TTD.
+        tile : Construct a TTD by repeating it.
+
+        Notes
+        -----
+        With ``axis=None`` the TTD is flattened with :func:`ravel` first,
+        which emits a :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).take([0, 2], axis=1).shape
+        (2, 2)
+
+        """
         return ops.take(self, indices, axis, out, mode)
 
     def repeat(
@@ -1283,11 +1820,84 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         repeats: int | Sequence[int] | npt.NDArray[np.integer[Any]],
         axis: int | None = None,
     ) -> TTD[DType]:
-        """Repeat elements of the TTD."""
+        """
+        Repeat elements of this TTD.
+
+        See :func:`wren_ttd.ops.repeat` for the full semantics.
+
+        Parameters
+        ----------
+        repeats : int | sequence of int | array of int
+            The number of repetitions for each element.
+        axis : int | None, optional
+            The axis along which to repeat. ``None`` flattens first. By
+            default None.
+
+        Returns
+        -------
+        TTD
+            The repeated TTD.
+
+        Raises
+        ------
+        ValueError
+            If `repeats` is negative or has the wrong length, or if `axis` is
+            out of range.
+
+        See Also
+        --------
+        ops.repeat : Repeat elements of a TTD.
+        take : Take elements from this TTD.
+        tile : Construct a TTD by repeating it.
+
+        Notes
+        -----
+        With ``axis=None`` the TTD is flattened with :func:`ravel` first,
+        which emits a :class:`DenseWarning`.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).repeat(2, axis=0).shape
+        (4, 3)
+
+        """
         return ops.repeat(self, repeats, axis)
 
     def tile(self, reps: int | Sequence[int]) -> TTD[DType]:
-        """Construct a TTD by repeating it."""
+        """
+        Construct a TTD by repeating it.
+
+        See :func:`wren_ttd.ops.tile` for the full semantics.
+
+        Parameters
+        ----------
+        reps : int | sequence of int
+            The number of repetitions along each axis.
+
+        Returns
+        -------
+        TTD
+            The tiled TTD.
+
+        Raises
+        ------
+        ValueError
+            If any entry of `reps` is negative.
+
+        See Also
+        --------
+        ops.tile : Construct a TTD by repeating it.
+        repeat : Repeat elements of this TTD.
+        expand_dims : Insert singleton dimensions into a TTD.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).tile(2).shape
+        (2, 6)
+
+        """
         return ops.tile(self, reps)
 
     @overload
@@ -1648,7 +2258,43 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     @override
     def __truediv__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
-        """Divide this TTD by a scalar, element-wise."""
+        """
+        Divide this TTD by a scalar, element-wise.
+
+        Equivalent to :func:`numpy.divide` and the ``/`` operator on
+        :class:`numpy.ndarray`, restricted to a scalar divisor. The division
+        scales a single core, so it is exact and preserves the TT-ranks.
+
+        Parameters
+        ----------
+        other : scalar
+            The scalar divisor. A TTD divisor is not supported.
+
+        Returns
+        -------
+        TTD
+            The element-wise quotient.
+
+        Raises
+        ------
+        NotImplementedError
+            If `other` is a TTD.
+
+        See Also
+        --------
+        numpy.divide : Equivalent ufunc for dense arrays.
+        TTD.__mul__ : Multiplication.
+        divide : Divide a TTD by a scalar.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from wren_ttd.core import TTD
+        >>> np.asarray(TTD.full((2, 2), 4.0) / 2)
+        array([[2., 2.],
+               [2., 2.]])
+
+        """
         return ops.divide(self, other)
 
     @override

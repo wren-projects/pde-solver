@@ -174,6 +174,12 @@ def get_item[DType: np.floating](ttd: TTD[DType], key: object) -> TTD[DType] | D
         The indexed subtensor, or a scalar if every mode was indexed with an
         integer and no singleton modes were inserted.
 
+    Raises
+    ------
+    IndexError
+        If the index is invalid, contains more than one ellipsis, or has too
+        many entries for the tensor.
+
     See Also
     --------
     TTD.__getitem__ : Index into a TTD.

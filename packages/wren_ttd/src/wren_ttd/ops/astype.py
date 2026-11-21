@@ -45,7 +45,53 @@ def astype[DType: np.floating](
     copy: bool = True,
     device: str | None = None,
 ) -> TTD[Any]:
-    """Cast a TTD while preserving its TT representation."""
+    """
+    Cast a TTD to the requested floating-point dtype.
+
+    Equivalent to :meth:`numpy.ndarray.astype` for dense arrays, extended to
+    TTDs. The cast is applied to every core, so the TT representation and the
+    TT-ranks are preserved.
+
+    Parameters
+    ----------
+    array : TTD[DType]
+        The TTD to cast.
+    dtype : np.dtype or type
+        The target dtype. Must be a floating-point dtype.
+    copy : bool, optional
+        Whether to copy the cores even when the dtype does not change, by
+        default True. If False and the dtype is already the target dtype, the
+        input TTD is returned unchanged.
+    device : str, optional
+        The device where the result is placed. Only ``"cpu"`` is supported.
+
+    Returns
+    -------
+    TTD
+        The cast TTD, with the requested dtype.
+
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
+    See Also
+    --------
+    numpy.ndarray.astype : Equivalent method for dense arrays.
+    TTD.astype : Cast a TTD.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> t = TTD.ones((2, 2), dtype=np.float64)
+    >>> ops.astype(t, np.float32).dtype
+    dtype('float32')
+
+    """
     from wren_ttd.core import TTD
 
     if device not in (None, "cpu"):
