@@ -31,7 +31,11 @@ after each timestep.
   selection/joining are implemented, tested, and exposed through `ops.*`,
   `np.*`, and the matching `TTD` methods. `diagonal`, `prod`, `max`, and
   `min` remain deferred.
-- **Phase 2-3: pending.** See the phases below.
+- **Phase 2: complete.** A dedicated `wren_ttd.array_api` namespace is
+  returned by `TTD.__array_namespace__()`. Constructors and `asarray` return
+  TTDs, indexing follows NumPy basic and advanced rules, and dtype utilities
+  are exposed. Rank-0 arrays remain explicitly unsupported.
+- **Phase 3: pending.** See the phase below.
 
 Current supported surface: [capability matrix](ttd-capability-matrix.md).
 
@@ -312,23 +316,104 @@ documented namespace path). Reduction tests cover `axis`, `keepdims`,
 
 ## Phase 2: Array API contract
 
-Decision required before starting: commit to a conformant namespace or keep
-the current partial bridge.
+Decision: provide a dedicated `wren_ttd.array_api` namespace for the
+documented subset instead of returning NumPy directly. The namespace is
+conformant for arrays of rank at least one. Rank-0 arrays stay explicitly
+unsupported: a TTD has no place to store a scalar without a dedicated scalar
+slot, and adding one would touch every operation. Constructors and `asarray`
+reject rank-0 input with `NotImplementedError`, and the capability matrix
+states this limitation instead of claiming full Array API conformance.
 
-If conformant:
+### WP 2.1: Namespace module and constructors
 
-1. Replace the `numpy` return value of `__array_namespace__` with a small
-   namespace module that delegates to NumPy but overrides constructors
-   (`zeros`, `ones`, `full`, `arange`, `eye`, `asarray`, and friends) to
-   return TTDs.
-2. Implement 0-D arrays or explicitly document that TTD is not Array API
-   conformant.
-3. Normalise indexing: newaxis, full selection tuples, ellipsis expansion,
-   boolean and integer-array indexing, and 0-D scalar results.
-4. Add dtype utilities and consistent promotion/casting rules.
-5. Add an `array-api-tests` subset or at least `array_api_compat` smoke tests
-   to CI.
-6. Publish a capability matrix and stop claiming "full NumPy".
+Files: new `packages/wren_ttd/src/wren_ttd/array_api.py`, `core.py`, and
+`tests_ttd/array_api_test.py`.
+
+- Add an `array_api` module with `__array_api_version__` and a small public
+  surface. Unknown attributes delegate to NumPy, so dispatched functions such
+  as `sum`, `mean`, `reshape`, `vecdot`, and `linalg.*` keep working.
+- Override the shape-based constructors so they return TTDs:
+  `zeros`, `ones`, `empty`, `full`, `arange`, `eye`, `linspace`, and
+  `asarray`.
+- `asarray` accepts TTDs and array-like input, honours `dtype` with
+  `astype`, respects `copy=True/False/None`, and rejects non-CPU `device`.
+- `TTD.__array_namespace__` returns the new module and keeps validating the
+  requested `api_version`.
+- Constructors and `asarray` reject rank-0 shapes/input with a clear
+  `NotImplementedError`.
+
+Acceptance criteria:
+
+- `xp = ttd.__array_namespace__()` is the TTD namespace, not NumPy.
+- `xp.zeros/ones/full/arange/eye/linspace/asarray` return TTDs with values
+  matching NumPy.
+- `xp.sum(ttd)`, `xp.mean(ttd, axis=0)`, `xp.reshape(ttd, ...)`, and
+  `xp.vecdot(a, b)` work through the namespace.
+- `xp.asarray(ttd)` returns the same object when no copy is needed and a new
+  TTD when `copy=True`.
+
+### WP 2.2: Indexing normalisation
+
+Files: `core.py`, `ops/get_item.py`, and dedicated indexing tests.
+
+- Normalise selection tuples before calling `get_item`: wrap bare keys in a
+  tuple, expand a single `...` against the number of consumed axes, and allow
+  implicit trailing slices.
+- Support `None`/`np.newaxis` by removing it from the basic selection and
+  inserting the corresponding singleton axes with `expand_dims`. Preserve
+  scalar results when every original axis is consumed and no new axis remains.
+- Keep integer and slice indexing exact.
+- Route boolean and integer-array indexing through a documented dense
+  fallback with a `DenseWarning`, then recompress the result. This covers
+  masks, multi-dimensional index arrays, and mixed advanced indices without
+  pretending they are exact.
+- Keep returning a NumPy scalar for fully-consumed selections, and document
+  that Array API 0-D results are not represented.
+
+Acceptance criteria:
+
+- `a[None]`, `a[..., None]`, `a[0, ...]`, `a[..., 1]`, and
+  `a[None, ..., 1]` agree with NumPy on vectors, matrices, and 3-D tensors.
+- Boolean and integer-array indexing agree with NumPy and emit exactly one
+  `DenseWarning`.
+- Basic integer/slice indexing does not emit a warning.
+
+### WP 2.3: Dtype utilities
+
+Files: `array_api.py`, their tests.
+
+- Expose `result_type`, `can_cast`, `finfo`, `iinfo`, and `isdtype`.
+- Translate TTD operands to their dtypes before delegating to NumPy, so no
+  tensor is densified.
+- Keep the documented restriction to floating-point dtypes; unsupported
+  dtypes raise the existing `TypeError` from `normalize_dtype`.
+
+Acceptance criteria:
+
+- `xp.result_type(ttd_float32, np.float64)` is `float64`.
+- `xp.can_cast(ttd_float32, np.float64)` is true and the reverse is false
+  under NumPy's safe-casting rules.
+- `xp.finfo(xp.asarray(...).dtype).eps` and `xp.isdtype(..., "real floating")`
+  match NumPy.
+
+### WP 2.4: Conformance smoke tests
+
+Files: `tests_ttd/array_api_test.py`, `tests_ttd/indexing_test.py`.
+
+- Exercise the namespace directly rather than through `np.*`.
+- Cover constructors, `asarray` copy/device semantics, reductions,
+  manipulation, dtype utilities, and the indexing forms above.
+- Do not add external `array-api-tests` yet. A full conformance run needs a
+  dependency and a documented subset configuration; keep the local smoke
+  tests dependency-free for now. Ask before adding `array-api-tests` or
+  `array-api-compat` to the project.
+
+### WP 2.5: Documentation
+
+- Update `docs/ttd-capability-matrix.md` to describe the namespace, the
+  supported functions, the dense indexing fallback, and the rank-0 gap.
+- Update the status section above to mark Phase 2 complete.
+- Keep `docs/design_document.md` aligned with the namespace story.
 
 ## Phase 3: Solver integration
 
