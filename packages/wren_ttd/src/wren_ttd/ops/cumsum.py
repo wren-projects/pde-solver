@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_index
 
-from wren_ttd._helpers import normalize_dtype, validate_out
+from wren_ttd._helpers import resolve_dtype, write_out
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.ops.ravel import ravel
 from wren_ttd.types import Core
@@ -88,7 +88,7 @@ def cumsum[DType: np.floating](
     """
     from wren_ttd.core import TTD
 
-    result_dtype = normalize_dtype(dtype) if dtype is not None else a.dtype
+    result_dtype = resolve_dtype(dtype, a)
 
     if axis is None:
         return cumsum(ravel(a), axis=0, dtype=result_dtype, out=out)
@@ -100,10 +100,4 @@ def cumsum[DType: np.floating](
         np.cumsum(cores[normalized_axis].astype(result_dtype, copy=False), axis=1),
     )
     result = TTD(cores, dtype=result_dtype)
-
-    if out is not None:
-        out_dtype = validate_out(out, result.shape, result_dtype)
-        out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-        return out
-
-    return result
+    return write_out(result, out)

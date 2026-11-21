@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.lib.array_utils import normalize_axis_tuple
 
+from wren_ttd._helpers import normalize_axes
 from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ def roll[DType: np.floating](
             "Rolling over a flattened TTD (axis=None) is not supported"
         )
 
-    axes = normalize_axis_tuple(axis, ttd.ndim)
+    axes = normalize_axes(axis, ttd.ndim)
     shifts = [shift] * len(axes) if isinstance(shift, int) else shift
 
     cores = ttd.data.copy()

@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_index
 
-from wren_ttd._helpers import block_core, normalize_dtype, promote_dtype
+from wren_ttd._helpers import block_core, resolve_dtype
 from wren_ttd._numpy_api import implements_function
 from wren_ttd.ops.ravel import ravel
 from wren_ttd.types import Core
@@ -113,11 +113,7 @@ def concat[DType: np.floating](
     if not items:
         raise ValueError("need at least one TTD to concatenate")
 
-    result_dtype = (
-        normalize_dtype(dtype)
-        if dtype is not None
-        else promote_dtype(*(ttd.dtype for ttd in items))
-    )
+    result_dtype = resolve_dtype(dtype, *items)
     items = [
         ttd if ttd.dtype == result_dtype else TTD(ttd, dtype=result_dtype)
         for ttd in items

@@ -7,12 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from wren_common.types import Scalar, ScalarTypes
 
-from wren_ttd._helpers import (
-    block_core,
-    normalize_dtype,
-    promote_dtype,
-    validate_out,
-)
+from wren_ttd._helpers import block_core, resolve_dtype, write_out
 from wren_ttd._numpy_api import implements_ufunc
 from wren_ttd.types import Core
 
@@ -104,14 +99,7 @@ def add[DType: np.floating](
     # the import has to be here to avoid circular imports
     from wren_ttd.core import TTD
 
-    result_dtype = (
-        normalize_dtype(dtype)
-        if dtype is not None
-        else promote_dtype(
-            a.dtype if isinstance(a, TTD) else a,
-            b.dtype if isinstance(b, TTD) else b,
-        )
-    )
+    result_dtype = resolve_dtype(dtype, a, b)
 
     def normalize_operands(
         a: TTD[DType] | Scalar, b: TTD[DType] | Scalar
@@ -137,13 +125,7 @@ def add[DType: np.floating](
     a_cores = [core.astype(result_dtype, copy=False) for core in a.data]
     b_cores = [core.astype(result_dtype, copy=False) for core in b.data]
     cores = _add_cores(a_cores, b_cores)
-
-    if out is None:
-        return TTD(cores, dtype=result_dtype)
-
-    out_dtype = validate_out(out, a.shape, result_dtype)
-    out.data = [core.astype(out_dtype, copy=False) for core in cores]
-    return out
+    return write_out(TTD(cores, dtype=result_dtype), out)
 
 
 def _add_cores[DType: np.floating](
