@@ -21,7 +21,26 @@ if TYPE_CHECKING:
 
 
 def normalize_dtype(dtype: npt.DTypeLike | None) -> np.dtype[Any]:
-    """Normalize and validate a floating-point TTD dtype."""
+    """
+    Normalize and validate a floating-point TTD dtype.
+
+    Parameters
+    ----------
+    dtype : npt.DTypeLike | None
+        The dtype to normalize. ``None`` is interpreted as ``float64`` by
+        :class:`numpy.dtype`.
+
+    Returns
+    -------
+    np.dtype
+        The normalized dtype.
+
+    Raises
+    ------
+    TypeError
+        If the normalized dtype is not a floating-point dtype.
+
+    """
     normalized = np.dtype(dtype)
     if not np.issubdtype(normalized, np.floating):
         raise TypeError(f"{normalized!r} is not a valid dtype for TTD")
@@ -383,6 +402,11 @@ def mode_1_product[DType: np.floating](
     Core[DType]
         The contracted core of shape ``(m, i, β)``.
 
+    Raises
+    ------
+    ValueError
+        If `buffer` is too small to hold the result.
+
     """
     left, mode, right = core.shape
     mat_rows, mat_cols = matrix.shape
@@ -429,6 +453,11 @@ def mode_3_product[DType: np.floating](
     -------
     Core[DType]
         The contracted core of shape ``(α, i, n)``.
+
+    Raises
+    ------
+    ValueError
+        If `buffer` is too small to hold the result.
 
     """
     left, mode, right = core.shape
@@ -584,7 +613,18 @@ def normalize_axes(
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
-    """Orthogonalize the cores in place using a right-to-left QR sweep."""
+    """
+    Orthogonalize the cores in place using a right-to-left QR sweep.
+
+    After the sweep, every core except the first is right-orthonormal when
+    folded to a matrix, and the first core carries the remaining norm.
+
+    Parameters
+    ----------
+    cores : list[Core[DType]]
+        The cores to orthogonalize. Modified in place; must not be empty.
+
+    """
     # Reuse a single buffer for the QR propagation. Each result is consumed by
     # the next QR decomposition before the buffer is overwritten.
     max_core_size = max(core.size for core in cores)

@@ -63,6 +63,15 @@ def tensordot[DType: np.floating](
         TTD with uncontracted dimensions (first from `a`, then from `b`),
         or a scalar if all axes were contracted.
 
+    Raises
+    ------
+    ValueError
+        If `axes` is negative or exceeds the tensor dimensions, if the two
+        axis sequences have different lengths, or if the contracted axis
+        sizes do not match.
+    numpy.exceptions.AxisError
+        If an axis is out of range.
+
     See Also
     --------
     numpy.tensordot : Equivalent function for dense arrays.

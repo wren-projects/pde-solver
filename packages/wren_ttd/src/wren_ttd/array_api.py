@@ -40,7 +40,25 @@ __array_api_version__ = np.__array_api_version__
 
 
 def __getattr__(name: str) -> Any:
-    """Delegate attributes not defined here to NumPy."""
+    """
+    Delegate attributes not defined here to NumPy.
+
+    Parameters
+    ----------
+    name : str
+        The requested attribute name.
+
+    Returns
+    -------
+    Any
+        The corresponding NumPy attribute.
+
+    Raises
+    ------
+    AttributeError
+        If `name` starts with an underscore or NumPy has no such attribute.
+
+    """
     if name.startswith("_"):
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     return getattr(np, name)
@@ -157,6 +175,13 @@ def zeros(
     TTD
         Tensor of zeros with the given shape and dtype.
 
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -193,6 +218,13 @@ def ones(
     -------
     TTD
         Tensor of ones with the given shape and dtype.
+
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -234,6 +266,13 @@ def empty(
     TTD
         Tensor with the given shape and dtype.
 
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -271,6 +310,13 @@ def full(
     -------
     TTD
         Tensor filled with `fill_value`, with the given shape and dtype.
+
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -437,6 +483,12 @@ def result_type(*arrays_and_dtypes: object) -> np.dtype[Any]:
 
     TTD arguments contribute their dtype; every other argument is passed to
     :func:`numpy.result_type` unchanged.
+
+    Parameters
+    ----------
+    *arrays_and_dtypes : object
+        The operands to promote. TTD operands contribute their dtype; NumPy
+        arrays, dtypes, and scalars are passed to :func:`numpy.result_type`.
 
     Returns
     -------

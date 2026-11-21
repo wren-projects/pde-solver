@@ -40,6 +40,11 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     DType
         The inner product of the two TTD objects.
 
+    Raises
+    ------
+    ValueError
+        If `a` and `b` have different shapes or dtypes.
+
     See Also
     --------
     numpy.vdot : Equivalent function for dense arrays.

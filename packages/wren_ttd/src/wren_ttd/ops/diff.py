@@ -44,6 +44,15 @@ def diff[DType: np.floating](
     TTD
         The differenced TTD.
 
+    Raises
+    ------
+    NotImplementedError
+        If `prepend` or `append` is given.
+    ValueError
+        If `n` is negative.
+    numpy.exceptions.AxisError
+        If `axis` is out of range.
+
     See Also
     --------
     numpy.diff: The equivalent function in NumPy.

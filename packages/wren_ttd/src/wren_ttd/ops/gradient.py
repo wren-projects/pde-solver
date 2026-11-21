@@ -59,6 +59,14 @@ def gradient[DType: np.floating](
         differentiated, otherwise a tuple of TTDs. Each derivative has
         the same shape as the input.
 
+    Raises
+    ------
+    ValueError
+        If `axis` contains duplicate entries, if the number of `varargs` is
+        inconsistent with `axis`, or if `edge_order` is not 1 or 2.
+    numpy.exceptions.AxisError
+        If an axis is out of range.
+
     See Also
     --------
     numpy.gradient : Equivalent function for dense arrays.

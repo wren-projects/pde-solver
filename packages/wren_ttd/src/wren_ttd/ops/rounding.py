@@ -41,6 +41,13 @@ def round_[DType: np.floating](
     TTD[DType]
         The rounded TTD.
 
+    Raises
+    ------
+    TypeError
+        If `decimals` is not an integer.
+    ValueError
+        If `out` has a different shape or dtype than the result.
+
     See Also
     --------
     numpy.round : Equivalent function for dense arrays.
