@@ -2568,10 +2568,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ValueError
             If the result shape or dtype differs from `self`, or if the
             contracted dimensions do not match.
-        TypeError
-            If the product is scalar-valued.
         NotImplementedError
-            If both operands have leading batch dimensions.
+            If the product is scalar-valued, or if both operands have leading
+            batch dimensions.
 
         See Also
         --------
