@@ -1,12 +1,13 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
+import warnings
 from operator import index
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import DenseWarning, implements_function
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -48,8 +49,9 @@ def round_[DType: np.floating](
 
     Notes
     -----
-    This operation densifies the tensor internally. It is intended for small
-    tensors and for API compatibility, not for large TT computations.
+    This operation densifies the tensor internally and emits a
+    :class:`DenseWarning`. It is intended for small tensors and for API
+    compatibility, not for large TT computations.
 
     Examples
     --------
@@ -63,6 +65,11 @@ def round_[DType: np.floating](
     from wren_ttd.core import TTD
 
     decimals = index(decimals)
+    warnings.warn(
+        "Calling round densifies the TTD.",
+        DenseWarning,
+        stacklevel=2,
+    )
     result = TTD(np.round(np.asarray(a), decimals), dtype=a.dtype)
 
     if out is None:

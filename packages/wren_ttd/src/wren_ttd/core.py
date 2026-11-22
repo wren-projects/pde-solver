@@ -1240,11 +1240,89 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return ops.reshape(self, shape, order, copy=copy)
 
     def ravel(self, order: str = "C") -> TTD[DType]:
-        """Return a flattened one-dimensional TTD."""
+        """
+        Return a flattened one-dimensional TTD.
+
+        See :func:`wren_ttd.ops.ravel` for the full semantics.
+
+        Parameters
+        ----------
+        order : str, optional
+            The memory order. Only ``"C"`` is supported. By default ``"C"``.
+
+        Returns
+        -------
+        TTD
+            The one-dimensional TTD.
+
+        Raises
+        ------
+        NotImplementedError
+            If `order` is not ``"C"``.
+
+        See Also
+        --------
+        ops.ravel : Flatten a TTD.
+        flatten : Flatten a TTD.
+        reshape : Reshape a TTD.
+
+        Notes
+        -----
+        The result is a rank-one core whose size equals the dense tensor, so
+        this operation effectively densifies the TTD and emits a
+        :class:`~wren_ttd.DenseWarning`. A one-dimensional TTD is already
+        flattened, so it is returned unchanged without a warning.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).ravel().shape
+        (6,)
+
+        """
         return ops.ravel(self, order)
 
     def flatten(self, order: str = "C") -> TTD[DType]:
-        """Return a flattened one-dimensional TTD."""
+        """
+        Return a flattened one-dimensional TTD.
+
+        Equivalent to :meth:`numpy.ndarray.flatten`, extended to TTDs. This is
+        an alias of :func:`ravel`, since TTDs have no notion of views.
+
+        Parameters
+        ----------
+        order : str, optional
+            The memory order. Only ``"C"`` is supported. By default ``"C"``.
+
+        Returns
+        -------
+        TTD
+            The one-dimensional TTD.
+
+        Raises
+        ------
+        NotImplementedError
+            If `order` is not ``"C"``.
+
+        See Also
+        --------
+        ops.flatten : Flatten a TTD.
+        ravel : Flatten a TTD.
+        reshape : Reshape a TTD.
+
+        Notes
+        -----
+        This operation effectively densifies the TTD and emits a
+        :class:`~wren_ttd.DenseWarning`, except for one-dimensional input,
+        which is already flattened.
+
+        Examples
+        --------
+        >>> from wren_ttd.core import TTD
+        >>> TTD.ones((2, 3)).flatten().shape
+        (6,)
+
+        """
         return ops.flatten(self, order)
 
     def take(

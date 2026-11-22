@@ -1,7 +1,6 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -9,7 +8,8 @@ import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_index
 
 from wren_ttd._helpers import normalize_dtype, validate_out
-from wren_ttd._numpy_api import DenseWarning, implements_function
+from wren_ttd._numpy_api import implements_function
+from wren_ttd.ops.ravel import ravel
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -70,9 +70,9 @@ def cumsum[DType: np.floating](
     Notes
     -----
     The integer-axis path is exact and preserves the TT ranks. The
-    ``axis=None`` path densifies the tensor with :func:`numpy.asarray`
-    before accumulating, so it is intended as a temporary fallback until
-    reshaping is available.
+    ``axis=None`` path first calls :func:`ravel`, which flattens the TTD and
+    therefore effectively densifies it; a :class:`DenseWarning` is emitted in
+    that case.
 
     Examples
     --------
@@ -91,23 +91,15 @@ def cumsum[DType: np.floating](
     result_dtype = normalize_dtype(dtype) if dtype is not None else a.dtype
 
     if axis is None:
-        warnings.warn(
-            "Calling cumsum with axis None densifies the TTD.",
-            DenseWarning,
-            stacklevel=2,
-        )
-        result = TTD(
-            np.cumsum(np.asarray(a, dtype=result_dtype), axis=None),
-            dtype=result_dtype,
-        )
-    else:
-        normalized_axis = normalize_axis_index(axis, a.ndim, "axis")
-        cores = a.data.copy()
-        cores[normalized_axis] = cast(
-            Core[Any],
-            np.cumsum(cores[normalized_axis].astype(result_dtype, copy=False), axis=1),
-        )
-        result = TTD(cores, dtype=result_dtype)
+        return cumsum(ravel(a), axis=0, dtype=result_dtype, out=out)
+
+    normalized_axis = normalize_axis_index(axis, a.ndim, "axis")
+    cores = a.data.copy()
+    cores[normalized_axis] = cast(
+        Core[Any],
+        np.cumsum(cores[normalized_axis].astype(result_dtype, copy=False), axis=1),
+    )
+    result = TTD(cores, dtype=result_dtype)
 
     if out is not None:
         out_dtype = validate_out(out, result.shape, result_dtype)

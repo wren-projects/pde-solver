@@ -51,6 +51,12 @@ def flatten[DType: np.floating](
     ravel : Registered NumPy function with the same semantics.
     reshape : Reshape a TTD to an arbitrary shape.
 
+    Notes
+    -----
+    This function delegates to :func:`ravel` and therefore effectively
+    densifies the TTD. A :class:`DenseWarning` is emitted, except for
+    one-dimensional input, which is already flattened.
+
     Examples
     --------
     >>> from wren_ttd import ops
