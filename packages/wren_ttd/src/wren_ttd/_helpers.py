@@ -1,14 +1,18 @@
+# ruff: noqa: PLC0415
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
 from typing import TYPE_CHECKING, Any, SupportsIndex, cast
 
 import numpy as np
 import numpy.typing as npt
+from numpy.lib.array_utils import normalize_axis_tuple
 from wren_common.types import Matrix, NDArray, Scalar, Vector
 
+from wren_ttd._numpy_api import DenseWarning
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
 
@@ -62,6 +66,125 @@ def promote_dtype(*dtypes: npt.DTypeLike | Scalar) -> np.dtype[Any]:
     return normalize_dtype(np.result_type(*dtypes))
 
 
+def resolve_dtype(dtype: npt.DTypeLike | None, *operands: object) -> np.dtype[Any]:
+    """
+    Resolve an explicit result dtype or promote the operand dtypes.
+
+    This is the shared dtype rule of the array operations: an explicit `dtype`
+    wins and is validated as a floating-point dtype, otherwise the operand
+    dtypes are promoted with NumPy's rules.
+
+    Parameters
+    ----------
+    dtype : npt.DTypeLike | None
+        The explicitly requested result dtype, or None to promote `operands`.
+    *operands : object
+        The operands whose dtypes are promoted. TTDs, arrays, and NumPy
+        scalars contribute their dtype; Python scalars are used for weak
+        promotion.
+
+    Returns
+    -------
+    np.dtype
+        The resolved floating-point dtype.
+
+    Raises
+    ------
+    TypeError
+        If the resolved dtype is not a floating-point dtype.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd._helpers import resolve_dtype
+    >>> resolve_dtype(np.float32, np.float64(1))
+    dtype('float32')
+    >>> resolve_dtype(None, np.dtype(np.float32), np.float64(1))
+    dtype('float64')
+
+    """
+    if dtype is not None:
+        return normalize_dtype(dtype)
+
+    return promote_dtype(
+        *(
+            cast(npt.DTypeLike | Scalar, getattr(operand, "dtype", operand))
+            for operand in operands
+        )
+    )
+
+
+def as_scalar[DType: np.floating](value: NDArray[DType] | DType) -> DType:
+    """
+    Normalize a zero-dimensional array or NumPy scalar to a scalar.
+
+    Parameters
+    ----------
+    value : NDArray[DType] | DType
+        A scalar or an array of size one.
+
+    Returns
+    -------
+    DType
+        The value as a NumPy floating-point scalar.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd._helpers import as_scalar
+    >>> as_scalar(np.array([2.0]))
+    np.float64(2.0)
+
+    """
+    return cast(DType, cast(object, np.squeeze(value)[()]))
+
+
+def sqrt_reduced[DType: np.floating](
+    value: DType | TTD[DType], operation: str, *, stacklevel: int = 3
+) -> DType | TTD[DType]:
+    """
+    Take the square root of a reduced value, recompressing TTD results.
+
+    The square root is not multiplicative, so it cannot be applied to a TTD
+    core by core. A TTD result is therefore computed densely and recompressed,
+    and a :class:`DenseWarning` is emitted. Scalar results are converted with
+    :func:`numpy.sqrt` directly.
+
+    Parameters
+    ----------
+    value : DType | TTD[DType]
+        The reduced value to take the square root of.
+    operation : str
+        The operation name used in the warning message.
+    stacklevel : int, optional
+        The stack level of the warning, by default 3.
+
+    Returns
+    -------
+    DType | TTD[DType]
+        The square root, with the same type as `value`.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd._helpers import sqrt_reduced
+    >>> sqrt_reduced(np.float64(4.0), "test")
+    np.float64(2.0)
+
+    """
+    from wren_ttd.core import TTD
+
+    if isinstance(value, TTD):
+        warnings.warn(
+            f"Calling {operation} with a TTD result densifies the reduced TTD.",
+            DenseWarning,
+            stacklevel=stacklevel,
+        )
+        return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
+
+    return cast(DType, np.sqrt(as_scalar(value)))
+
+
 def validate_out[DType: np.floating](
     out: TTD[DType],
     shape: tuple[int, ...],
@@ -104,6 +227,47 @@ def validate_out[DType: np.floating](
         )
 
     return out.dtype
+
+
+def write_out[DType: np.floating](
+    result: TTD[DType], out: TTD[Any] | None
+) -> TTD[DType]:
+    """
+    Return `result`, or replace the cores of `out` when it is given.
+
+    A shared final step for operations with an optional ``out`` argument. When
+    `out` is provided, it is validated against the shape and dtype of
+    `result`, and the result cores are cast to the dtype of `out`.
+
+    Parameters
+    ----------
+    result : TTD[DType]
+        The computed result.
+    out : TTD | None
+        The optional output TTD.
+
+    Returns
+    -------
+    TTD[DType]
+        `result` when `out` is None, otherwise `out` holding the result.
+
+    Raises
+    ------
+    ValueError
+        If `out` has a different shape or its dtype cannot represent the
+        result under ``"same_kind"`` casting.
+
+    See Also
+    --------
+    validate_out : Check an output TTD without writing to it.
+
+    """
+    if out is None:
+        return result
+
+    out_dtype = validate_out(out, result.shape, result.dtype)
+    out.data = [core.astype(out_dtype, copy=False) for core in result.data]
+    return out
 
 
 def fold_right[DType: np.floating](array: NDArray[DType]) -> Matrix[DType]:
@@ -380,6 +544,43 @@ def to_int_tuple(value: SupportsIndex | Iterable[SupportsIndex]) -> tuple[int, .
 
     """
     return (int(value),) if isinstance(value, SupportsIndex) else tuple(map(int, value))
+
+
+def normalize_axes(
+    axis: int | Iterable[int] | None, ndim: int, name: str = "axis"
+) -> tuple[int, ...]:
+    """
+    Normalize an optional axis argument to a tuple of non-negative axes.
+
+    ``None`` selects every axis, which is the NumPy convention for reductions
+    over all axes.
+
+    Parameters
+    ----------
+    axis : int | iterable of int | None
+        The axis or axes to normalize. Negative axes count from the end.
+    ndim : int
+        The number of dimensions of the tensor.
+    name : str, optional
+        The argument name used in error messages, by default ``"axis"``.
+
+    Returns
+    -------
+    tuple[int, ...]
+        The normalized axes.
+
+    Examples
+    --------
+    >>> from wren_ttd._helpers import normalize_axes
+    >>> normalize_axes(None, 2)
+    (0, 1)
+    >>> normalize_axes(-1, 3)
+    (2,)
+
+    """
+    if axis is None:
+        return tuple(range(ndim))
+    return normalize_axis_tuple(axis, ndim, name)
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:

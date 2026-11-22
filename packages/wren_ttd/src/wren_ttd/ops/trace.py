@@ -8,7 +8,7 @@ import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_index
 from wren_common.types import Matrix
 
-from wren_ttd._helpers import mode_3_product, normalize_dtype, validate_out
+from wren_ttd._helpers import mode_3_product, resolve_dtype, write_out
 from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ def trace[DType: np.floating](  # noqa: PLR0913
             f"{a.shape[normalized_axis1]} and {a.shape[normalized_axis2]}"
         )
 
-    result_dtype = normalize_dtype(dtype) if dtype is not None else a.dtype
+    result_dtype = resolve_dtype(dtype, a)
 
     moved = (
         a
@@ -151,10 +151,4 @@ def trace[DType: np.floating](  # noqa: PLR0913
         remaining[-1].astype(result_dtype, copy=False), diagonal
     )
     result = TTD(remaining, dtype=result_dtype)
-
-    if out is not None:
-        out_dtype = validate_out(out, result.shape, result_dtype)
-        out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-        return out
-
-    return result
+    return write_out(result, out)
