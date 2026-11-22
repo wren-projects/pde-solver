@@ -7,6 +7,7 @@ from types import EllipsisType
 from typing import (
     Any,
     ClassVar,
+    Literal,
     ParamSpec,
     SupportsIndex,
     Unpack,
@@ -25,6 +26,7 @@ from wren_ttd import ops
 from wren_ttd._helpers import (
     fold_left,
     mode_1_product,
+    normalize_dtype,
     orthogonalize_right,
     reverse_cores,
     smallest_core,
@@ -92,7 +94,7 @@ def _compress_array[DT: np.floating](
 
 
 def _resolve_dtype(
-    dtype: TTDType[Any] | None, inferred: np.dtype[Any]
+    dtype: npt.DTypeLike | None, inferred: np.dtype[Any]
 ) -> np.dtype[Any]:
     """
     Resolve the dtype of a TTD.
@@ -115,10 +117,7 @@ def _resolve_dtype(
 
     """
     if dtype is not None:
-        resolved = np.dtype(dtype)
-        if not np.issubdtype(resolved, np.floating):
-            raise TypeError(f"{resolved!r} is not a valid dtype for TTD")
-        return resolved
+        return normalize_dtype(dtype)
 
     if np.issubdtype(inferred, np.complexfloating):
         raise TypeError("Complex dtypes are not supported for TTD")
@@ -569,9 +568,30 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return tuple(core.shape[2] for core in self.data[:-1])
 
     @property
+    def device(self) -> Literal["cpu"]:
+        """Return the device that stores this TTD."""
+        return "cpu"
+
+    @property
     def mT(self) -> TTD[DType]:  # noqa: N802
         """Transpose the final two dimensions."""
         return ops.matrix_transpose(self)
+
+    def to_device(self, device: str, /, *, stream: object | None = None) -> TTD[DType]:
+        """Return this TTD on the requested device."""
+        return ops.to_device(self, device, stream=stream)
+
+    @overload
+    def astype[NewDType: np.floating](
+        self, dtype: TTDType[NewDType], *, copy: bool = True
+    ) -> TTD[NewDType]: ...
+
+    @overload
+    def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]: ...
+
+    def astype(self, dtype: npt.DTypeLike, *, copy: bool = True) -> TTD[Any]:
+        """Return this TTD cast to a floating-point dtype."""
+        return ops.astype(self, dtype, copy=copy)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None
@@ -814,7 +834,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [1., 1.]])
 
         """
-        return self.__class__(a.copy() for a in self.data)
+        return ops.copy(self, subok=True)
 
     def transpose(self, axes: tuple[int, ...] | None = None) -> TTD[DType]:
         """
@@ -1275,6 +1295,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         return ops.add(-self, other)
+
+    @override
+    def __truediv__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
+        """Divide this TTD by a scalar, element-wise."""
+        return ops.divide(self, other)
 
     @override
     def __mul__(self, other: TTD[DType] | Scalar) -> TTD[DType]:
