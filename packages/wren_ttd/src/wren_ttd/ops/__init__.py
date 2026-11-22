@@ -1,5 +1,8 @@
 from .add import add
+from .astype import astype
+from .copy import copy
 from .diff import diff
+from .divide import divide
 from .expand_dims import expand_dims
 from .flip import flip
 from .frobenius_norm import frobenius_norm
@@ -18,11 +21,15 @@ from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
 from .tensordot import tensordot
+from .to_device import to_device
 from .transpose import transpose
 
 __all__ = [
     "add",
+    "astype",
+    "copy",
     "diff",
+    "divide",
     "expand_dims",
     "flip",
     "frobenius_norm",
@@ -42,6 +49,7 @@ __all__ = [
     "subtract",
     "swapaxes",
     "tensordot",
+    "to_device",
     "transpose",
     "zeros_like",
 ]
