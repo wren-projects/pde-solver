@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from itertools import pairwise
-from types import EllipsisType
+from types import EllipsisType, NotImplementedType
 from typing import (
     Any,
     ClassVar,
@@ -18,6 +18,7 @@ from typing import (
 
 import numpy as np
 import numpy.typing as npt
+from numpy.lib.array_utils import normalize_axis_tuple
 from numpy.lib.mixins import NDArrayOperatorsMixin
 from wren_common.math import scale_matrix
 from wren_common.types import Index1D, Matrix, NDArray, Scalar
@@ -181,6 +182,73 @@ def _as_cores[DType: np.floating](
     resolved = cast(np.dtype[DType], _resolve_dtype(dtype, inferred))
 
     return [core.astype(resolved, copy=False) for core in cores], resolved
+
+
+_UFUNC_DEFAULTS: dict[str, object] = {
+    "casting": "same_kind",
+    "order": "K",
+    "subok": True,
+    "signature": None,
+}
+
+
+def _normalize_ufunc_out(out: object) -> TTD[Any] | None:
+    """Normalize NumPy's ``out`` tuple to a single output TTD."""
+    if out is None:
+        return None
+
+    if isinstance(out, (tuple, list)):
+        outputs = cast(Sequence[object], out)
+        if not outputs:
+            return None
+        if len(outputs) > 1:
+            raise NotImplementedError(
+                "TTD ufuncs support exactly one output, "
+                f"but `out` has {len(outputs)} entries"
+            )
+        out = outputs[0]
+
+    if out is None:
+        return None
+
+    if not isinstance(out, TTD):
+        raise TypeError(f"`out` must be a TTD, not {type(out).__name__}")
+
+    return cast(TTD[Any], out)
+
+
+def _cast_ufunc_result[DType: np.floating](
+    result: TTD[Any] | DType, dtype: np.dtype[DType]
+) -> TTD[DType] | DType:
+    """Cast a ufunc result to `dtype`, preserving the TT representation."""
+    if isinstance(result, TTD):
+        return ops.astype(result, dtype, copy=False)
+
+    return cast(DType, cast(object, np.asarray(result, dtype=dtype)[()]))
+
+
+def _assign_ufunc_out(
+    result: TTD[Any] | np.floating, out: TTD[Any], name: str
+) -> TTD[Any]:
+    """Validate `out` and write a ufunc result into it."""
+    if not isinstance(result, TTD):
+        raise TypeError(f"`out` is not supported for the scalar result of `{name}`")
+
+    if out.shape != result.shape:
+        raise ValueError(
+            f"Output tensor has shape {out.shape}, expected {result.shape}"
+        )
+
+    if out.dtype != result.dtype:
+        if not np.can_cast(result.dtype, out.dtype, casting="same_kind"):
+            raise ValueError(
+                f"Cannot cast the `{name}` result from {result.dtype} "
+                f"to the output dtype {out.dtype}"
+            )
+        result = ops.astype(result, out.dtype, copy=False)
+
+    out.data = list(result.data)
+    return out
 
 
 class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DType]):
@@ -525,7 +593,6 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         return len(self.data)
 
     @property
-    @implements_function("size")
     def size(self) -> int:
         """
         Number of elements in the uncompressed tensor.
@@ -669,20 +736,31 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
     def round(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
         """
-        Round the TTD object by decreasing ranks.
+        Truncate the TT ranks of the TTD object in place.
+
+        This is the legacy name for :meth:`TTD.truncate`. Note that
+        :func:`numpy.round` performs element-wise rounding; rank truncation is
+        a separate operation and does not change the represented values
+        beyond `epsilon`.
 
         Uses SVD for compression. Ensures that the ranks of the rounded TTD 𝐀̃
         are maximally reduced, while ensuring that the relative error is less
         than `epsilon`.
 
-        Operates on the TTD object in-place. See also :func:`TTD.rounded` to get
-        a rounded copy.
+        Operates on the TTD object in-place. See also :meth:`TTD.truncate` for
+        the preferred name and :func:`TTD.rounded` to get a rounded copy.
 
         Parameters
         ----------
         epsilon : float, optional
             The relative error tolerance for the compression. Uses system-wide default
             value if not provided.
+
+        See Also
+        --------
+        TTD.truncate : Preferred name for in-place rank truncation.
+        TTD.rounded : Return a new TTD with truncated ranks.
+        numpy.round : Element-wise rounding for dense arrays.
 
         """
         if self.ndim == 1:
@@ -711,11 +789,84 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # 𝐆ₖ₊₁ := 𝐆ₖ₊₁ ×₁ (𝐕𝚲)ᵀ = 𝐕𝚲 ⋅ 𝐆ₖ₊₁
             cores[k] = mode_1_product(scale_matrix(s, v_t, out=v_t), cores[k])
 
+    def truncate(self, epsilon: DType | float = DEFAULT_EPSILON) -> None:
+        """
+        Truncate the TT ranks of the TTD object in place.
+
+        Preferred name for :meth:`TTD.round`. Delegates to :meth:`TTD.round`
+        and keeps its compression semantics. This is not element-wise
+        rounding; use :func:`numpy.round` for that.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            The relative error tolerance for the compression. Uses
+            system-wide default value if not provided.
+
+        See Also
+        --------
+        TTD.round : Legacy name for in-place rank truncation.
+        TTD.truncated : Return a new TTD with truncated ranks.
+        numpy.round : Element-wise rounding for dense arrays.
+
+        """
+        self.round(epsilon)
+
     def rounded(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
-        """Return a new rounded TTD object."""
+        """
+        Return a new TTD with truncated TT ranks.
+
+        This is the legacy name for :meth:`TTD.truncated`. Note that
+        :func:`numpy.round` performs element-wise rounding, not rank
+        truncation.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            The relative error tolerance for the compression. Uses
+            system-wide default value if not provided.
+
+        Returns
+        -------
+        TTD
+            A new TTD with reduced ranks.
+
+        See Also
+        --------
+        TTD.truncated : Preferred name for returning a truncated copy.
+        TTD.round : Truncate the TTD in place.
+
+        """
         ttd = self[...]
         ttd.round(epsilon)
         return ttd
+
+    def truncated(self, epsilon: DType | float = DEFAULT_EPSILON) -> TTD[DType]:
+        """
+        Return a new TTD with truncated TT ranks.
+
+        Preferred name for :meth:`TTD.rounded`. Delegates to
+        :meth:`TTD.rounded`. This is not element-wise rounding; use
+        :func:`numpy.round` for that.
+
+        Parameters
+        ----------
+        epsilon : float, optional
+            The relative error tolerance for the compression. Uses
+            system-wide default value if not provided.
+
+        Returns
+        -------
+        TTD
+            A new TTD with reduced ranks.
+
+        See Also
+        --------
+        TTD.rounded : Legacy name for returning a truncated copy.
+        TTD.truncate : Truncate the TTD in place.
+
+        """
+        return self.rounded(epsilon)
 
     @override
     def __array_ufunc__(
@@ -724,9 +875,19 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         method: str,
         *args: ArrayUFuncParams.args,
         **kwargs: ArrayUFuncParams.kwargs,
-    ) -> TTD[DType] | NDArray[DType]:
+    ) -> TTD[DType] | NDArray[DType] | DType:
         """
         Apply a NumPy ufunc to a TTD object.
+
+        NumPy passes the output of a ufunc as a one-element tuple. This
+        method normalises that tuple to the single TTD it contains. One
+        output is supported; multi-output ufuncs raise
+        :exc:`NotImplementedError`.
+
+        The ``dtype`` option is applied after the registered handler returns,
+        by casting the result while preserving the TT representation. The
+        ``out`` option is validated and assigns the (possibly cast) result to
+        the given TTD.
 
         Parameters
         ----------
@@ -741,8 +902,19 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         Returns
         -------
-        TTD | NDArray
+        TTD | NDArray | DType
             The result of the ufunc applied to the TTD object.
+
+        Raises
+        ------
+        NotImplementedError
+            If the ufunc has multiple outputs, or if the ``where``,
+            ``casting``, ``order``, ``subok``, or ``signature`` options are
+            not at their defaults.
+        ValueError
+            If the output tensor has an incompatible shape or dtype.
+        TypeError
+            If ``out`` is not a TTD, or is provided for a scalar result.
 
         """
         if method != "__call__":
@@ -755,11 +927,37 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         handler = HANDLED_UFUNCS.get(ufunc.__name__)
 
-        return (
-            cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))
-            if handler is not None
-            else NotImplemented
-        )
+        if handler is None:
+            return NotImplemented
+
+        for option, default in _UFUNC_DEFAULTS.items():
+            value = kwargs.pop(option, default)
+            if value != default:
+                raise NotImplementedError(
+                    f"The `{option}` argument is not supported for TTD ufuncs"
+                )
+
+        where = kwargs.pop("where", True)
+        if not (isinstance(where, (bool, np.bool_)) and where):
+            raise NotImplementedError(
+                "The `where` argument is not supported for TTD ufuncs"
+            )
+
+        dtype = cast(npt.DTypeLike | None, kwargs.pop("dtype", None))
+        out = _normalize_ufunc_out(kwargs.pop("out", None))
+
+        result = cast(TTD[DType] | DType | NotImplementedType, handler(*args, **kwargs))
+
+        if result is NotImplemented:
+            return NotImplemented
+
+        if dtype is not None:
+            result = _cast_ufunc_result(result, normalize_dtype(dtype))
+
+        if out is None:
+            return result
+
+        return _assign_ufunc_out(result, out, ufunc.__name__)
 
     def __array_function__[*Args](
         self,
@@ -1563,3 +1761,54 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         return ops.neg(self)
+
+
+@implements_function("size")
+def size(a: TTD[Any], axis: int | tuple[int, ...] | None = None) -> int:
+    """
+    Return the number of elements along the given axis or axes.
+
+    Equivalent to :func:`numpy.size` for dense arrays, extended to TTDs.
+    Unlike NumPy's dense arrays, a tuple of axes is accepted and returns the
+    product of the sizes of the selected axes.
+
+    Parameters
+    ----------
+    a : TTD
+        The input TTD.
+    axis : int or tuple of ints, optional
+        The axis or axes along which to count the elements. If None
+        (default), the total number of elements is returned. Negative axes
+        count from the last dimension.
+
+    Returns
+    -------
+    int
+        The number of elements along `axis`, or the product of the
+        dimensions in a tuple of axes.
+
+    See Also
+    --------
+    numpy.size : Equivalent function for dense arrays.
+    TTD.size : Number of elements in the uncompressed tensor.
+    TTD.shape : Tuple of tensor dimensions.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from wren_ttd.core import TTD
+    >>> t = TTD.ones((2, 3, 4))
+    >>> np.size(t)
+    24
+    >>> np.size(t, axis=1)
+    3
+    >>> np.size(t, axis=(0, 2))
+    8
+
+    """
+    if axis is None:
+        return a.size
+
+    axes = normalize_axis_tuple(axis, a.ndim)
+
+    return math.prod(a.shape[i] for i in axes)
