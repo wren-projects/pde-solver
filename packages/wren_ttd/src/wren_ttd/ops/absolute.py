@@ -1,12 +1,11 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import DenseWarning, implements_ufunc
+from wren_ttd._numpy_api import implements_ufunc, warn_dense
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -56,6 +55,6 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     """
     from wren_ttd.core import TTD
 
-    warnings.warn("Calling absolute densifies the TTD.", DenseWarning, stacklevel=2)
+    warn_dense("Calling absolute densifies the TTD.")
 
     return TTD(np.abs(np.asarray(ttd)), dtype=ttd.dtype)

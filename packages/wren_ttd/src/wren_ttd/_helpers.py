@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-import warnings
 from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
 from typing import TYPE_CHECKING, Any, SupportsIndex, cast
@@ -12,7 +11,7 @@ import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_tuple
 from wren_common.types import Matrix, NDArray, Scalar, Vector
 
-from wren_ttd._numpy_api import DenseWarning
+from wren_ttd._numpy_api import warn_dense
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
 
@@ -159,7 +158,7 @@ def as_scalar[DType: np.floating](value: NDArray[DType] | DType) -> DType:
 
 
 def sqrt_reduced[DType: np.floating](
-    value: DType | TTD[DType], operation: str, *, stacklevel: int = 3
+    value: DType | TTD[DType], operation: str
 ) -> DType | TTD[DType]:
     """
     Take the square root of a reduced value, recompressing TTD results.
@@ -175,8 +174,6 @@ def sqrt_reduced[DType: np.floating](
         The reduced value to take the square root of.
     operation : str
         The operation name used in the warning message.
-    stacklevel : int, optional
-        The stack level of the warning, by default 3.
 
     Returns
     -------
@@ -194,11 +191,7 @@ def sqrt_reduced[DType: np.floating](
     from wren_ttd.core import TTD
 
     if isinstance(value, TTD):
-        warnings.warn(
-            f"Calling {operation} with a TTD result densifies the reduced TTD.",
-            DenseWarning,
-            stacklevel=stacklevel,
-        )
+        warn_dense(f"Calling {operation} with a TTD result densifies the reduced TTD.")
         return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
 
     return cast(DType, np.sqrt(as_scalar(value)))

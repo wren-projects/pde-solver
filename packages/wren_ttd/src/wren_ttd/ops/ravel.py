@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import DenseWarning, implements_function
+from wren_ttd._numpy_api import implements_function, warn_dense
 
 from .reshape import (
     _flatten_to_core,  # pyright: ignore[reportPrivateUsage]
@@ -74,9 +73,5 @@ def ravel[DType: np.floating](
     if a.ndim == 1:
         return a.copy()
 
-    warnings.warn(
-        "Calling `ravel` effectively densifies the TTD. See Notes.",
-        DenseWarning,
-        stacklevel=2,
-    )
+    warn_dense("Calling `ravel` effectively densifies the TTD. See Notes.")
     return _flatten_to_core(a)
