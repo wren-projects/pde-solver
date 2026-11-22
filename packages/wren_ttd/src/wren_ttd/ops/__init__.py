@@ -13,6 +13,7 @@ from .inner_product import inner_product
 from .like import full_like, ones_like, zeros_like
 from .matmul import matmul
 from .matrix_transpose import matrix_transpose
+from .mean import mean
 from .moveaxis import moveaxis
 from .multiply import multiply
 from .neg import neg
@@ -24,6 +25,7 @@ from .rounding import round_
 from .squeeze import squeeze
 from .stack import stack
 from .subtract import subtract
+from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
 from .tensordot import tensordot
 from .to_device import to_device
@@ -45,6 +47,7 @@ __all__ = [
     "inner_product",
     "matmul",
     "matrix_transpose",
+    "mean",
     "moveaxis",
     "multiply",
     "neg",
@@ -57,6 +60,7 @@ __all__ = [
     "squeeze",
     "stack",
     "subtract",
+    "sum",
     "swapaxes",
     "tensordot",
     "to_device",
