@@ -104,7 +104,7 @@ def add[DType: np.floating](
     def normalize_operands(
         a: TTD[DType] | Scalar, b: TTD[DType] | Scalar
     ) -> tuple[TTD[DType], TTD[DType]]:
-
+        """Promote scalars to TTDs so both operands have the same shape."""
         if isinstance(a, TTD) and isinstance(b, TTD):
             return a, b
 
