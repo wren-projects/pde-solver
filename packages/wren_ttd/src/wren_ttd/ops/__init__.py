@@ -1,6 +1,7 @@
 from .absolute import absolute
 from .add import add
 from .astype import astype
+from .broadcast_to import broadcast_to
 from .copy import copy
 from .cumsum import cumsum
 from .diff import diff
@@ -43,6 +44,7 @@ __all__ = [
     "absolute",
     "add",
     "astype",
+    "broadcast_to",
     "copy",
     "cumsum",
     "diff",
