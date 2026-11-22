@@ -333,6 +333,15 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             ``iterations``. Ignored when `data` is a TTD or an iterable of
             cores.
 
+        Raises
+        ------
+        TypeError
+            If `data` has an unsupported type, or if the resulting dtype is
+            not a floating-point dtype.
+        ValueError
+            If `data` is an iterable of cores with invalid shapes, or if the
+            boundary TT-ranks differ from one.
+
         """
         super().__init__()
 
@@ -1187,6 +1196,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -------
         TTD | NDArray
             The result of the NumPy method applied to the TTD object.
+
+        Raises
+        ------
+        ValueError
+            If `func` is not a callable with a string ``__name__``.
 
         """
         if not hasattr(func, "__name__") or not isinstance(func.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
@@ -2097,6 +2111,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             The element-wise sum.
 
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.add : Equivalent ufunc for dense arrays.
@@ -2137,6 +2158,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             This TTD, holding the element-wise sum.
 
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.add : Equivalent ufunc for dense arrays.
@@ -2167,6 +2195,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             The element-wise sum.
 
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.add : Equivalent ufunc for dense arrays.
@@ -2196,6 +2231,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -------
         TTD
             The element-wise difference.
+
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
 
         See Also
         --------
@@ -2237,6 +2279,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             This TTD, holding the element-wise difference.
 
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.subtract : Equivalent ufunc for dense arrays.
@@ -2265,6 +2314,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -------
         TTD
             The element-wise difference ``other - self``.
+
+        Raises
+        ------
+        TypeError
+            If `other` is neither a TTD nor a scalar.
+        ValueError
+            If `other` is a TTD with a different shape.
 
         See Also
         --------
@@ -2339,6 +2395,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             The element-wise product.
 
+        Raises
+        ------
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.multiply : Equivalent ufunc for dense arrays.
@@ -2378,6 +2439,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             This TTD, holding the element-wise product.
 
+        Raises
+        ------
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.multiply : Equivalent ufunc for dense arrays.
@@ -2408,6 +2474,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         TTD
             The element-wise product.
 
+        Raises
+        ------
+        ValueError
+            If `other` is a TTD with a different shape.
+
         See Also
         --------
         numpy.multiply : Equivalent ufunc for dense arrays.
@@ -2427,8 +2498,9 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         of a 1D `other`, or the second-to-last axis otherwise. A vector-vector
         product returns a scalar; other supported products return a TTD.
 
-        Both operands must have the same dtype. Products where both operands
-        have leading batch dimensions are not supported. See
+        Both operands must be TTDs. Their dtypes are promoted with NumPy's
+        rules, so mixed floating-point dtypes are accepted. Products where
+        both operands have leading batch dimensions are not supported. See
         :func:`wren_ttd.ops.matmul` for supported dimensions and details.
 
         Parameters
@@ -2441,6 +2513,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -------
         TTD[DType] | DType
             The matrix product, or a scalar for a vector-vector product.
+
+        Raises
+        ------
+        NotImplementedError
+            If both operands have leading batch dimensions.
+        ValueError
+            If the contracted dimensions do not match.
 
         See Also
         --------
@@ -2488,7 +2567,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         ------
         ValueError
             If the result shape or dtype differs from `self`, or if the
-            contracted dimensions or operand dtypes do not match.
+            contracted dimensions do not match.
         TypeError
             If the product is scalar-valued.
         NotImplementedError
@@ -2532,6 +2611,13 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -------
         TTD[DType] | DType
             The matrix product, or a scalar for a vector-vector product.
+
+        Raises
+        ------
+        NotImplementedError
+            If both operands have leading batch dimensions.
+        ValueError
+            If the contracted dimensions do not match.
 
         See Also
         --------
