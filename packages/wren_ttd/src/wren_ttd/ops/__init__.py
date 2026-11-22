@@ -30,6 +30,7 @@ from .swapaxes import swapaxes
 from .tensordot import tensordot
 from .to_device import to_device
 from .transpose import transpose
+from .vecdot import vecdot
 
 __all__ = [
     "absolute",
@@ -65,5 +66,6 @@ __all__ = [
     "tensordot",
     "to_device",
     "transpose",
+    "vecdot",
     "zeros_like",
 ]
