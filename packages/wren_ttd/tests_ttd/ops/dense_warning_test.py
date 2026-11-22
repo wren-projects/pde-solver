@@ -47,6 +47,8 @@ def test_densifying_operations_warn(operation: Callable[[], object]) -> None:
     [
         lambda: ops.power(TTD.ones(3), 2),
         lambda: ops.reshape(TTD(arange_tensor(2, 3)), (3, 2)),
+        lambda: ops.ravel(TTD(arange_tensor(3))),
+        lambda: ops.flatten(TTD(arange_tensor(3))),
         lambda: ops.cumsum(TTD(arange_tensor(2, 3)), axis=0),
         lambda: ops.take(TTD(arange_tensor(2, 3)), [0, 1], axis=0),
         lambda: ops.repeat(TTD(arange_tensor(2, 3)), 2, axis=0),

@@ -1722,7 +1722,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -----
         The result is a rank-one core whose size equals the dense tensor, so
         this operation effectively densifies the TTD and emits a
-        :class:`~wren_ttd.DenseWarning`.
+        :class:`~wren_ttd.DenseWarning`. A one-dimensional TTD is already
+        flattened, so it is returned unchanged without a warning.
 
         Examples
         --------
@@ -1764,7 +1765,8 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         This operation effectively densifies the TTD and emits a
-        :class:`~wren_ttd.DenseWarning`.
+        :class:`~wren_ttd.DenseWarning`, except for one-dimensional input,
+        which is already flattened.
 
         Examples
         --------

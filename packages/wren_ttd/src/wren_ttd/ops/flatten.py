@@ -54,7 +54,8 @@ def flatten[DType: np.floating](
     Notes
     -----
     This function delegates to :func:`ravel` and therefore effectively
-    densifies the TTD. A :class:`DenseWarning` is emitted.
+    densifies the TTD. A :class:`DenseWarning` is emitted, except for
+    one-dimensional input, which is already flattened.
 
     Examples
     --------

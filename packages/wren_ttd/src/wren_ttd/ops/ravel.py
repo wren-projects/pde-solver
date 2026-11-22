@@ -57,7 +57,9 @@ def ravel[DType: np.floating](
     -----
     While the tensor is not directly densified, the singular resulting core is
     by definition going to be equal in size to the dense tensor. A
-    :class:`DenseWarning` is emitted to make this cost explicit.
+    :class:`DenseWarning` is emitted to make this cost explicit. A
+    one-dimensional input already has this representation, so it is returned
+    unchanged and no warning is emitted.
 
     Examples
     --------
@@ -69,6 +71,9 @@ def ravel[DType: np.floating](
 
     """
     _validate_order(order)
+    if a.ndim == 1:
+        return a.copy()
+
     warnings.warn(
         "Calling `ravel` effectively densifies the TTD. See Notes.",
         DenseWarning,
