@@ -2,6 +2,7 @@ from .absolute import absolute
 from .add import add
 from .astype import astype
 from .copy import copy
+from .cumsum import cumsum
 from .diff import diff
 from .divide import divide
 from .expand_dims import expand_dims
@@ -30,6 +31,7 @@ from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
 from .tensordot import tensordot
 from .to_device import to_device
+from .trace import trace
 from .transpose import transpose
 from .vecdot import vecdot
 from .vector_norm import vector_norm
@@ -39,6 +41,7 @@ __all__ = [
     "add",
     "astype",
     "copy",
+    "cumsum",
     "diff",
     "divide",
     "expand_dims",
@@ -68,6 +71,7 @@ __all__ = [
     "swapaxes",
     "tensordot",
     "to_device",
+    "trace",
     "transpose",
     "vecdot",
     "vector_norm",
