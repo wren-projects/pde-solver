@@ -1,4 +1,7 @@
 from .add import add
+from .diff import diff
+from .expand_dims import expand_dims
+from .flip import flip
 from .frobenius_norm import frobenius_norm
 from .get_item import get_item
 from .gradient import gradient
@@ -8,6 +11,7 @@ from .matmul import matmul
 from .multiply import multiply
 from .neg import neg
 from .pad import pad
+from .squeeze import squeeze
 from .stack import stack
 from .subtract import subtract
 from .swapaxes import swapaxes
@@ -16,6 +20,9 @@ from .transpose import transpose
 
 __all__ = [
     "add",
+    "diff",
+    "expand_dims",
+    "flip",
     "frobenius_norm",
     "full_like",
     "get_item",
@@ -26,6 +33,7 @@ __all__ = [
     "neg",
     "ones_like",
     "pad",
+    "squeeze",
     "stack",
     "subtract",
     "swapaxes",

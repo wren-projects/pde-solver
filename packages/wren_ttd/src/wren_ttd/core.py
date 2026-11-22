@@ -887,6 +887,10 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         return ops.swapaxes(self, axis1, axis2)
 
+    def squeeze(self, axis: int | Sequence[int] | None = None) -> TTD[DType] | DType:
+        """Remove singleton dimensions from this TTD."""
+        return ops.squeeze(self, axis)
+
     @property
     def T(self) -> TTD[DType]:  # noqa: N802
         """
