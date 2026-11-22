@@ -121,6 +121,12 @@ def _resolve_dtype(
     np.dtype
         The resolved dtype.
 
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype, or if `inferred` is a
+        complex dtype.
+
     """
     if dtype is not None:
         return normalize_dtype(dtype)
@@ -468,6 +474,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [0., 0.]])
 
         """
+        dtype = normalize_dtype(dtype)
         cores = [np.zeros((1, n, 1), dtype=dtype) for n in to_int_tuple(shape)]
         return TTD(cores, dtype=dtype)
 
@@ -1953,6 +1960,12 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             The indexed subtensor, or a scalar if every mode was indexed
             with an integer and no singleton modes were inserted.
 
+        Raises
+        ------
+        IndexError
+            If the index is invalid, contains more than one ellipsis, or has
+            too many entries for the tensor.
+
         See Also
         --------
         numpy.ndarray.__getitem__ : Equivalent indexing for dense arrays.
@@ -1995,9 +2008,15 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         value : Scalar
             Value to set.
 
+        Raises
+        ------
+        IndexError
+            If the index has too many entries, or does not target exactly one
+            mode with an integer or slice.
+
         See Also
         --------
-        TDD.__getitem__
+        TTD.__getitem__
 
         """
         if len(key) > self.ndim:

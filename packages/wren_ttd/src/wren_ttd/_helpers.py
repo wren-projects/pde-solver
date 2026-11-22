@@ -861,4 +861,20 @@ def block_core[DType: np.floating](
 def singleton_cores[DType: np.floating](
     shape: tuple[int, ...], dtype: np.dtype[DType]
 ) -> list[Core[DType]]:
+    """
+    Build TT-rank-1 cores that represent a tensor of ones.
+
+    Parameters
+    ----------
+    shape : tuple[int, ...]
+        The mode sizes of the tensor.
+    dtype : np.dtype[DType]
+        The dtype of the cores.
+
+    Returns
+    -------
+    list[Core[DType]]
+        One ``(1, n, 1)`` core per mode size `n`.
+
+    """
     return [np.ones((1, n, 1), dtype=dtype) for n in shape]

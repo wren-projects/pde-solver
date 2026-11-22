@@ -119,6 +119,8 @@ def asarray(
     ------
     NotImplementedError
         If the input has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU or if `copy` is ``False`` but a copy is
         required.
@@ -179,6 +181,8 @@ def zeros(
     ------
     NotImplementedError
         If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -223,6 +227,8 @@ def ones(
     ------
     NotImplementedError
         If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -270,6 +276,8 @@ def empty(
     ------
     NotImplementedError
         If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -315,6 +323,8 @@ def full(
     ------
     NotImplementedError
         If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -360,6 +370,13 @@ def arange(
     -------
     TTD
         One-dimensional TTD with evenly spaced values.
+
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -409,6 +426,13 @@ def eye(
     TTD
         Two-dimensional identity-like TTD.
 
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -455,6 +479,13 @@ def linspace(  # noqa: PLR0913
     -------
     TTD
         One-dimensional TTD with evenly spaced values.
+
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
