@@ -2,7 +2,7 @@
 
 ## Goals
 
-- Implement Tensor-Train Decomposition (TTD) with the full numpy interface
+- Implement Tensor-Train Decomposition (TTD) with a documented NumPy-compatible subset and an Array API bridge
 - Implement multiple methods of solving Partial Differential Equations (PDEs) that use TTD instead of full tensors. The target is the convection-diffusion and similar equations.
 - Create a basic framework to compare different solvers, their speed, memory requirements and "accuracy" of their solution (or, rather, the difference between their solution and some third solution we consider the "true" solution)
 
