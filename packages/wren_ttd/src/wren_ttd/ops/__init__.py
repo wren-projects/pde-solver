@@ -26,6 +26,7 @@ from .pad import pad
 from .positive import positive
 from .power import power
 from .ravel import ravel
+from .repeat import repeat
 from .reshape import reshape
 from .roll import roll
 from .rounding import round_
@@ -34,6 +35,7 @@ from .stack import stack
 from .subtract import subtract
 from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
+from .take import take
 from .tensordot import tensordot
 from .tile import tile
 from .to_device import to_device
@@ -72,6 +74,7 @@ __all__ = [
     "positive",
     "power",
     "ravel",
+    "repeat",
     "reshape",
     "roll",
     "round_",
@@ -80,6 +83,7 @@ __all__ = [
     "subtract",
     "sum",
     "swapaxes",
+    "take",
     "tensordot",
     "tile",
     "to_device",
