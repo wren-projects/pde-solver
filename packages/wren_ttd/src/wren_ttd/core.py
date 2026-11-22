@@ -1550,7 +1550,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         With ``axis=None`` the TTD is flattened with :func:`ravel` first,
-        which emits a :class:`DenseWarning`.
+        which emits a :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
@@ -1666,7 +1666,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         Reshaping to ``(self.size,)`` densifies the TTD and emits a
-        :class:`DenseWarning`.
+        :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
@@ -1708,7 +1708,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         -----
         The result is a rank-one core whose size equals the dense tensor, so
         this operation effectively densifies the TTD and emits a
-        :class:`DenseWarning`.
+        :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
@@ -1750,7 +1750,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         This operation effectively densifies the TTD and emits a
-        :class:`DenseWarning`.
+        :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
@@ -1811,7 +1811,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         With ``axis=None`` the TTD is flattened with :func:`ravel` first,
-        which emits a :class:`DenseWarning`.
+        which emits a :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
@@ -1860,7 +1860,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Notes
         -----
         With ``axis=None`` the TTD is flattened with :func:`ravel` first,
-        which emits a :class:`DenseWarning`.
+        which emits a :class:`~wren_ttd.DenseWarning`.
 
         Examples
         --------
