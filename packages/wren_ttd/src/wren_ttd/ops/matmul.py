@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import numpy.typing as npt
 
+from wren_ttd._helpers import normalize_dtype, promote_dtype, validate_out
 from wren_ttd._numpy_api import implements_ufunc
 
 if TYPE_CHECKING:
@@ -25,7 +27,8 @@ def matmul[DType: np.floating](
     a: TTD[DType] | np.ndarray[Any, Any],
     b: TTD[DType] | np.ndarray[Any, Any],
     *,
-    out: TTD[DType] | None = None,
+    out: TTD[Any] | None = None,
+    dtype: npt.DTypeLike | None = None,
 ) -> TTD[DType] | DType:
     """
     Compute the matrix product of two TTDs.
@@ -43,7 +46,8 @@ def matmul[DType: np.floating](
     permutation uses a TTD transpose and may truncate ranks using the default
     tolerance.
 
-    Both operands must be TTDs with the same dtype. Products where both
+    Both operands must be TTDs. Their dtypes are promoted with NumPy's
+    rules, so mixed floating-point dtypes are accepted. Products where both
     operands have batch dimensions are not implemented, even when their batch
     shapes are broadcast-compatible. Dense/TTD mixed operands are also not
     supported.
@@ -55,19 +59,23 @@ def matmul[DType: np.floating](
         matrix dimension of `b`.
     b : TTD[DType]
         Right operand. If 1D, its first dimension is contracted; otherwise
-        its second-to-last dimension is contracted. Must have the same dtype
-        as `a`.
+        its second-to-last dimension is contracted. The dtype is promoted
+        with the dtype of `a`.
     out : TTD[DType], optional
         TTD to receive the result in a direct call to :func:`matmul`. It must
-        have the result's shape and dtype, and is supported only when the
-        result is a TTD. The ``out`` parameter of the NumPy ufunc interface is
-        not supported.
+        have the result's shape and is supported only when the result is a
+        TTD. The result is cast to the dtype of `out` if that is allowed by
+        NumPy's ``"same_kind"`` casting. The ``out`` parameter of the NumPy
+        ufunc interface is not supported.
+    dtype : np.dtype or type, optional
+        The dtype of the result. If not provided, it is promoted from the
+        operand dtypes. Must be a floating-point dtype.
 
     Returns
     -------
     TTD[DType] | DType
-        The matrix product as a TTD, or a NumPy scalar when both operands are
-        vectors.
+        The matrix product as a TTD, or a NumPy scalar with the result dtype
+        when both operands are vectors.
 
     Raises
     ------
@@ -77,15 +85,14 @@ def matmul[DType: np.floating](
         If `out` is provided for a scalar result. A NumPy ufunc call with a
         non-TTD operand is also unsupported and may raise this error.
     ValueError
-        If the contracted dimensions, operand dtypes, or `out` shape/dtype do
-        not match, or if two batch shapes are not broadcast-compatible.
+        If the contracted dimensions do not match, or if `out` has an
+        incompatible shape or dtype.
 
     Notes
     -----
-    NumPy's `dtype`, `casting`, `order`, `subok`, `signature`, and `out`
-    options are not supported. A NumPy call with a dense/TTD mixed pair is not
-    handled by this implementation. The direct `ops.matmul` function accepts
-    `out` as a TTD.
+    NumPy's `casting`, `order`, `subok`, `signature`, and `out` options are not
+    supported. A NumPy call with a dense/TTD mixed pair is not handled by this
+    implementation. The direct `ops.matmul` function accepts `out` as a TTD.
 
     See Also
     --------
@@ -113,24 +120,27 @@ def matmul[DType: np.floating](
     if not isinstance(a, TTD) or not isinstance(b, TTD):
         return NotImplemented
 
-    if a.dtype != b.dtype:
-        raise ValueError("TTD objects must have the same dtype")
+    result_dtype = (
+        normalize_dtype(dtype) if dtype is not None else promote_dtype(a.dtype, b.dtype)
+    )
+
+    # cast both operands before contracting so that no precision is lost
+    if a.dtype != result_dtype:
+        a = TTD(a, dtype=result_dtype)
+    if b.dtype != result_dtype:
+        b = TTD(b, dtype=result_dtype)
 
     _validate_batch_dimensions(a, b)
     result = _compute_matmul(a, b)
 
     if out is None:
-        return result
+        return result if isinstance(result, TTD) else result_dtype.type(result)
 
     if not isinstance(result, TTD):
         raise TypeError("out is only supported for TTD-valued results")
 
-    if out.shape != result.shape:
-        raise ValueError("Output tensor has an incorrect shape.")
-    if out.dtype != result.dtype:
-        raise ValueError("Output tensor has an incorrect dtype.")
-
-    out.data = list(result.data)
+    out_dtype = validate_out(out, result.shape, result_dtype)
+    out.data = [core.astype(out_dtype, copy=False) for core in result.data]
     return out
 
 
