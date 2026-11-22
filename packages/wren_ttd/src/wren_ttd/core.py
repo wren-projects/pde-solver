@@ -71,13 +71,13 @@ def _compress_array[DT: np.floating](
     # note: n = nₖ, r = rₖ₋₁
     for n in array.shape[:-1]:
         # 𝐂 = reshape(𝐂, [rₖ₋₁ nₖ, -1])
-        residue = residue.reshape((r * n, -1))
+        residue = residue.reshape(r * n, -1)
 
         # 𝐔, 𝐒, 𝐕ᵀ = SVDᵟ(𝐂, δ)
         u, s, v_t = delta_truncated_svd(residue, delta)
 
         # 𝐆ₖ = reshape(U, [rₖ₋₁, nₖ, rₖ])
-        new_core = u.reshape((r, n, -1))
+        new_core = u.reshape(r, n, -1)
         cores.append(new_core)
 
         # set rₖ = rankᵟ(C) for next iteration
@@ -567,6 +567,11 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
     def ranks(self) -> tuple[int, ...]:
         """Return the internal ranks of the TTD object."""
         return tuple(core.shape[2] for core in self.data[:-1])
+
+    @property
+    def mT(self) -> TTD[DType]:  # noqa: N802
+        """Transpose the final two dimensions."""
+        return ops.matrix_transpose(self)
 
     def __array__(
         self, dtype: npt.DTypeLike | None = None, *, copy: bool | None = None

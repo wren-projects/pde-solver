@@ -12,8 +12,8 @@ from wren_ttd._numpy_api import implements_ufunc
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
+from .moveaxis import moveaxis
 from .tensordot import tensordot
-from .transpose import transpose
 
 MATRIX_NDIM = 2
 
@@ -176,9 +176,6 @@ def _compute_matmul[DType: np.floating](
     assert isinstance(result, TTD), "batched matrix multiplication must return a TTD"
 
     if a.ndim == MATRIX_NDIM:
-        return transpose(
-            result,
-            (*range(1, b.ndim - 1), 0, b.ndim - 1),
-        )
+        return moveaxis(result, 0, -2)
 
     return result
