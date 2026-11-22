@@ -94,6 +94,8 @@ def full_like[DType: np.floating](
 
     Raises
     ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -161,6 +163,8 @@ def ones_like[DType: np.floating](
 
     Raises
     ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
@@ -228,6 +232,8 @@ def zeros_like[DType: np.floating](
 
     Raises
     ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU.
 
