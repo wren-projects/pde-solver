@@ -2,6 +2,7 @@ from .absolute import absolute
 from .add import add
 from .astype import astype
 from .broadcast_to import broadcast_to
+from .concat import concat
 from .copy import copy
 from .cumsum import cumsum
 from .diff import diff
@@ -34,6 +35,7 @@ from .subtract import subtract
 from .sum import sum  # noqa: A004
 from .swapaxes import swapaxes
 from .tensordot import tensordot
+from .tile import tile
 from .to_device import to_device
 from .trace import trace
 from .transpose import transpose
@@ -45,6 +47,7 @@ __all__ = [
     "add",
     "astype",
     "broadcast_to",
+    "concat",
     "copy",
     "cumsum",
     "diff",
@@ -78,6 +81,7 @@ __all__ = [
     "sum",
     "swapaxes",
     "tensordot",
+    "tile",
     "to_device",
     "trace",
     "transpose",
