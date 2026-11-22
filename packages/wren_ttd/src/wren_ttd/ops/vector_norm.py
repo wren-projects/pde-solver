@@ -1,41 +1,16 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.lib.array_utils import normalize_axis_tuple
 
-from wren_ttd._numpy_api import DenseWarning, implements_function
+from wren_ttd._helpers import as_scalar, normalize_axes, sqrt_reduced
+from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
-
-
-def _as_scalar[DType: np.floating](value: np.ndarray | DType) -> DType:
-    """Normalize a size-one array to a NumPy scalar."""
-    return cast(DType, cast(object, np.asarray(value).reshape(())[()]))
-
-
-def _sqrt[DType: np.floating](value: DType | TTD[DType]) -> DType | TTD[DType]:
-    """Take the element-wise square root, recompressing TTD results."""
-    from wren_ttd.core import TTD
-
-    if isinstance(value, TTD):
-        # ``sqrt`` is not multiplicative, so the square root is computed
-        # densely and the result is recompressed.
-        warnings.warn(
-            "Calling vector_norm with a TTD result densifies the reduced TTD.",
-            DenseWarning,
-            stacklevel=3,
-        )
-        return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
-
-    # The current full reduction returns a size-one array; normalize it to a
-    # NumPy scalar to match ``numpy.linalg.vector_norm``.
-    return cast(DType, np.sqrt(_as_scalar(value)))
 
 
 @implements_function("linalg.vector_norm")
@@ -117,7 +92,7 @@ def vector_norm[DType: np.floating](
             f"(ord=None or 2), got ord={ord!r}"
         )
 
-    axes = tuple(range(a.ndim)) if axis is None else normalize_axis_tuple(axis, a.ndim)
+    axes = normalize_axes(axis, a.ndim)
 
     squared = ttd_sum(multiply(a, a), axis=axis)
 
@@ -127,8 +102,8 @@ def vector_norm[DType: np.floating](
         else:
             squared = TTD.full(
                 (1,) * a.ndim,
-                _as_scalar(squared),
+                as_scalar(squared),
                 dtype=a.dtype,
             )
 
-    return _sqrt(squared)
+    return sqrt_reduced(squared, "vector_norm")

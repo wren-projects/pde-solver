@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from numpy.lib.array_utils import normalize_axis_tuple
 
-from wren_ttd._helpers import normalize_dtype, validate_out
+from wren_ttd._helpers import normalize_axes, resolve_dtype, write_out
 from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
@@ -109,12 +108,8 @@ def mean[DType: np.floating](  # noqa: PLR0913
     if not (isinstance(where, (bool, np.bool_)) and where):
         raise NotImplementedError("The `where` argument is not supported for TTD means")
 
-    axes = (
-        tuple(range(a.ndim))
-        if axis is None
-        else normalize_axis_tuple(axis, a.ndim, "axis")
-    )
-    result_dtype = normalize_dtype(dtype) if dtype is not None else a.dtype
+    axes = normalize_axes(axis, a.ndim)
+    result_dtype = resolve_dtype(dtype, a)
     count = math.prod(a.shape[axis] for axis in axes)
 
     summed = reduce_sum(a, axis=axes, dtype=result_dtype, keepdims=keepdims)
@@ -127,11 +122,7 @@ def mean[DType: np.floating](  # noqa: PLR0913
         result = cast(DType, result_dtype.type(np.divide(summed, count)))
 
     if isinstance(result, TTD):
-        if out is not None:
-            out_dtype = validate_out(out, result.shape, result_dtype)
-            out.data = [core.astype(out_dtype, copy=False) for core in result.data]
-            return out
-        return result
+        return write_out(result, out)
 
     if out is not None:
         raise NotImplementedError(

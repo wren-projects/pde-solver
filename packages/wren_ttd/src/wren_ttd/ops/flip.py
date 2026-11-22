@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.lib.array_utils import normalize_axis_tuple
 
+from wren_ttd._helpers import normalize_axes
 from wren_ttd._numpy_api import implements_function
 
 if TYPE_CHECKING:
@@ -20,9 +20,7 @@ def flip[DType: np.floating](
     """Reverse one or more dimensions of a TTD."""
     from wren_ttd.core import TTD
 
-    axes = (
-        tuple(range(ttd.ndim)) if axis is None else normalize_axis_tuple(axis, ttd.ndim)
-    )
+    axes = normalize_axes(axis, ttd.ndim)
     cores = ttd.data.copy()
     for i in axes:
         cores[i] = cores[i][:, ::-1, :]
