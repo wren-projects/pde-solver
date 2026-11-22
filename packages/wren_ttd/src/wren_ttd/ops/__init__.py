@@ -6,6 +6,7 @@ from .cumsum import cumsum
 from .diff import diff
 from .divide import divide
 from .expand_dims import expand_dims
+from .flatten import flatten
 from .flip import flip
 from .frobenius_norm import frobenius_norm
 from .get_item import get_item
@@ -22,6 +23,8 @@ from .neg import neg
 from .pad import pad
 from .positive import positive
 from .power import power
+from .ravel import ravel
+from .reshape import reshape
 from .roll import roll
 from .rounding import round_
 from .squeeze import squeeze
@@ -45,6 +48,7 @@ __all__ = [
     "diff",
     "divide",
     "expand_dims",
+    "flatten",
     "flip",
     "frobenius_norm",
     "full_like",
@@ -62,6 +66,8 @@ __all__ = [
     "pad",
     "positive",
     "power",
+    "ravel",
+    "reshape",
     "roll",
     "round_",
     "squeeze",

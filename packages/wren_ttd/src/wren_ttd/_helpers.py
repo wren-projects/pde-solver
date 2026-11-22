@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, SupportsIndex, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -14,26 +14,6 @@ from wren_ttd.types import Core
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
-
-
-@overload
-def normalize_dtype(dtype: None) -> np.dtype[Any]: ...
-
-
-@overload
-def normalize_dtype[DType: np.floating](
-    dtype: np.dtype[DType],
-) -> np.dtype[DType]: ...
-
-
-@overload
-def normalize_dtype[DType: np.floating](
-    dtype: DType,
-) -> np.dtype[DType]: ...
-
-
-@overload
-def normalize_dtype(dtype: npt.DTypeLike) -> np.dtype[Any]: ...
 
 
 def normalize_dtype(dtype: npt.DTypeLike | None) -> np.dtype[Any]:
@@ -381,7 +361,7 @@ def reverse_cores[DType: np.floating](
     return (core.T for core in reversed(cores))
 
 
-def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
+def to_int_tuple(value: SupportsIndex | Iterable[SupportsIndex]) -> tuple[int, ...]:
     """
     Normalize an int or iterable of ints to a tuple of ints.
 
@@ -399,7 +379,7 @@ def to_int_tuple(value: int | Iterable[int]) -> tuple[int, ...]:
         The converted tuple.
 
     """
-    return (int(value),) if isinstance(value, int) else tuple(map(int, value))
+    return (int(value),) if isinstance(value, SupportsIndex) else tuple(map(int, value))
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
@@ -511,6 +491,90 @@ def truncation_parameter[DT: np.floating](
     return tensor.dtype.type(epsilon / math.sqrt(d - 1)) * np.linalg.norm(tensor)
 
 
+def merge_cores[DType: np.floating](
+    left: Core[DType],
+    right: Core[DType],
+) -> Core[DType]:
+    """
+    Merge the modes of two adjacent cores into a single mode.
+
+    Computes the core ``C`` of shape ``(α, i ⋅ j, β)`` with
+
+    .. math::
+
+        C(α; i j; β) = ∑_r A(α; i; r) B(r; j; β),
+
+    where ``A`` is ``(α, i, r)`` and ``B`` is ``(r, j, β)``. This is exact and
+    does not change the tensor described by the cores.
+
+    Parameters
+    ----------
+    left : Core[DType]
+        The left core of shape ``(α, i, r)``.
+    right : Core[DType]
+        The right core of shape ``(r, j, β)``.
+
+    Returns
+    -------
+    Core[DType]
+        The merged core of shape ``(α, i ⋅ j, β)``.
+
+    See Also
+    --------
+    split_core : Inverse operation, which may inflate the ranks.
+    contract_pair : Contract the shared rank of two cores.
+
+    """
+    left_rank, left_mode, _ = left.shape
+    _, right_mode, right_rank = right.shape
+    return contract_pair(left, right).reshape(
+        left_rank, left_mode * right_mode, right_rank
+    )
+
+
+def split_core[DType: np.floating](
+    core: Core[DType],
+    left_mode: int,
+) -> tuple[Core[DType], Core[DType]]:
+    """
+    Split one mode of a core into two adjacent modes.
+
+    The mode ``n`` of `core` is factored as ``n = i ⋅ j`` with ``i`` equal to
+    `left_mode`. The two resulting cores describe the same tensor, but the
+    split introduces a new TT rank bounded by ``min(α ⋅ i, j ⋅ β)``.
+
+    Parameters
+    ----------
+    core : Core[DType]
+        The core of shape ``(α, n, β)`` to split.
+    left_mode : int
+        The size ``i`` of the first resulting mode. It must divide the mode
+        size ``n``.
+
+    Returns
+    -------
+    tuple[Core[DType], Core[DType]]
+        The two cores of shapes ``(α, i, k)`` and ``(k, j, β)``.
+
+    See Also
+    --------
+    merge_cores : Inverse operation, which is exact and rank-preserving.
+
+    """
+    left_rank, mode, right_rank = core.shape
+    right_mode = mode // left_mode
+
+    u, s, v_t = np.linalg.svd(
+        core.reshape(left_rank * left_mode, right_mode * right_rank),
+        full_matrices=False,
+    )
+
+    return (
+        cast(Core[DType], (u * s).reshape(left_rank, left_mode, -1)),
+        cast(Core[DType], v_t.reshape(-1, right_mode, right_rank)),
+    )
+
+
 def block_core[DType: np.floating](
     blocks: tuple[Core[DType], ...],
 ) -> Core[DType]:
@@ -551,3 +615,9 @@ def block_core[DType: np.floating](
         G[l0:l1, :, r0:r1] = core
 
     return G
+
+
+def singleton_cores[DType: np.floating](
+    shape: tuple[int, ...], dtype: np.dtype[DType]
+) -> list[Core[DType]]:
+    return [np.ones((1, n, 1), dtype=dtype) for n in shape]
