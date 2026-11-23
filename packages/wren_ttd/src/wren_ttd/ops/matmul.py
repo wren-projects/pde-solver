@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from wren_ttd._helpers import resolve_dtype, write_out
-from wren_ttd._numpy_api import implements_ufunc
+from wren_ttd._numpy_api import implements
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -22,7 +22,7 @@ def _contraction_b_axis(b: TTD[Any]) -> int:
     return 0 if b.ndim == 1 else b.ndim - MATRIX_NDIM
 
 
-@implements_ufunc("matmul")
+@implements("matmul", ufunc=True)
 def matmul[DType: np.floating](
     a: TTD[DType] | np.ndarray[Any, Any],
     b: TTD[DType] | np.ndarray[Any, Any],

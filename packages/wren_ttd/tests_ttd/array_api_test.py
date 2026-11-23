@@ -79,6 +79,15 @@ def test_registry_resolves_namespaced_operations() -> None:
     assert ROOT.get_operations("linalg")["matrix_transpose"] is ops.matrix_transpose
 
 
+def test_implements_registers_both_protocols() -> None:
+    """Register one implementation for both dispatch protocols."""
+    assert ROOT.get_function("vecdot") is ops.vecdot
+    assert ROOT.get_ufunc("vecdot") is ops.vecdot
+
+    with pytest.raises(ValueError, match="at least one"):
+        _ = ROOT.implements("invalid")
+
+
 def test_namespace_vecdot() -> None:
     """Compute vector dot products through the namespace."""
     a = TTD([1.0, 2.0, 3.0])

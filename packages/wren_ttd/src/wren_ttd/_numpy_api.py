@@ -110,6 +110,55 @@ class OperationNamespace:
         """
         return self._register(self.ufuncs, name, "Ufunc")
 
+    def implements[F: AnyCallable](
+        self,
+        name: str,
+        *,
+        function: bool = False,
+        ufunc: bool = False,
+    ) -> Callable[[F], F]:
+        """
+        Register an implementation for one or both dispatch protocols.
+
+        Parameters
+        ----------
+        name : str
+            The NumPy operation name, e.g. ``"vecdot"``.
+        function : bool, optional
+            Register the implementation for ``__array_function__``.
+        ufunc : bool, optional
+            Register the implementation for ``__array_ufunc__``.
+
+        Returns
+        -------
+        collections.abc.Callable
+            A decorator that registers the decorated function and returns it
+            unchanged.
+
+        Raises
+        ------
+        ValueError
+            If neither protocol is selected, or if `name` is already
+            registered for a selected protocol.
+
+        """
+        if not (function or ufunc):
+            raise ValueError("Specify at least one of `function` or `ufunc`")
+        self._validate_name(name, "operation")
+        if function and name in self.functions:
+            raise ValueError(f"Function {name!r} is already registered")
+        if ufunc and name in self.ufuncs:
+            raise ValueError(f"Ufunc {name!r} is already registered")
+
+        def decorator(func: F) -> F:
+            if function:
+                self.functions[name] = func
+            if ufunc:
+                self.ufuncs[name] = func
+            return func
+
+        return decorator
+
     def get_namespace(self, name: str) -> OperationNamespace | None:
         """Return the nested namespace `name`, if it exists."""
         return self.namespaces.get(name)
@@ -184,11 +233,15 @@ class OperationNamespace:
         return operations
 
     @staticmethod
+    def _validate_name(name: str, kind: str) -> None:
+        if not name or "." in name:
+            raise ValueError(f"Invalid {kind} name: {name!r}")
+
+    @staticmethod
     def _register[F: AnyCallable](
         registry: dict[str, AnyCallable], name: str, kind: str
     ) -> Callable[[F], F]:
-        if not name or "." in name:
-            raise ValueError(f"Invalid {kind.lower()} name: {name!r}")
+        OperationNamespace._validate_name(name, kind.lower())
 
         def decorator(func: F) -> F:
             if name in registry:
@@ -249,6 +302,44 @@ def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
 
     """
     return ROOT.function(name)
+
+
+def implements[F: AnyCallable](
+    name: str,
+    *,
+    function: bool = False,
+    ufunc: bool = False,
+) -> Callable[[F], F]:
+    """
+    Register an implementation for one or both dispatch protocols.
+
+    This is the combined form of :func:`implements_function` and
+    :func:`implements_ufunc` for operations that NumPy dispatches through both
+    protocols, such as ``vecdot``.
+
+    Parameters
+    ----------
+    name : str
+        The NumPy operation name, e.g. ``"vecdot"``.
+    function : bool, optional
+        Register the implementation for ``__array_function__``.
+    ufunc : bool, optional
+        Register the implementation for ``__array_ufunc__``.
+
+    Returns
+    -------
+    collections.abc.Callable
+        A decorator that registers the decorated function and returns it
+        unchanged.
+
+    Raises
+    ------
+    ValueError
+        If neither protocol is selected, or if `name` is already registered
+        for a selected protocol.
+
+    """
+    return ROOT.implements(name, function=function, ufunc=ufunc)
 
 
 def get_operation(name: str) -> AnyCallable | None:

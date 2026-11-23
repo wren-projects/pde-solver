@@ -7,7 +7,7 @@ import numpy as np
 from numpy.lib.array_utils import normalize_axis_index
 
 from wren_ttd._helpers import as_scalar
-from wren_ttd._numpy_api import implements_function, implements_ufunc
+from wren_ttd._numpy_api import implements
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 
 # NumPy implements ``vecdot`` as a ufunc, so both protocols must be
 # registered for ``np.vecdot`` and ``ops.vecdot`` to reach this handler.
-@implements_function("vecdot")
-@implements_ufunc("vecdot")
+@implements("vecdot", function=True, ufunc=True)
 def vecdot[DType: np.floating](
     a: TTD[DType], b: TTD[DType], axis: int = -1
 ) -> DType | TTD[DType]:
