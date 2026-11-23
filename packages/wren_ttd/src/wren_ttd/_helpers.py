@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-import warnings
 from collections.abc import Iterable, Reversible, Sequence
 from itertools import pairwise
 from typing import TYPE_CHECKING, Any, SupportsIndex, cast
@@ -12,7 +11,7 @@ import numpy.typing as npt
 from numpy.lib.array_utils import normalize_axis_tuple
 from wren_common.types import Matrix, NDArray, Scalar, Vector
 
-from wren_ttd._numpy_api import DenseWarning
+from wren_ttd._numpy_api import warn_dense
 from wren_ttd.math import DEFAULT_EPSILON, qr_rows
 from wren_ttd.types import Core
 
@@ -21,7 +20,26 @@ if TYPE_CHECKING:
 
 
 def normalize_dtype(dtype: npt.DTypeLike | None) -> np.dtype[Any]:
-    """Normalize and validate a floating-point TTD dtype."""
+    """
+    Normalize and validate a floating-point TTD dtype.
+
+    Parameters
+    ----------
+    dtype : npt.DTypeLike | None
+        The dtype to normalize. ``None`` is interpreted as ``float64`` by
+        :class:`numpy.dtype`.
+
+    Returns
+    -------
+    np.dtype
+        The normalized dtype.
+
+    Raises
+    ------
+    TypeError
+        If the normalized dtype is not a floating-point dtype.
+
+    """
     normalized = np.dtype(dtype)
     if not np.issubdtype(normalized, np.floating):
         raise TypeError(f"{normalized!r} is not a valid dtype for TTD")
@@ -140,7 +158,7 @@ def as_scalar[DType: np.floating](value: NDArray[DType] | DType) -> DType:
 
 
 def sqrt_reduced[DType: np.floating](
-    value: DType | TTD[DType], operation: str, *, stacklevel: int = 3
+    value: DType | TTD[DType], operation: str
 ) -> DType | TTD[DType]:
     """
     Take the square root of a reduced value, recompressing TTD results.
@@ -156,8 +174,6 @@ def sqrt_reduced[DType: np.floating](
         The reduced value to take the square root of.
     operation : str
         The operation name used in the warning message.
-    stacklevel : int, optional
-        The stack level of the warning, by default 3.
 
     Returns
     -------
@@ -175,11 +191,7 @@ def sqrt_reduced[DType: np.floating](
     from wren_ttd.core import TTD
 
     if isinstance(value, TTD):
-        warnings.warn(
-            f"Calling {operation} with a TTD result densifies the reduced TTD.",
-            DenseWarning,
-            stacklevel=stacklevel,
-        )
+        warn_dense(f"Calling {operation} with a TTD result densifies the reduced TTD.")
         return TTD(np.sqrt(np.asarray(value)), dtype=value.dtype)
 
     return cast(DType, np.sqrt(as_scalar(value)))
@@ -383,6 +395,11 @@ def mode_1_product[DType: np.floating](
     Core[DType]
         The contracted core of shape ``(m, i, β)``.
 
+    Raises
+    ------
+    ValueError
+        If `buffer` is too small to hold the result.
+
     """
     left, mode, right = core.shape
     mat_rows, mat_cols = matrix.shape
@@ -429,6 +446,11 @@ def mode_3_product[DType: np.floating](
     -------
     Core[DType]
         The contracted core of shape ``(α, i, n)``.
+
+    Raises
+    ------
+    ValueError
+        If `buffer` is too small to hold the result.
 
     """
     left, mode, right = core.shape
@@ -584,7 +606,18 @@ def normalize_axes(
 
 
 def orthogonalize_right[DType: np.floating](cores: list[Core[DType]]) -> None:
-    """Orthogonalize the cores in place using a right-to-left QR sweep."""
+    """
+    Orthogonalize the cores in place using a right-to-left QR sweep.
+
+    After the sweep, every core except the first is right-orthonormal when
+    folded to a matrix, and the first core carries the remaining norm.
+
+    Parameters
+    ----------
+    cores : list[Core[DType]]
+        The cores to orthogonalize. Modified in place; must not be empty.
+
+    """
     # Reuse a single buffer for the QR propagation. Each result is consumed by
     # the next QR decomposition before the buffer is overwritten.
     max_core_size = max(core.size for core in cores)
@@ -821,4 +854,20 @@ def block_core[DType: np.floating](
 def singleton_cores[DType: np.floating](
     shape: tuple[int, ...], dtype: np.dtype[DType]
 ) -> list[Core[DType]]:
+    """
+    Build TT-rank-1 cores that represent a tensor of ones.
+
+    Parameters
+    ----------
+    shape : tuple[int, ...]
+        The mode sizes of the tensor.
+    dtype : np.dtype[DType]
+        The dtype of the cores.
+
+    Returns
+    -------
+    list[Core[DType]]
+        One ``(1, n, 1)`` core per mode size `n`.
+
+    """
     return [np.ones((1, n, 1), dtype=dtype) for n in shape]

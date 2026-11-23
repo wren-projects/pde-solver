@@ -47,6 +47,13 @@ def stack[DType: np.floating](ttds: Sequence[TTD[DType]], axis: int = 0) -> TTD[
         The stacked TTD, with one more dimension than the inputs. The new
         axis has size ``len(ttds)``.
 
+    Raises
+    ------
+    ValueError
+        If the inputs have different shapes or dtypes.
+    numpy.exceptions.AxisError
+        If `axis` is out of range for the result.
+
     See Also
     --------
     numpy.stack : Equivalent function for dense arrays.

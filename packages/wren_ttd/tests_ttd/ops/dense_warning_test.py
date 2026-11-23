@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -40,6 +41,34 @@ def test_densifying_operations_warn(operation: Callable[[], object]) -> None:
     """Warn whenever an operation expands a TTD to a dense array."""
     with pytest.warns(DenseWarning, match="densif"):
         _ = operation()
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        lambda: ops.cumsum(TTD(arange_tensor(2, 3))),
+        lambda: ops.take(TTD(arange_tensor(2, 3)), [0, 1]),
+        lambda: ops.repeat(TTD(arange_tensor(2, 3)), 2),
+        lambda: ops.concat(
+            [TTD(arange_tensor(2, 3)), TTD(arange_tensor(2, 3))], axis=None
+        ),
+        lambda: ops.vector_norm(TTD(arange_tensor(2, 3)), axis=0),
+        lambda: ops.matrix_norm(TTD(arange_tensor(2, 3, 4))),
+    ],
+)
+def test_nested_dense_warning_points_to_the_caller(
+    operation: Callable[[], object],
+) -> None:
+    """Attribute warnings from delegated operations to the caller."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _ = operation()
+
+    dense = [
+        warning for warning in caught if issubclass(warning.category, DenseWarning)
+    ]
+    assert dense
+    assert Path(dense[0].filename).resolve() == Path(__file__).resolve()
 
 
 @pytest.mark.parametrize(

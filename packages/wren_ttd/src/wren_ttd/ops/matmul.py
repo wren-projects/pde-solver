@@ -80,10 +80,11 @@ def matmul[DType: np.floating](
     Raises
     ------
     NotImplementedError
-        If both operands have leading batch dimensions.
+        If both operands have leading batch dimensions, or if `out` is
+        provided for a scalar result.
     TypeError
-        If `out` is provided for a scalar result. A NumPy ufunc call with a
-        non-TTD operand is also unsupported and may raise this error.
+        A NumPy ufunc call with a non-TTD operand is unsupported and may
+        raise this error.
     ValueError
         If the contracted dimensions do not match, or if `out` has an
         incompatible shape or dtype.
@@ -135,7 +136,7 @@ def matmul[DType: np.floating](
         return result if isinstance(result, TTD) else result_dtype.type(result)
 
     if not isinstance(result, TTD):
-        raise TypeError("out is only supported for TTD-valued results")
+        raise NotImplementedError("out is only supported for TTD-valued results")
 
     return write_out(result, out)
 

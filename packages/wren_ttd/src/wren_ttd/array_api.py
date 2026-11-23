@@ -44,7 +44,25 @@ __array_api_version__ = np.__array_api_version__
 
 
 def __getattr__(name: str) -> Any:
-    """Return a registered TTD operation or delegate the attribute to NumPy."""
+    """
+    Return a registered TTD operation or delegate the attribute to NumPy.
+
+    Parameters
+    ----------
+    name : str
+        The requested attribute name.
+
+    Returns
+    -------
+    Any
+        The registered TTD operation, or the corresponding NumPy attribute.
+
+    Raises
+    ------
+    AttributeError
+        If `name` starts with an underscore or no implementation exists.
+
+    """
     if name.startswith("_"):
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     operation = get_operation(name)
@@ -138,6 +156,8 @@ def asarray(
     ------
     NotImplementedError
         If the input has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
     ValueError
         If `device` is not the CPU or if `copy` is ``False`` but a copy is
         required.
@@ -194,6 +214,15 @@ def zeros(
     TTD
         Tensor of zeros with the given shape and dtype.
 
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -230,6 +259,15 @@ def ones(
     -------
     TTD
         Tensor of ones with the given shape and dtype.
+
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -271,6 +309,15 @@ def empty(
     TTD
         Tensor with the given shape and dtype.
 
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -308,6 +355,15 @@ def full(
     -------
     TTD
         Tensor filled with `fill_value`, with the given shape and dtype.
+
+    Raises
+    ------
+    NotImplementedError
+        If `shape` has rank zero.
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -351,6 +407,13 @@ def arange(
     -------
     TTD
         One-dimensional TTD with evenly spaced values.
+
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     Examples
     --------
@@ -400,6 +463,13 @@ def eye(
     TTD
         Two-dimensional identity-like TTD.
 
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -447,6 +517,13 @@ def linspace(  # noqa: PLR0913
     TTD
         One-dimensional TTD with evenly spaced values.
 
+    Raises
+    ------
+    TypeError
+        If `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
+
     Examples
     --------
     >>> import numpy as np
@@ -474,6 +551,12 @@ def result_type(*arrays_and_dtypes: object) -> np.dtype[Any]:
 
     TTD arguments contribute their dtype; every other argument is passed to
     :func:`numpy.result_type` unchanged.
+
+    Parameters
+    ----------
+    *arrays_and_dtypes : object
+        The operands to promote. TTD operands contribute their dtype; NumPy
+        arrays, dtypes, and scalars are passed to :func:`numpy.result_type`.
 
     Returns
     -------

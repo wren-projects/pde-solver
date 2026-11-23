@@ -1,7 +1,6 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, SupportsIndex, cast
 
@@ -9,7 +8,7 @@ import numpy as np
 from wren_common.types import Index1D, Matrix, Scalar
 
 from wren_ttd._helpers import mode_1_product, mode_3_product
-from wren_ttd._numpy_api import DenseWarning
+from wren_ttd._numpy_api import warn_dense
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -174,6 +173,12 @@ def get_item[DType: np.floating](ttd: TTD[DType], key: object) -> TTD[DType] | D
         The indexed subtensor, or a scalar if every mode was indexed with an
         integer and no singleton modes were inserted.
 
+    Raises
+    ------
+    IndexError
+        If the index is invalid, contains more than one ellipsis, or has too
+        many entries for the tensor.
+
     See Also
     --------
     TTD.__getitem__ : Index into a TTD.
@@ -203,11 +208,7 @@ def get_item[DType: np.floating](ttd: TTD[DType], key: object) -> TTD[DType] | D
     normalized_key = cast(tuple[object, ...], key) if isinstance(key, tuple) else (key,)
 
     if _is_advanced_index(normalized_key):
-        warnings.warn(
-            "Advanced indexing densifies the TTD; the result is recompressed",
-            DenseWarning,
-            stacklevel=3,
-        )
+        warn_dense("Advanced indexing densifies the TTD; the result is recompressed")
         return _advanced_get_item(ttd, normalized_key)
 
     selection, insertion_axes = _normalize_basic_index(normalized_key, ttd.ndim)

@@ -1,12 +1,11 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import DenseWarning, implements_ufunc
+from wren_ttd._numpy_api import implements_ufunc, warn_dense
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -18,7 +17,9 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     Compute the absolute value element-wise.
 
     Equivalent to :func:`numpy.absolute` for dense arrays, extended to TTDs.
-    The operation is exact and preserves the TT-ranks of the input.
+    The absolute value is not multiplicative, so it cannot be applied to a
+    TTD core by core. The tensor is expanded to a dense array, transformed,
+    and compressed again.
 
     Parameters
     ----------
@@ -36,6 +37,12 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     positive : Return the TTD unchanged.
     power : Raise a TTD to a scalar power.
 
+    Notes
+    -----
+    This operation densifies the tensor internally and emits a
+    :class:`DenseWarning`. It is intended for small tensors and for API
+    compatibility, not for large TT computations.
+
     Examples
     --------
     >>> import numpy as np
@@ -48,6 +55,6 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     """
     from wren_ttd.core import TTD
 
-    warnings.warn("Calling absolute densifies the TTD.", DenseWarning, stacklevel=2)
+    warn_dense("Calling absolute densifies the TTD.")
 
     return TTD(np.abs(np.asarray(ttd)), dtype=ttd.dtype)
