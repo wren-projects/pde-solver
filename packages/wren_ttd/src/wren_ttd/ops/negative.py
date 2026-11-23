@@ -13,7 +13,7 @@ from .multiply import multiply
 
 
 @implements_ufunc("negative")
-def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
+def negative[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
     """
     Numerical negative, element-wise.
 
@@ -43,7 +43,7 @@ def neg[DType: np.floating](a: TTD[DType]) -> TTD[DType]:
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> a = TTD.ones((2, 2))
-    >>> np.asarray(ops.neg(a))
+    >>> np.asarray(ops.negative(a))
     array([[-1., -1.],
            [-1., -1.]])
 

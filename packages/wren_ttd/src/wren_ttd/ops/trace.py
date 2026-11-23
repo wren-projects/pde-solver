@@ -9,7 +9,7 @@ from numpy.lib.array_utils import normalize_axis_index
 from wren_common.types import Matrix
 
 from wren_ttd._helpers import mode_3_product, resolve_dtype, write_out
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import implements_function, linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -18,6 +18,7 @@ from .moveaxis import moveaxis
 
 
 @implements_function("trace")
+@linalg.function("trace")
 def trace[DType: np.floating](  # noqa: PLR0913
     a: TTD[DType],
     offset: int = 0,

@@ -12,12 +12,14 @@ if TYPE_CHECKING:
 
 
 @implements_function("vdot")
-def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
+def vdot[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     """
     Compute the inner product of two TTD objects.
 
     Equivalent to :func:`numpy.vdot` for dense arrays (which flattens its
-    arguments), extended to TTDs.
+    arguments), extended to TTDs. This is a NumPy-specific operation; the
+    Array API equivalent is :func:`wren_ttd.ops.vecdot`, which is axis-aware
+    and does not conjugate its arguments.
 
     The inner product of two TTD objects is defined as the sum of inner
     products of corresponding cores. For two TTD objects A = G₀, G1, …, Gn
@@ -48,14 +50,15 @@ def inner_product[DType: np.floating](a: TTD[DType], b: TTD[DType]) -> DType:
     See Also
     --------
     numpy.vdot : Equivalent function for dense arrays.
-    frobenius_norm : Frobenius norm of a TTD.
+    vecdot : Array API dot product along an axis.
+    norm : Frobenius norm of a TTD.
 
     Examples
     --------
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> a = TTD.ones((2, 2))
-    >>> ops.inner_product(a, a)
+    >>> ops.vdot(a, a)
     np.float64(4.0)
 
     """

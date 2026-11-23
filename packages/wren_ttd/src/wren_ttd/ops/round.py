@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @implements_function("round")
 @implements_function("around")
-def round_[DType: np.floating](
+def round[DType: np.floating](  # noqa: A001
     a: TTD[DType], decimals: int = 0, out: TTD[DType] | tuple[TTD[DType]] | None = None
 ) -> TTD[DType]:
     """
@@ -62,9 +62,10 @@ def round_[DType: np.floating](
     Examples
     --------
     >>> import numpy as np
+    >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> t = TTD([1.234, 2.345])
-    >>> np.asarray(np.round(t, 1))
+    >>> np.asarray(ops.round(t, 1))
     array([1.2, 2.3])
 
     """

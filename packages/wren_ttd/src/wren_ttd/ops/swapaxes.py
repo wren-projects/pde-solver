@@ -10,7 +10,7 @@ from wren_ttd._numpy_api import implements_function
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
-from .transpose import transpose
+from .permute_dims import permute_dims
 
 
 @implements_function("swapaxes")
@@ -62,4 +62,4 @@ def swapaxes[DType: np.floating](ttd: TTD[DType], axis1: int, axis2: int) -> TTD
     axes = list(range(ttd.ndim))
     axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
 
-    return transpose(ttd, axes)
+    return permute_dims(ttd, axes)

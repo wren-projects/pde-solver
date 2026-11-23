@@ -21,13 +21,13 @@ def _assert_no_dense_warning(operation: Callable[[], object]) -> None:
 @pytest.mark.parametrize(
     "operation",
     [
-        lambda: ops.absolute(TTD(arange_tensor(3))),
+        lambda: ops.abs(TTD(arange_tensor(3))),
         lambda: np.round(TTD(arange_tensor(3)), 1),
-        lambda: ops.power(TTD.ones(3), -1),
+        lambda: ops.pow(TTD.ones(3), -1),
         lambda: ops.reshape(TTD(arange_tensor(2, 3)), 6),
         lambda: ops.ravel(TTD(arange_tensor(2, 3))),
         lambda: ops.flatten(TTD(arange_tensor(2, 3))),
-        lambda: ops.cumsum(TTD(arange_tensor(2, 3))),
+        lambda: ops.cumulative_sum(TTD(arange_tensor(2, 3))),
         lambda: ops.take(TTD(arange_tensor(2, 3)), [0, 1]),
         lambda: ops.repeat(TTD(arange_tensor(2, 3)), 2),
         lambda: ops.concat(
@@ -46,7 +46,7 @@ def test_densifying_operations_warn(operation: Callable[[], object]) -> None:
 @pytest.mark.parametrize(
     "operation",
     [
-        lambda: ops.cumsum(TTD(arange_tensor(2, 3))),
+        lambda: ops.cumulative_sum(TTD(arange_tensor(2, 3))),
         lambda: ops.take(TTD(arange_tensor(2, 3)), [0, 1]),
         lambda: ops.repeat(TTD(arange_tensor(2, 3)), 2),
         lambda: ops.concat(
@@ -74,11 +74,11 @@ def test_nested_dense_warning_points_to_the_caller(
 @pytest.mark.parametrize(
     "operation",
     [
-        lambda: ops.power(TTD.ones(3), 2),
+        lambda: ops.pow(TTD.ones(3), 2),
         lambda: ops.reshape(TTD(arange_tensor(2, 3)), (3, 2)),
         lambda: ops.ravel(TTD(arange_tensor(3))),
         lambda: ops.flatten(TTD(arange_tensor(3))),
-        lambda: ops.cumsum(TTD(arange_tensor(2, 3)), axis=0),
+        lambda: ops.cumulative_sum(TTD(arange_tensor(2, 3)), axis=0),
         lambda: ops.take(TTD(arange_tensor(2, 3)), [0, 1], axis=0),
         lambda: ops.repeat(TTD(arange_tensor(2, 3)), 2, axis=0),
         lambda: ops.concat(

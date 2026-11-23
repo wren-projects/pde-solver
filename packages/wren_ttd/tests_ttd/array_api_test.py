@@ -55,6 +55,23 @@ def test_namespace_binds_operations_directly() -> None:
     assert xp.sum is ops.sum
     assert xp.add is ops.add
     assert xp.reshape is ops.reshape
+    assert xp.abs is ops.abs
+    assert xp.pow is ops.pow
+    assert xp.round is ops.round
+    assert xp.negative is ops.negative
+    assert xp.cumulative_sum is ops.cumulative_sum
+    assert xp.permute_dims is ops.permute_dims
+    assert xp.vdot is ops.vdot
+
+
+def test_numpy_names_resolve_to_canonical_operations() -> None:
+    """Expose NumPy names as aliases of the canonical Array API operations."""
+    assert xp.absolute is ops.abs
+    assert xp.power is ops.pow
+    assert xp.around is ops.round
+    assert xp.transpose is ops.permute_dims
+    assert xp.cumsum is ops.cumulative_sum
+    assert xp.concatenate is ops.concat
 
 
 def test_namespace_binds_linalg_operations_directly() -> None:
@@ -62,10 +79,28 @@ def test_namespace_binds_linalg_operations_directly() -> None:
     assert xp.linalg.vector_norm is ops.vector_norm
     assert xp.linalg.matrix_norm is ops.matrix_norm
     assert xp.linalg.matrix_transpose is ops.matrix_transpose
-    assert xp.linalg.norm is ops.frobenius_norm
+    assert xp.linalg.matmul is ops.matmul
+    assert xp.linalg.vecdot is ops.vecdot
+    assert xp.linalg.tensordot is ops.tensordot
+    assert xp.linalg.trace is ops.trace
+    assert xp.linalg.norm is ops.norm
     assert xp.linalg.det is np.linalg.det
     assert "vector_norm" in dir(xp.linalg)
     assert "det" in dir(xp.linalg)
+
+
+def test_linalg_paths_compute() -> None:
+    """Compute through the Array API linalg paths and their NumPy aliases."""
+    ttd = TTD([[1.0, 2.0], [3.0, 4.0]])
+    tensor = np.asarray(ttd)
+
+    assert_default_epsilon(xp.linalg.matmul(ttd, ttd), tensor @ tensor)
+    assert_default_epsilon(xp.linalg.vecdot(ttd, ttd), np.linalg.vecdot(tensor, tensor))
+    assert_default_epsilon(
+        xp.linalg.tensordot(ttd, ttd, axes=1),
+        np.linalg.tensordot(tensor, tensor, axes=1),
+    )
+    assert_default_epsilon(xp.linalg.trace(ttd), np.trace(tensor))
 
 
 def test_registry_resolves_namespaced_operations() -> None:
@@ -74,8 +109,12 @@ def test_registry_resolves_namespaced_operations() -> None:
 
     assert namespace is not None
     assert namespace.get_function("vector_norm") is ops.vector_norm
+    assert namespace.get_function("matmul") is ops.matmul
+    assert namespace.get_function("trace") is ops.trace
     assert ROOT.get_operation("linalg.matrix_norm") is ops.matrix_norm
-    assert ROOT.get_operation("linalg.norm") is ops.frobenius_norm
+    assert ROOT.get_operation("linalg.norm") is ops.norm
+    assert ROOT.get_operation("cumulative_sum") is ops.cumulative_sum
+    assert ROOT.get_operation("cumsum") is ops.cumulative_sum
     assert ROOT.get_operations("linalg")["matrix_transpose"] is ops.matrix_transpose
 
 

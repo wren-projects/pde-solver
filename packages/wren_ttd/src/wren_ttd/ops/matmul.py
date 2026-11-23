@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from wren_ttd._helpers import resolve_dtype, write_out
-from wren_ttd._numpy_api import implements
+from wren_ttd._numpy_api import implements, linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -23,6 +23,7 @@ def _contraction_b_axis(b: TTD[Any]) -> int:
 
 
 @implements("matmul", ufunc=True)
+@linalg.function("matmul")
 def matmul[DType: np.floating](
     a: TTD[DType] | np.ndarray[Any, Any],
     b: TTD[DType] | np.ndarray[Any, Any],
@@ -99,7 +100,7 @@ def matmul[DType: np.floating](
     --------
     numpy.matmul : Equivalent operation for dense arrays.
     tensordot : Contract arbitrary pairs of tensor axes.
-    inner_product : Compute the inner product of two TTDs.
+    vdot : Compute the inner product of two TTDs.
     TTD.__matmul__ : Matrix multiplication with the ``@`` operator.
 
     Examples

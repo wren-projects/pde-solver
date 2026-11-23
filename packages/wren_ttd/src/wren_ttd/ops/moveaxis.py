@@ -11,7 +11,7 @@ from wren_ttd._numpy_api import implements_function
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
-from .transpose import transpose
+from .permute_dims import permute_dims
 
 
 @implements_function("moveaxis")
@@ -87,4 +87,4 @@ def moveaxis[DType: np.floating](
     ):
         permutation.insert(destination_axis, source_axis)
 
-    return transpose(ttd, permutation)
+    return permute_dims(ttd, permutation)

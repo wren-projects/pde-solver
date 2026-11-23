@@ -63,7 +63,7 @@ def matrix_norm[DType: np.floating](
     --------
     numpy.linalg.matrix_norm : Equivalent function for dense arrays.
     vector_norm : Euclidean norm along arbitrary axes.
-    frobenius_norm : Frobenius norm of a whole TTD.
+    norm : Frobenius norm of a whole TTD.
 
     Notes
     -----

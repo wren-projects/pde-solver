@@ -1257,7 +1257,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         Permute the dimensions of the TTD.
 
         Equivalent to :meth:`numpy.ndarray.transpose` and
-        :func:`numpy.transpose`. See :func:`wren_ttd.ops.transpose` for
+        :func:`numpy.transpose`. See :func:`wren_ttd.ops.permute_dims` for
         details about the implementation.
 
         Parameters
@@ -1290,7 +1290,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         (4, 3, 2)
 
         """
-        return ops.transpose(self, axes)
+        return ops.permute_dims(self, axes)
 
     def swapaxes(self, axis1: int, axis2: int) -> TTD[DType]:
         """
@@ -1531,7 +1531,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         """
         Return the cumulative sum along an axis.
 
-        See :func:`wren_ttd.ops.cumsum` for the full semantics.
+        See :func:`wren_ttd.ops.cumulative_sum` for the full semantics.
 
         Parameters
         ----------
@@ -1558,7 +1558,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         See Also
         --------
-        ops.cumsum : Cumulative sum of a TTD.
+        ops.cumulative_sum : Cumulative sum of a TTD.
         sum : Sum of a TTD over the given axes.
         ravel : Flatten a TTD.
 
@@ -1576,7 +1576,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
         (2, 3)
 
         """
-        return ops.cumsum(self, axis, dtype, out)
+        return ops.cumulative_sum(self, axis, dtype, out)
 
     def trace(
         self,
@@ -2665,7 +2665,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
                [-1., -1.]])
 
         """
-        return ops.neg(self)
+        return ops.negative(self)
 
 
 @implements_function("size")

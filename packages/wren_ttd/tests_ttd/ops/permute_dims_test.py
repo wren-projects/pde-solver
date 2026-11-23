@@ -4,13 +4,14 @@ from copy import deepcopy
 import numpy as np
 import pytest
 from wren_common.tests import TestTensor
+from wren_ttd import ops
 
 from ..common import TEST_TTD, TestTTD, assert_default_epsilon
 
 
 @pytest.mark.parametrize(("tensor", "ttd"), deepcopy(TEST_TTD))
-class TestTranspose:
-    """Tests for TTD transpose."""
+class TestPermuteDims:
+    """Tests for TTD dimension permutation."""
 
     def test_default_method(self, tensor: TestTensor, ttd: TestTTD) -> None:
         """Test transpose via the ``transpose`` method."""
@@ -26,6 +27,10 @@ class TestTranspose:
         assert_default_epsilon(
             np.transpose(ttd, axes),
             np.transpose(tensor, axes),
+        )
+        assert_default_epsilon(
+            ops.permute_dims(ttd, axes),
+            np.permute_dims(tensor, axes),
         )
 
     def test_rotate(self, tensor: TestTensor, ttd: TestTTD) -> None:

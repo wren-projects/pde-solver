@@ -14,15 +14,16 @@ from wren_ttd._helpers import (
     promote_dtype,
     reverse_cores,
 )
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import implements_function, linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
-from .transpose import transpose
+from .permute_dims import permute_dims
 
 
 @implements_function("tensordot")
+@linalg.function("tensordot")
 def tensordot[DType: np.floating](
     a: TTD[DType],
     b: TTD[DType],
@@ -75,7 +76,7 @@ def tensordot[DType: np.floating](
     See Also
     --------
     numpy.tensordot : Equivalent function for dense arrays.
-    inner_product : Inner product of two TTDs.
+    vdot : Inner product of two TTDs.
 
     Notes
     -----
@@ -141,8 +142,8 @@ def tensordot[DType: np.floating](
     a_permutation = a_free + a_axes
     b_permutation = b_axes[::-1] + b_free
 
-    a_t = transpose(a, a_permutation)
-    b_t = transpose(b, b_permutation)
+    a_t = permute_dims(a, a_permutation)
+    b_t = permute_dims(b, b_permutation)
 
     return _tensordot_transposed(a_t, b_t, k, dtype=dtype)
 

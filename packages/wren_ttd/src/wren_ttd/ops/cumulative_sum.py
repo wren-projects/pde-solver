@@ -16,8 +16,9 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
+@implements_function("cumulative_sum")
 @implements_function("cumsum")
-def cumsum[DType: np.floating](
+def cumulative_sum[DType: np.floating](
     a: TTD[DType],
     axis: int | None = None,
     dtype: npt.DTypeLike | None = None,
@@ -26,7 +27,8 @@ def cumsum[DType: np.floating](
     """
     Cumulative sum of TTD elements along the given axis.
 
-    Equivalent to :func:`numpy.cumsum` for dense arrays, extended to TTDs.
+    Equivalent to :func:`numpy.cumulative_sum` and :func:`numpy.cumsum` for
+    dense arrays, extended to TTDs.
     For an integer `axis`, the cumulative sum is applied to the mode axis of
     each core. This is exact and preserves the TT ranks: for a core ``G`` of
     shape ``(l, n, r)``, the result satisfies
@@ -63,7 +65,8 @@ def cumsum[DType: np.floating](
 
     See Also
     --------
-    numpy.cumsum : Equivalent function for dense arrays.
+    numpy.cumulative_sum : Equivalent function for dense arrays.
+    numpy.cumsum : NumPy name for the same operation.
     sum : Sum of a TTD over the given axes.
     mean : Arithmetic mean of a TTD.
 
@@ -91,7 +94,7 @@ def cumsum[DType: np.floating](
     result_dtype = resolve_dtype(dtype, a)
 
     if axis is None:
-        return cumsum(ravel(a), axis=0, dtype=result_dtype, out=out)
+        return cumulative_sum(ravel(a), axis=0, dtype=result_dtype, out=out)
 
     normalized_axis = normalize_axis_index(axis, a.ndim, "axis")
     cores = a.data.copy()

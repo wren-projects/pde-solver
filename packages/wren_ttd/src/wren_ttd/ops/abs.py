@@ -5,18 +5,21 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import implements_ufunc, warn_dense
+from wren_ttd._numpy_api import implements_function, implements_ufunc, warn_dense
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
 @implements_ufunc("absolute")
-def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
+@implements_function("abs")
+def abs[DType: np.floating](  # noqa: A001
+    ttd: TTD[DType],
+) -> TTD[DType]:
     """
     Compute the absolute value element-wise.
 
-    Equivalent to :func:`numpy.absolute` for dense arrays, extended to TTDs.
+    Equivalent to :func:`numpy.abs` for dense arrays, extended to TTDs.
     The absolute value is not multiplicative, so it cannot be applied to a
     TTD core by core. The tensor is expanded to a dense array, transformed,
     and compressed again.
@@ -33,9 +36,9 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
 
     See Also
     --------
-    numpy.absolute : Equivalent ufunc for dense arrays.
+    numpy.abs : Equivalent ufunc for dense arrays.
     positive : Return the TTD unchanged.
-    power : Raise a TTD to a scalar power.
+    pow : Raise a TTD to a scalar power.
 
     Notes
     -----
@@ -49,12 +52,12 @@ def absolute[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> t = TTD([-2.0, 3.0])
-    >>> np.asarray(ops.absolute(t))
+    >>> np.asarray(ops.abs(t))
     array([2., 3.])
 
     """
     from wren_ttd.core import TTD
 
-    warn_dense("Calling absolute densifies the TTD.")
+    warn_dense("Calling abs densifies the TTD.")
 
     return TTD(np.abs(np.asarray(ttd)), dtype=ttd.dtype)

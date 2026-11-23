@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from wren_common.types import Scalar
 
-from wren_ttd._numpy_api import implements_ufunc, warn_dense
+from wren_ttd._numpy_api import implements_function, implements_ufunc, warn_dense
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -25,11 +25,14 @@ def _integer_exponent(exponent: Scalar) -> int | None:
 
 
 @implements_ufunc("power")
-def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
+@implements_function("pow")
+def pow[DType: np.floating](  # noqa: A001
+    a: TTD[DType], b: Scalar
+) -> TTD[DType]:
     """
     Raise a TTD to a scalar power, element-wise.
 
-    Equivalent to :func:`numpy.power` for dense arrays, extended to TTDs.
+    Equivalent to :func:`numpy.pow` for dense arrays, extended to TTDs.
     Only integer-like scalar exponents are supported. Non-negative powers are
     computed as repeated Hadamard products, which stay in TT format but may
     inflate the ranks. Negative powers fall back to a dense computation and
@@ -54,7 +57,7 @@ def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
 
     See Also
     --------
-    numpy.power : Equivalent ufunc for dense arrays.
+    numpy.pow : Equivalent ufunc for dense arrays.
     multiply : Multiply TTDs element-wise.
 
     Notes
@@ -69,7 +72,7 @@ def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> t = TTD([1.0, 2.0, 3.0])
-    >>> np.asarray(ops.power(t, 2))
+    >>> np.asarray(ops.pow(t, 2))
     array([1., 4., 9.])
 
     """
@@ -94,5 +97,5 @@ def power[DType: np.floating](a: TTD[DType], b: Scalar) -> TTD[DType]:
             result = multiply(result, a)
         return TTD(result.data, dtype=dtype)
 
-    warn_dense("Calling power with a negative exponent densifies the TTD.")
+    warn_dense("Calling pow with a negative exponent densifies the TTD.")
     return TTD(np.power(np.asarray(a), exponent), dtype=dtype)

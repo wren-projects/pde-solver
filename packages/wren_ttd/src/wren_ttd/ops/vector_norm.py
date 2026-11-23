@@ -19,7 +19,7 @@ def vector_norm[DType: np.floating](
     axis: int | Iterable[int] | None = None,
     *,
     keepdims: bool = False,
-    ord: float | str | None = None,  # noqa: A002
+    ord: float | str | None = 2,  # noqa: A002
 ) -> DType | TTD[DType]:
     """
     Compute the Euclidean vector norm of a TTD.
@@ -41,7 +41,7 @@ def vector_norm[DType: np.floating](
         default is ``False``.
     ord : float | str | None, optional
         The order of the norm. Only the Euclidean norm, ``None`` or ``2``, is
-        supported. The default is ``None``.
+        supported. The default is ``2``.
 
     Returns
     -------
@@ -59,7 +59,7 @@ def vector_norm[DType: np.floating](
     --------
     numpy.linalg.vector_norm : Equivalent function for dense arrays.
     matrix_norm : Frobenius norm over the last two axes.
-    frobenius_norm : Frobenius norm of a whole TTD.
+    norm : Frobenius norm of a whole TTD.
 
     Notes
     -----

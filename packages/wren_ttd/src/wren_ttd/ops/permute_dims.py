@@ -26,8 +26,9 @@ if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
+@implements_function("permute_dims")
 @implements_function("transpose")
-def transpose[DType: np.floating](
+def permute_dims[DType: np.floating](
     ttd: TTD[DType],
     axes: Sequence[int] | None = None,
     epsilon: float | DType = DEFAULT_EPSILON,
@@ -35,8 +36,8 @@ def transpose[DType: np.floating](
     """
     Permute the dimensions of a TTD.
 
-    Equivalent to :func:`numpy.transpose` for dense arrays, extended to
-    TTDs.
+    Equivalent to :func:`numpy.permute_dims` and :func:`numpy.transpose` for
+    dense arrays, extended to TTDs.
 
     This is achieved by a sequence of adjacent swaps. Each adjacent swap is done
     by contracting two neighboring TTD cores, swapping the two physical
@@ -67,7 +68,8 @@ def transpose[DType: np.floating](
 
     See Also
     --------
-    numpy.transpose : Equivalent function for dense arrays.
+    numpy.permute_dims : Equivalent function for dense arrays.
+    numpy.transpose : NumPy name for the same operation.
     TTD.transpose : Permute the dimensions of a TTD.
     swapaxes : Swap two axes of a TTD.
 
@@ -83,9 +85,9 @@ def transpose[DType: np.floating](
     >>> from wren_ttd import ops
     >>> from wren_ttd.core import TTD
     >>> t = TTD.ones((2, 3, 4))
-    >>> ops.transpose(t, (2, 0, 1)).shape
+    >>> ops.permute_dims(t, (2, 0, 1)).shape
     (4, 2, 3)
-    >>> ops.transpose(t).shape
+    >>> ops.permute_dims(t).shape
     (4, 3, 2)
 
     """
