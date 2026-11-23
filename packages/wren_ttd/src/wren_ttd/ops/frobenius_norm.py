@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
 
 
-@implements_function("linalg.norm")
+@linalg.function("norm")
 def frobenius_norm[DType: np.floating](ttd: TTD[DType]) -> DType:
     """
     Return the Frobenius norm of a TTD.

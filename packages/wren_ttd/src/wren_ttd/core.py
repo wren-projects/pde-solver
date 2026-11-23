@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from itertools import pairwise
+from itertools import islice, pairwise
 from types import EllipsisType, ModuleType, NotImplementedType
 from typing import (
     Any,
@@ -36,11 +36,7 @@ from wren_ttd._helpers import (
     truncation_parameter,
     unfold_left,
 )
-from wren_ttd._numpy_api import (
-    HANDLED_FUNCTIONS,
-    HANDLED_UFUNCS,
-    implements_function,
-)
+from wren_ttd._numpy_api import ROOT, implements_function
 from wren_ttd.math import DEFAULT_EPSILON, delta_truncated_svd
 from wren_ttd.types import (
     CORE_DIMENSIONS,
@@ -1137,7 +1133,7 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
             # not a valid ufunc
             raise ValueError(f"Invalid ufunc: {ufunc}")
 
-        handler = HANDLED_UFUNCS.get(ufunc.__name__)
+        handler = ROOT.get_ufunc(ufunc.__name__)
 
         if handler is None:
             return NotImplemented
@@ -1204,13 +1200,18 @@ class TTD[DType: np.floating](NDArrayOperatorsMixin, Sequence["TTD[DType]" | DTy
 
         """
         if not hasattr(func, "__name__") or not isinstance(func.__name__, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-            # not a valid function
+            # not a valid function, e.g. lambda
             raise ValueError(f"Invalid array function: {func}")
 
-        # Need to handle functions in submodules
-        name = ".".join([*func.__module__.split(".")[1:], func.__name__])
+        # Handle submodules by walking the module path
+        namespace = ROOT
+        for part in islice(func.__module__.split("."), 1, None):
+            nested = namespace.get_namespace(part)
+            if nested is None:
+                return NotImplemented
+            namespace = nested
 
-        handler = HANDLED_FUNCTIONS.get(name)
+        handler = namespace.get_function(func.__name__)
 
         return (
             cast(TTD[DType] | NDArray[DType], handler(*args, **kwargs))

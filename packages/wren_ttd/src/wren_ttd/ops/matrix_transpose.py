@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import implements_function, linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -15,7 +15,7 @@ _MIN_MATRIX_NDIM = 2
 
 
 @implements_function("matrix_transpose")
-@implements_function("linalg.matrix_transpose")
+@linalg.function("matrix_transpose")
 def matrix_transpose[DType: np.floating](ttd: TTD[DType]) -> TTD[DType]:
     """
     Transpose the final two dimensions of a TTD.

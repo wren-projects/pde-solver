@@ -9,13 +9,203 @@ type AnyCallable = Callable[..., Any]
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parent)
 
-HANDLED_UFUNCS: dict[str, AnyCallable] = {}
-HANDLED_FUNCTIONS: dict[str, AnyCallable] = {}
+
+class OperationNamespace:
+    """
+    Registry of TTD implementations for NumPy-compatible operations.
+
+    A namespace groups implementations by the NumPy module they extend.
+    ``linalg.function("norm")`` therefore registers ``numpy.linalg.norm``
+    without a dotted string key.
+
+    Parameters
+    ----------
+    name : str, optional
+        The namespace name, empty for the root namespace.
+
+    """
+
+    name: str
+    functions: dict[str, AnyCallable]
+    ufuncs: dict[str, AnyCallable]
+    namespaces: dict[str, OperationNamespace]
+
+    def __init__(self, name: str = "") -> None:
+        self.name = name
+        self.functions = {}
+        self.ufuncs = {}
+        self.namespaces = {}
+
+    def namespace(self, name: str) -> OperationNamespace:
+        """
+        Return the nested namespace `name`, creating it if necessary.
+
+        Parameters
+        ----------
+        name : str
+            The local namespace name, e.g. ``"linalg"``.
+
+        Returns
+        -------
+        OperationNamespace
+            The nested namespace.
+
+        Raises
+        ------
+        ValueError
+            If `name` is empty or dotted.
+
+        """
+        if not name or "." in name:
+            raise ValueError(f"Invalid namespace name: {name!r}")
+        namespace = self.namespaces.get(name)
+        if namespace is None:
+            namespace = OperationNamespace(name)
+            self.namespaces[name] = namespace
+        return namespace
+
+    def function[F: AnyCallable](self, name: str) -> Callable[[F], F]:
+        """
+        Register an `__array_function__` implementation.
+
+        Parameters
+        ----------
+        name : str
+            The NumPy function name to dispatch on, e.g. ``"sum"``.
+
+        Returns
+        -------
+        collections.abc.Callable
+            A decorator that registers the decorated function and returns it
+            unchanged.
+
+        Raises
+        ------
+        ValueError
+            If a handler for `name` is already registered.
+
+        """
+        return self._register(self.functions, name, "Function")
+
+    def ufunc[F: AnyCallable](self, name: str) -> Callable[[F], F]:
+        """
+        Register an `__array_ufunc__` implementation.
+
+        Parameters
+        ----------
+        name : str
+            The NumPy ufunc name to dispatch on, e.g. ``"add"``.
+
+        Returns
+        -------
+        collections.abc.Callable
+            A decorator that registers the decorated function and returns it
+            unchanged.
+
+        Raises
+        ------
+        ValueError
+            If a handler for `name` is already registered.
+
+        """
+        return self._register(self.ufuncs, name, "Ufunc")
+
+    def get_namespace(self, name: str) -> OperationNamespace | None:
+        """Return the nested namespace `name`, if it exists."""
+        return self.namespaces.get(name)
+
+    def get_function(self, name: str) -> AnyCallable | None:
+        """Return the registered `__array_function__` handler for `name`."""
+        return self.functions.get(name)
+
+    def get_ufunc(self, name: str) -> AnyCallable | None:
+        """Return the registered `__array_ufunc__` handler for `name`."""
+        return self.ufuncs.get(name)
+
+    def get_operation(self, name: str) -> AnyCallable | None:
+        """
+        Resolve an operation by its dotted name.
+
+        Parameters
+        ----------
+        name : str
+            The operation name, e.g. ``"sum"`` or ``"linalg.norm"``.
+
+        Returns
+        -------
+        collections.abc.Callable | None
+            The registered implementation, or None if `name` is unknown.
+
+        """
+        *path, operation = name.split(".")
+        namespace = self
+        for part in path:
+            nested = namespace.get_namespace(part)
+            if nested is None:
+                return None
+            namespace = nested
+        return namespace.get_ufunc(operation) or namespace.get_function(operation)
+
+    def get_operations(self, prefix: str = "") -> dict[str, AnyCallable]:
+        """
+        Return the registered operations below a dotted prefix.
+
+        The result is keyed by the name relative to `prefix`, for example
+        ``ROOT.get_operations("linalg")["vector_norm"]``.
+
+        Parameters
+        ----------
+        prefix : str, optional
+            The dotted namespace prefix, empty for the whole registry.
+
+        Returns
+        -------
+        dict[str, collections.abc.Callable]
+            The registered implementations keyed by their local name.
+
+        """
+        namespace = self
+        for part in filter(None, prefix.split(".")):
+            nested = namespace.get_namespace(part)
+            if nested is None:
+                return {}
+            namespace = nested
+        return namespace._flatten()
+
+    def _flatten(self) -> dict[str, AnyCallable]:
+        operations = {**self.ufuncs, **self.functions}
+        for name, namespace in self.namespaces.items():
+            operations.update(
+                {
+                    f"{name}.{operation}": func
+                    for operation, func in namespace._flatten().items()
+                }
+            )
+        return operations
+
+    @staticmethod
+    def _register[F: AnyCallable](
+        registry: dict[str, AnyCallable], name: str, kind: str
+    ) -> Callable[[F], F]:
+        if not name or "." in name:
+            raise ValueError(f"Invalid {kind.lower()} name: {name!r}")
+
+        def decorator(func: F) -> F:
+            if name in registry:
+                raise ValueError(f"{kind} {name!r} is already registered")
+            registry[name] = func
+            return func
+
+        return decorator
+
+
+ROOT = OperationNamespace()
+linalg = ROOT.namespace("linalg")
 
 
 def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
     """
-    Register an `__array_ufunc__` implementation for TTD objects.
+    Register an `__array_ufunc__` implementation in the root namespace.
 
     Parameters
     ----------
@@ -34,19 +224,12 @@ def implements_ufunc[F: AnyCallable](name: str) -> Callable[[F], F]:
         If a handler for `name` is already registered.
 
     """
-
-    def decorator(func: F) -> F:
-        if name in HANDLED_UFUNCS:
-            raise ValueError(f"Ufunc {name} is already registered")
-        HANDLED_UFUNCS[name] = func
-        return func
-
-    return decorator
+    return ROOT.ufunc(name)
 
 
 def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
     """
-    Register an `__array_function__` implementation for TTD objects.
+    Register an `__array_function__` implementation in the root namespace.
 
     Parameters
     ----------
@@ -65,47 +248,17 @@ def implements_function[F: AnyCallable](name: str) -> Callable[[F], F]:
         If a handler for `name` is already registered.
 
     """
-
-    def decorator(func: F) -> F:
-        if name in HANDLED_FUNCTIONS:
-            raise ValueError(f"Function {name} is already registered")
-
-        HANDLED_FUNCTIONS[name] = func
-        return func
-
-    return decorator
+    return ROOT.function(name)
 
 
 def get_operation(name: str) -> AnyCallable | None:
     """Return the registered TTD implementation for `name`, if any."""
-    return HANDLED_UFUNCS.get(name) or HANDLED_FUNCTIONS.get(name)
+    return ROOT.get_operation(name)
 
 
-def get_operations(prefix: str) -> dict[str, AnyCallable]:
-    """
-    Return the registered operations below a dotted namespace prefix.
-
-    The result is keyed by the attribute name below `prefix`, for example
-    ``get_operations("linalg")["vector_norm"]``.
-
-    Parameters
-    ----------
-    prefix : str
-        The dotted namespace prefix, e.g. ``"linalg"``.
-
-    Returns
-    -------
-    dict[str, collections.abc.Callable]
-        The registered implementations keyed by their local name.
-
-    """
-    marker = f"{prefix}."
-    return {
-        name.removeprefix(marker): func
-        for registry in (HANDLED_UFUNCS, HANDLED_FUNCTIONS)
-        for name, func in registry.items()
-        if name.startswith(marker)
-    }
+def get_operations(prefix: str = "") -> dict[str, AnyCallable]:
+    """Return the registered operations below a dotted namespace prefix."""
+    return ROOT.get_operations(prefix)
 
 
 class DenseWarning(UserWarning):

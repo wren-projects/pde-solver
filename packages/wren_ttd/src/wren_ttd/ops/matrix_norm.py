@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from wren_ttd._helpers import as_scalar, sqrt_reduced
-from wren_ttd._numpy_api import implements_function
+from wren_ttd._numpy_api import linalg
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 _MIN_MATRIX_DIMS = 2
 
 
-@implements_function("linalg.matrix_norm")
+@linalg.function("matrix_norm")
 def matrix_norm[DType: np.floating](
     a: TTD[DType],
     *,

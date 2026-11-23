@@ -6,6 +6,7 @@ import pytest
 from wren_common.tests import TestTensor
 from wren_ttd import TTD, ops
 from wren_ttd import array_api as xp
+from wren_ttd._numpy_api import ROOT
 
 from .common import TEST_TTD, TestTTD, assert_default_epsilon
 
@@ -65,6 +66,17 @@ def test_namespace_binds_linalg_operations_directly() -> None:
     assert xp.linalg.det is np.linalg.det
     assert "vector_norm" in dir(xp.linalg)
     assert "det" in dir(xp.linalg)
+
+
+def test_registry_resolves_namespaced_operations() -> None:
+    """Walk the operation registry tree by namespace."""
+    namespace = ROOT.get_namespace("linalg")
+
+    assert namespace is not None
+    assert namespace.get_function("vector_norm") is ops.vector_norm
+    assert ROOT.get_operation("linalg.matrix_norm") is ops.matrix_norm
+    assert ROOT.get_operation("linalg.norm") is ops.frobenius_norm
+    assert ROOT.get_operations("linalg")["matrix_transpose"] is ops.matrix_transpose
 
 
 def test_namespace_vecdot() -> None:
