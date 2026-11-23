@@ -59,6 +59,12 @@ def transpose[DType: np.floating](
     TTD[DType]
         TTD with transposed axes.
 
+    Raises
+    ------
+    ValueError
+        If `axes` does not have length ``ttd.ndim``, or is not a permutation
+        of ``range(ttd.ndim)``.
+
     See Also
     --------
     numpy.transpose : Equivalent function for dense arrays.

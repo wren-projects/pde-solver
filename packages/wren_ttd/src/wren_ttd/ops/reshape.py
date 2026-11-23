@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import math
-import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from wren_ttd._helpers import merge_cores, singleton_cores, split_core, to_int_tuple
-from wren_ttd._numpy_api import DenseWarning, implements_function
+from wren_ttd._numpy_api import implements_function, warn_dense
 from wren_ttd.types import Core
 
 if TYPE_CHECKING:
@@ -110,13 +109,9 @@ def reshape[DType: np.floating](
         return TTD(a.data.copy(), dtype=a.dtype)
 
     if target_shape == (a.size,):
-        warnings.warn(
-            (
-                "Calling `reshape` with an output shape of `a.size` "
-                "effectively densifies the TTD. See Notes."
-            ),
-            DenseWarning,
-            stacklevel=2,
+        warn_dense(
+            "Calling `reshape` with an output shape of `a.size` "
+            "effectively densifies the TTD. See Notes."
         )
         return _flatten_to_core(a)
 

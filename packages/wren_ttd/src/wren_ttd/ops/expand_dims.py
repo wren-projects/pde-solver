@@ -18,7 +18,47 @@ if TYPE_CHECKING:
 def expand_dims[DType: np.floating](
     ttd: TTD[DType], axis: int | Sequence[int]
 ) -> TTD[DType]:
-    """Insert one or more singleton dimensions into a TTD."""
+    """
+    Insert one or more singleton dimensions into a TTD.
+
+    Equivalent to :func:`numpy.expand_dims` for dense arrays, extended to
+    TTDs. New axes are inserted as rank-one identity cores, so the operation
+    is exact and preserves the TT-ranks.
+
+    Parameters
+    ----------
+    ttd : TTD[DType]
+        The input TTD.
+    axis : int | sequence of int
+        Position or positions of the new axes in the result. Negative axes
+        count from the end.
+
+    Returns
+    -------
+    TTD[DType]
+        The TTD with the inserted singleton axes.
+
+    Raises
+    ------
+    ValueError
+        If `axis` contains duplicate entries.
+    numpy.exceptions.AxisError
+        If an axis is out of range for the result.
+
+    See Also
+    --------
+    numpy.expand_dims : Equivalent function for dense arrays.
+    TTD.__getitem__ : Insert singleton axes with ``None`` indexing.
+    squeeze : Remove singleton dimensions from a TTD.
+
+    Examples
+    --------
+    >>> from wren_ttd import ops
+    >>> from wren_ttd.core import TTD
+    >>> ops.expand_dims(TTD.ones((2, 3)), 1).shape
+    (2, 1, 3)
+
+    """
     from wren_ttd.core import TTD
 
     axes: Sequence[int] = axis if isinstance(axis, Sequence) else (axis,)

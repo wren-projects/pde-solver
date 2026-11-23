@@ -1,13 +1,12 @@
 # ruff: noqa: PLC0415
 from __future__ import annotations
 
-import warnings
 from operator import index
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wren_ttd._numpy_api import DenseWarning, implements_function
+from wren_ttd._numpy_api import implements_function, warn_dense
 
 if TYPE_CHECKING:
     from wren_ttd.core import TTD
@@ -41,6 +40,13 @@ def round_[DType: np.floating](
     TTD[DType]
         The rounded TTD.
 
+    Raises
+    ------
+    TypeError
+        If `decimals` is not an integer.
+    ValueError
+        If `out` has a different shape or dtype than the result.
+
     See Also
     --------
     numpy.round : Equivalent function for dense arrays.
@@ -65,11 +71,7 @@ def round_[DType: np.floating](
     from wren_ttd.core import TTD
 
     decimals = index(decimals)
-    warnings.warn(
-        "Calling round densifies the TTD.",
-        DenseWarning,
-        stacklevel=2,
-    )
+    warn_dense("Calling round densifies the TTD.")
     result = TTD(np.round(np.asarray(a), decimals), dtype=a.dtype)
 
     if out is None:

@@ -54,3 +54,10 @@ def test_matrix_multiply_operator_inplace() -> None:
     ttd_a @= ttd_b
 
     assert_default_epsilon(ttd_a, a @ b)
+
+
+def test_matmul_rejects_out_for_scalar_result() -> None:
+    """Reject an output TTD for a scalar-valued product."""
+    a, b = TTD([1.0, 2.0]), TTD([3.0, 4.0])
+    with pytest.raises(NotImplementedError, match="TTD-valued"):
+        _ = ops.matmul(a, b, out=TTD([1.0]))

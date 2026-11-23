@@ -82,3 +82,19 @@ def test_like_numpy_arguments(tensor: TestTensor, ttd: TestTTD) -> None:
     result = np.zeros_like(ttd, order="F")
     assert isinstance(result, TTD)
     assert_default_epsilon(result, np.zeros_like(tensor, order="F"))
+
+
+@pytest.mark.parametrize(
+    ("func", "args"),
+    [
+        (np.zeros_like, ()),
+        (np.ones_like, ()),
+        (np.full_like, (1.0,)),
+    ],
+)
+def test_like_rejects_unsupported_device(
+    func: Callable[..., object], args: tuple[float, ...]
+) -> None:
+    """Reject devices other than the CPU with a ValueError."""
+    with pytest.raises(ValueError, match="CPU"):
+        _ = func(TTD.ones((2, 2)), *args, device="gpu")

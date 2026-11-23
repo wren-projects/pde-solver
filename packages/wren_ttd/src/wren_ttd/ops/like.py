@@ -33,7 +33,7 @@ def _full_like[DType: np.floating](
     from wren_ttd.core import TTD
 
     if device not in (None, "cpu"):
-        raise NotImplementedError("TTD operations are only supported on the CPU")
+        raise ValueError("TTD arrays are only supported on the CPU")
 
     shape = array.shape if shape is None else shape
     dtype = array.dtype if dtype is None else dtype
@@ -62,8 +62,8 @@ def full_like[DType: np.floating](
     Return a TTD filled with `fill_value`, with the shape and dtype of `array`.
 
     Equivalent to :func:`numpy.full_like` for dense arrays, extended to
-    TTDs. The result is a rank-1 TTD with the shape and dtype of `array`,
-    unless `shape` or `dtype` override them.
+    TTDs. The result is a TT-rank-1 TTD with the shape and dtype of
+    `array`, unless `shape` or `dtype` override them.
 
     Parameters
     ----------
@@ -91,6 +91,13 @@ def full_like[DType: np.floating](
     -------
     TTD[DType] or numpy.ndarray
         A tensor filled with `fill_value`.
+
+    Raises
+    ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     See Also
     --------
@@ -126,8 +133,8 @@ def ones_like[DType: np.floating](
     Return a TTD of ones, with the shape and dtype of `array`.
 
     Equivalent to :func:`numpy.ones_like` for dense arrays, extended to
-    TTDs. The result is a rank-1 TTD with the shape and dtype of `array`,
-    unless `shape` or `dtype` override them.
+    TTDs. The result is a TT-rank-1 TTD with the shape and dtype of
+    `array`, unless `shape` or `dtype` override them.
 
     Parameters
     ----------
@@ -153,6 +160,13 @@ def ones_like[DType: np.floating](
     -------
     TTD[DType] or numpy.ndarray
         A tensor filled with ones.
+
+    Raises
+    ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     See Also
     --------
@@ -188,8 +202,8 @@ def zeros_like[DType: np.floating](
     Return a TTD of zeros, with the shape and dtype of `array`.
 
     Equivalent to :func:`numpy.zeros_like` for dense arrays, extended to
-    TTDs. The result is a rank-1 TTD with the shape and dtype of `array`,
-    unless `shape` or `dtype` override them.
+    TTDs. The result is a TT-rank-1 TTD with the shape and dtype of
+    `array`, unless `shape` or `dtype` override them.
 
     Parameters
     ----------
@@ -215,6 +229,13 @@ def zeros_like[DType: np.floating](
     -------
     TTD[DType] or numpy.ndarray
         A tensor filled with zeros.
+
+    Raises
+    ------
+    TypeError
+        If `subok` is True and `dtype` is not a floating-point dtype.
+    ValueError
+        If `device` is not the CPU.
 
     See Also
     --------
