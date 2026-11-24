@@ -26,13 +26,18 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
         # which means that
         #   uₜ = -(∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u))
 
+        _ = state.round()
+
+        adv = np.asarray(pde.vector_advection, like=state)
+        dif = np.asarray(pde.matrix_diffusion, like=state)
+
         # α = ∇⋅(𝐚 ⋅ u)
-        advection_flux = np.tensordot(pde.vector_advection, state, axes=0)
+        advection_flux = np.tensordot(adv, state, axes=0)
         advection_term = divergence(advection_flux, spacial_step)
 
         # β = ∇⋅(𝐁 ⋅ ∇u)
         state_gradient = gradient(state, spacial_step)
-        diffusion_flux = dot_product(pde.matrix_diffusion, state_gradient)
+        diffusion_flux = dot_product(dif, state_gradient)
         diffusion_term = divergence(diffusion_flux, spacial_step)
 
         # uₜ = -(α + β) * Δt

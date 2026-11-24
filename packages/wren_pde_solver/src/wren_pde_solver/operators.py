@@ -3,7 +3,7 @@ from typing import SupportsIndex, cast
 
 import numpy as np
 
-from wren_pde_solver.pde_types import DType, NDArray, Vector
+from wren_pde_solver.pde_types import NDArray, Vector
 
 
 class Gradient:
@@ -77,8 +77,6 @@ class Laplace:
 class Divergence:
     """Divergence operator for NDArray."""
 
-    ZERO: NDArray = np.zeros((1,), dtype=DType)
-
     def __call__(self, tensor: NDArray, spacial_step: Vector) -> NDArray:
         """
         Compute the divergence of the tensor with given spacial_steps.
@@ -111,9 +109,11 @@ class Divergence:
         gradients = (
             np.gradient(tensor[i], dx, axis=i) for i, dx in np.ndenumerate(spacial_step)
         )
-        return sum(gradients, start=Divergence.ZERO)
+        return sum(gradients, next(gradients))
 
 
 gradient = Gradient()
 laplace = Laplace()
 divergence = Divergence()
+
+__all__ = ["divergence", "gradient", "laplace"]

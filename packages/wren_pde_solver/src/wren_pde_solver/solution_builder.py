@@ -18,12 +18,12 @@ errors.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, final, overload
+from typing import Any, cast, final, overload
 
 from wren_pde_solver.abc.boundary import BoundaryCondition
 from wren_pde_solver.abc.pde import PDE
 from wren_pde_solver.abc.solver import Solver
-from wren_pde_solver.pde_types import DType, NDArray, Vector
+from wren_pde_solver.pde_types import DType, NDArray, NDArray_like, Vector
 
 
 @final
@@ -82,7 +82,7 @@ TARGET_TIME_UNSET = TargetTimeUnset()
 class SolutionBuilder[
     PdeT: PDE | PdeUnset = PdeUnset,
     SolverT: Solver[Any] | SolverUnset = SolverUnset,
-    InitialConditionT: NDArray | InitialConditionUnset = InitialConditionUnset,
+    InitialConditionT: NDArray_like | InitialConditionUnset = InitialConditionUnset,
     SpatialStepT: Vector | SpatialStepUnset = SpatialStepUnset,
     BoundaryConditionT: BoundaryCondition | BoundaryConditionUnset = (
         BoundaryConditionUnset
@@ -292,12 +292,12 @@ class SolutionBuilder[
             self.target_time,
         )
 
-    def with_initial_condition(
-        self, initial_condition: NDArray, /
+    def with_initial_condition[T: NDArray_like](
+        self, initial_condition: T, /
     ) -> SolutionBuilder[
         PdeT,
         SolverT,
-        NDArray,
+        T,
         SpatialStepT,
         BoundaryConditionT,
         TimeStepT,
@@ -467,7 +467,7 @@ class SolutionBuilder[
             target_time,
         )
 
-    def compute[P: PDE](self: CompleteSolutionBuilder[P]) -> NDArray:
+    def compute[P: PDE, T: NDArray_like](self: CompleteSolutionBuilder[P, T]) -> T:
         """
         Run the solver on the collected inputs.
 
@@ -481,21 +481,30 @@ class SolutionBuilder[
             The PDE state at ``target_time``.
 
         """
-        return self.solver(
-            self.pde,
-            self.initial_condition,
-            self.spatial_step,
-            self.boundary_condition,
-            self.time_step,
-            self.target_time,
+        # this is a translation layer between two parts which use iIncompatible typing
+        # therefore we have to force conversions
+        return cast(
+            T,
+            cast(
+                object,
+                self.solver(
+                    self.pde,
+                    cast(NDArray, cast(object, self.initial_condition)),
+                    self.spatial_step,
+                    self.boundary_condition,
+                    self.time_step,
+                    self.target_time,
+                ),
+            ),
         )
 
 
-type CompleteSolutionBuilder[P: PDE] = SolutionBuilder[
-    P, Solver[P], NDArray, Vector, BoundaryCondition, DType, DType
-]
 """A builder with all fields set and a PDE compatible with its solver."""
+type CompleteSolutionBuilder[P: PDE, T: NDArray_like] = SolutionBuilder[
+    P, Solver[P], T, Vector, BoundaryCondition, DType, DType
+]
 
+"""Empty builder with every field unset; entry point for the ``with_*`` chain."""
 EMPTY_SOLUTION_BUILDER: SolutionBuilder = SolutionBuilder(
     PDE_UNSET,
     SOLVER_UNSET,
@@ -505,24 +514,3 @@ EMPTY_SOLUTION_BUILDER: SolutionBuilder = SolutionBuilder(
     TIME_STEP_UNSET,
     TARGET_TIME_UNSET,
 )
-"""Empty builder with every field unset; entry point for the ``with_*`` chain."""
-
-__all__ = [
-    "BOUNDARY_CONDITION_UNSET",
-    "EMPTY_SOLUTION_BUILDER",
-    "INITIAL_CONDITION_UNSET",
-    "PDE_UNSET",
-    "SOLVER_UNSET",
-    "SPATIAL_STEP_UNSET",
-    "TARGET_TIME_UNSET",
-    "TIME_STEP_UNSET",
-    "BoundaryConditionUnset",
-    "CompleteSolutionBuilder",
-    "InitialConditionUnset",
-    "PdeUnset",
-    "SolutionBuilder",
-    "SolverUnset",
-    "SpatialStepUnset",
-    "TargetTimeUnset",
-    "TimeStepUnset",
-]

@@ -73,6 +73,9 @@ ignore = [
 
   # we're doing math
   "RUF001",
+
+  # tests in subprojects
+  "INP001",
 ]
 
 [lint.per-file-ignores]
