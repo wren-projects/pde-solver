@@ -1,4 +1,5 @@
 from .add import add
+from .asarray import asarray
 from .frobenius_norm import frobenius_norm
 from .get_item import get_item
 from .gradient import gradient
@@ -15,6 +16,7 @@ from .transpose import transpose
 
 __all__ = [
     "add",
+    "asarray",
     "frobenius_norm",
     "full_like",
     "get_item",
