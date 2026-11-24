@@ -32,8 +32,7 @@ def test_spacial_order_returns_something() -> None:
     assert 1.5 < compute_spacial_order(solver) < 2.5
 
 
-# not a test yet as TTD is broken
-def spacial_order_with_ttd_returns_something() -> None:
+def test_spacial_order_with_ttd_returns_something() -> None:
     """Test spacial order returns something that remotly makes sense."""
 
     def fce(x, y):  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]  # noqa: ANN001, ANN202
