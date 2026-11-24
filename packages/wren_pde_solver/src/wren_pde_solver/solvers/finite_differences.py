@@ -26,8 +26,10 @@ class FiniteDifferences(Solver[HomogeneousVectorAdvectionMatrixDiffusionPDE]):
         # which means that
         #   uₜ = -(∇⋅(𝐚 ⋅ u) + ∇⋅(𝐁 ⋅ ∇u))
 
-        adv = np.asarray(pde.vector_advection)
-        dif = np.asarray(pde.matrix_diffusion)
+        _ = state.round()
+
+        adv = np.asarray(pde.vector_advection, like=state)
+        dif = np.asarray(pde.matrix_diffusion, like=state)
 
         # α = ∇⋅(𝐚 ⋅ u)
         advection_flux = np.tensordot(adv, state, axes=0)

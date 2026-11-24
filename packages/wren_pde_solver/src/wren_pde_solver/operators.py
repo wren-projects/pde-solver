@@ -3,7 +3,7 @@ from typing import SupportsIndex, cast
 
 import numpy as np
 
-from wren_pde_solver.pde_types import DType, NDArray, Vector
+from wren_pde_solver.pde_types import NDArray, Vector
 
 
 class Gradient:
