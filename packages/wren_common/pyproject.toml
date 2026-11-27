@@ -17,3 +17,7 @@ search_parent_directories = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.mutmut]
+source_paths = ["src/wren_common"]
+do_not_mutate = ["**/tests/**"]

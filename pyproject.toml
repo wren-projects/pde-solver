@@ -17,6 +17,7 @@ dev = [
   "pytest~=9.0",
   "pytest-cov~=7.1",
   "pytest-xdist~=3.8",
+  "mutmut"
 ]
 
 [build-system]
@@ -52,3 +53,6 @@ reportMissingImports = "error"
 reportMissingTypeArgument = false
 reportUnnecessaryTypeIgnoreComment = "error"
 reportUnusedParameter = false                # already handled by ruff
+
+[tool.mutmut]
+source_paths = ["src"]
