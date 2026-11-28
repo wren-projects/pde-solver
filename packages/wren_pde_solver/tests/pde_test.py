@@ -3,6 +3,7 @@ import types
 from typing import Any, TypeAliasType, cast
 
 import numpy as np
+from wren_common.tests import arange_tensor
 from wren_pde_solver import pde
 from wren_pde_solver.pde_types import (
     DType,
@@ -66,13 +67,13 @@ def test_all_pdes_can_be_constructed() -> None:
         return np.arange(3, dtype=DType)
 
     def dummy_matrix_function(_: int) -> Matrix:
-        return np.arange(9, dtype=DType).reshape((3, 3))
+        return cast(Matrix, arange_tensor(3, 3))
 
     dummy_value_by_type: dict[type | TypeAliasType, Any] = {
         int: 3,
         Scalar: 3,
         Vector: np.arange(3),
-        Matrix: np.arange(9).reshape((3, 3)),
+        Matrix: arange_tensor(3, 3),
         ScalarFunction: dummy_scalar_function,
         VectorFunction: dummy_vector_function,
         MatrixFunction: dummy_matrix_function,
